@@ -4,6 +4,8 @@
 
 - replaced the scripted repair proof with a real bidirectional U.S. ⇄ Russian–PC browser relay;
 - added clean Double Shift, phrase/word scope, and four capitalization modes to the live demo;
+- turned the hero demo into a compact editor with synchronized case, scope, cue, example, Double Shift, and clean Option controls;
+- added a source-native 1080×1350 product poster for Telegram and social publishing;
 - rewrote the product story around one concrete `ghbdtn → привет` moment, local privacy, and the agent contract;
 - redesigned the developer mark, favicon, social card, and author signature as one compact identity;
 - removed comparison-led positioning from the public product surface.

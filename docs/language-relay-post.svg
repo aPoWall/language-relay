@@ -1,0 +1,66 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350" role="img" aria-labelledby="title description">
+  <title id="title">language relay – typed in the wrong layout, keep the thought</title>
+  <desc id="description">a portrait product poster showing ghbdtn converted to привет locally on macos</desc>
+  <rect width="1080" height="1350" fill="#ffffff"/>
+  <rect x="30" y="30" width="1020" height="1290" fill="none" stroke="#080808" stroke-width="2"/>
+
+  <g font-family="JetBrains Mono, SFMono-Regular, Menlo, monospace" fill="#080808">
+    <g transform="translate(62 62)">
+      <rect width="84" height="42" fill="#ffffff" stroke="#080808" stroke-width="2"/>
+      <rect width="42" height="42" fill="#080808"/>
+      <text x="21" y="28" fill="#ffffff" text-anchor="middle" font-size="17" font-weight="800">a</text>
+      <text x="63" y="28" text-anchor="middle" font-size="17" font-weight="800">я</text>
+      <rect x="39" y="34" width="6" height="5" fill="#caff18"/>
+    </g>
+    <text x="168" y="91" font-size="28" font-weight="760" letter-spacing="-1.2">language relay</text>
+    <text x="1018" y="89" text-anchor="end" font-size="16" font-weight="700" fill="#696969">apowall instrument 02</text>
+    <line x1="62" y1="130" x2="1018" y2="130" stroke="#d9d9d4" stroke-width="2"/>
+
+    <text x="62" y="202" font-size="18" font-weight="750" fill="#696969">macos utility · local by design · open source</text>
+    <text x="62" y="312" font-size="82" font-weight="790" letter-spacing="-6">typed in the</text>
+    <text x="62" y="400" font-size="82" font-weight="790" letter-spacing="-6">wrong layout?</text>
+    <text x="62" y="488" font-size="82" font-weight="790" letter-spacing="-6">keep the thought.</text>
+
+    <g transform="translate(62 548)">
+      <rect width="956" height="538" fill="#080808"/>
+      <line x1="0" y1="66" x2="956" y2="66" stroke="#44443f" stroke-width="2"/>
+      <text x="24" y="42" fill="#9d9d97" font-size="15" font-weight="700">live relay · verified write</text>
+      <text x="910" y="42" fill="#9d9d97" text-anchor="end" font-size="15" font-weight="700">u.s. → russian–pc</text>
+      <rect x="925" y="24" width="12" height="12" fill="#caff18"/>
+
+      <text x="26" y="116" fill="#caff18" font-size="18" font-weight="800">alex@mac</text>
+      <text x="144" y="116" fill="#9d9d97" font-size="18">~ % relay</text>
+      <rect x="24" y="146" width="908" height="106" fill="#111111" stroke="#55554f" stroke-width="2"/>
+      <text x="48" y="215" fill="#ffffff" font-size="46" font-weight="680" letter-spacing="-2.5">ghbdtn? vbh</text>
+
+      <text x="478" y="310" fill="#caff18" text-anchor="middle" font-size="18" font-weight="800">relay / 140 ms</text>
+      <line x1="338" y1="326" x2="618" y2="326" stroke="#55554f" stroke-width="2"/>
+      <path d="M454 347h48m-12-12 12 12-12 12" fill="none" stroke="#caff18" stroke-width="4"/>
+
+      <rect x="24" y="382" width="908" height="82" fill="#ffffff"/>
+      <text x="48" y="435" fill="#080808" font-size="38" font-weight="760" letter-spacing="-2">привет, мир</text>
+      <rect x="727" y="399" width="86" height="47" fill="#ffffff" stroke="#080808" stroke-width="2"/>
+      <rect x="821" y="399" width="87" height="47" fill="#ffffff" stroke="#080808" stroke-width="2"/>
+      <text x="770" y="429" text-anchor="middle" font-size="14" font-weight="750">shift²</text>
+      <text x="864" y="429" text-anchor="middle" font-size="14" font-weight="750">option</text>
+
+      <text x="24" y="507" fill="#9d9d97" font-size="15" font-weight="700">verified · phrase · preserve</text>
+      <text x="932" y="507" fill="#caff18" text-anchor="end" font-size="15" font-weight="800">local ■</text>
+    </g>
+
+    <g transform="translate(62 1115)">
+      <rect width="956" height="86" fill="#f1f1ed" stroke="#d9d9d4" stroke-width="2"/>
+      <line x1="318" y1="0" x2="318" y2="86" stroke="#d9d9d4" stroke-width="2"/>
+      <line x1="636" y1="0" x2="636" y2="86" stroke="#d9d9d4" stroke-width="2"/>
+      <text x="159" y="38" text-anchor="middle" font-size="17" font-weight="780">0 cloud</text>
+      <text x="159" y="63" text-anchor="middle" font-size="12" fill="#696969">text stays on mac</text>
+      <text x="477" y="38" text-anchor="middle" font-size="17" font-weight="780">8 cues</text>
+      <text x="477" y="63" text-anchor="middle" font-size="12" fill="#696969">75–200 ms</text>
+      <text x="795" y="38" text-anchor="middle" font-size="17" font-weight="780">json cli</text>
+      <text x="795" y="63" text-anchor="middle" font-size="12" fill="#696969">built for agents</text>
+    </g>
+
+    <text x="62" y="1262" font-size="17" font-weight="800">apowall.github.io/language-relay</text>
+    <text x="1018" y="1262" text-anchor="end" font-size="14" font-weight="700" fill="#696969">alexander povaliaev · lisbon · 2026</text>
+  </g>
+</svg>

@@ -49,6 +49,8 @@ layout_capabilities_json="$("$layout_installed" --capabilities-json)"
 /bin/test -s "$layout_root/docs/favicon-32.png"
 /bin/test -s "$layout_root/docs/apple-touch-icon.png"
 /bin/test -s "$layout_root/docs/language-relay-social.png"
+/bin/test -s "$layout_root/docs/language-relay-post.png"
+/bin/test -s "$layout_root/docs/language-relay-post.svg"
 /bin/test -s "$layout_root/docs/language-relay-panel.png"
 /bin/test -f "$HOME/.config/language-relay/hammerspoon-bridge"
 [[ "$(find "$HOME/Applications/Language Relay.app/Contents/Resources/Sounds" -type f -name '*.aiff' | wc -l | tr -d ' ')" == "8" ]]

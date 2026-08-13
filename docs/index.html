@@ -67,17 +67,28 @@
     .copy { border:0; border-left:1px solid #555; background:transparent; color:var(--paper); font-size:13px; font-weight:800; }
     .copy:hover,.copy:focus-visible { background:var(--signal); color:var(--ink); outline:none; }
 
-    .demo { border:1px solid var(--ink); background:var(--ink); color:var(--paper); min-height:510px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    .demo { border:1px solid var(--ink); background:var(--ink); color:var(--paper); min-height:590px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
     .demo::after { content:""; position:absolute; width:9px; height:9px; right:17px; top:17px; background:var(--signal); }
     .demo-head { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:0 38px 0 16px; border-bottom:1px solid #3a3a36; color:#aaa; font-size:11px; }
     .demo-body { padding:20px; display:flex; flex:1; flex-direction:column; gap:14px; }
     .terminal-prompt { color:#a5a5a0; font-size:12px; }
     .terminal-prompt strong { color:var(--signal); font-weight:800; }
-    .demo-input { width:100%; min-height:150px; resize:none; border:1px solid #55554f; border-radius:0; background:#111; color:var(--paper); padding:18px; font-size:clamp(25px,3vw,38px); line-height:1.25; letter-spacing:-.045em; caret-color:var(--signal); outline:none; }
+    .demo-input { width:100%; min-height:142px; resize:none; border:1px solid #55554f; border-radius:0; background:#111; color:var(--paper); padding:18px; font-size:clamp(25px,3vw,38px); line-height:1.25; letter-spacing:-.045em; caret-color:var(--signal); outline:none; }
     .demo-input:focus { border-color:var(--signal); box-shadow:inset 4px 0 0 var(--signal); }
     .demo-controls { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#55554f; border:1px solid #55554f; }
     .demo-controls button { min-height:38px; border:0; background:#191919; color:#b6b6b0; font-size:11px; font-weight:750; }
     .demo-controls button[aria-pressed="true"] { background:var(--paper); color:var(--ink); }
+    .demo-lab { display:grid; gap:7px; }
+    .demo-lab-row { display:grid; grid-template-columns:58px 1fr; align-items:center; gap:8px; }
+    .demo-lab-label { color:#85857f; font-size:9px; letter-spacing:.04em; }
+    .demo-case,.demo-cues,.demo-examples { display:grid; gap:1px; border:1px solid #55554f; background:#55554f; }
+    .demo-case { grid-template-columns:repeat(4,1fr); }
+    .demo-cues { grid-template-columns:repeat(4,1fr); }
+    .demo-examples { grid-template-columns:repeat(3,1fr); }
+    .demo-case button,.demo-cues button,.demo-examples button { min-width:0; min-height:30px; border:0; background:#191919; color:#a7a7a1; font-size:9px; font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .demo-case button:hover,.demo-case button:focus-visible,.demo-cues button:hover,.demo-cues button:focus-visible,.demo-examples button:hover,.demo-examples button:focus-visible { color:var(--paper); outline:1px solid var(--paper); outline-offset:-1px; }
+    .demo-case button[aria-pressed="true"],.demo-cues button[aria-pressed="true"] { background:var(--paper); color:var(--ink); }
+    .demo-cues button[aria-pressed="true"]::before { content:"■ "; color:var(--signal); }
     .demo-action { display:grid; grid-template-columns:1fr auto; border:1px solid var(--paper); min-height:50px; }
     .relay-button { border:0; background:var(--paper); color:var(--ink); font-size:13px; font-weight:800; text-align:left; padding:0 16px; }
     .relay-button:hover,.relay-button:focus-visible { background:var(--signal); outline:none; }
@@ -87,6 +98,7 @@
     .receipt { min-height:36px; border-top:1px solid #3a3a36; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:auto; padding-top:13px; color:#9b9b95; font-size:11px; }
     .receipt strong { color:var(--signal); font-weight:800; }
     .demo-note { margin:0; color:#8f8f89; font-size:10px; line-height:1.5; }
+    .demo-note kbd { color:#d0d0ca; font:inherit; }
 
     .trust { display:grid; grid-template-columns:repeat(5,1fr); border:1px solid var(--line); background:var(--line); gap:1px; margin-bottom:88px; }
     .trust span { min-height:66px; display:grid; place-items:center; background:var(--paper); font-size:12px; font-weight:750; text-align:center; padding:10px; }
@@ -139,6 +151,7 @@
     .sound-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; border:1px solid var(--line); background:var(--line); }
     .sound-pad { min-height:114px; border:0; background:var(--paper); padding:16px; text-align:left; display:grid; grid-template-rows:auto 1fr auto; transition:background 140ms var(--ease),color 140ms var(--ease); }
     .sound-pad:hover,.sound-pad:focus-visible,.sound-pad.is-playing { background:var(--ink); color:var(--paper); outline:none; }
+    .sound-pad[aria-pressed="true"] { box-shadow:inset 0 -5px 0 var(--signal); }
     .sound-pad small { color:var(--muted); font-size:10px; }
     .sound-pad:hover small,.sound-pad.is-playing small { color:#aaa; }
     .wave { width:100%; height:24px; display:flex; align-items:center; gap:3px; }
@@ -164,7 +177,7 @@
     @media (max-width:940px) {
       .hero,.agent-grid,.control-grid,.privacy-grid { grid-template-columns:1fr; gap:46px; }
       .hero { padding-top:58px; }
-      .demo { max-width:660px; min-height:490px; }
+      .demo { max-width:660px; min-height:590px; }
       .steps { grid-template-columns:1fr; }
       .step { min-height:180px; }
       .sound-grid { grid-template-columns:repeat(2,1fr); }
@@ -183,6 +196,9 @@
       .demo { min-width:0; width:100%; min-height:520px; }
       .demo-body { padding:15px; }
       .demo-input { min-height:170px; font-size:27px; }
+      .demo-lab-row { grid-template-columns:1fr; gap:4px; }
+      .demo-lab-label { display:none; }
+      .demo-examples { grid-template-columns:1fr; }
       .demo-head span:last-child { display:none; }
       .install-rail code { font-size:10px; padding-left:12px; }
       .trust { grid-template-columns:1fr 1fr; margin-bottom:66px; }
@@ -200,7 +216,7 @@
     @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   </style>
 </head>
-<body>
+<body id="top">
   <div class="shell">
     <nav class="nav">
       <a class="wordmark" href="#top" aria-label="language relay home"><span class="relay-mark" aria-hidden="true"><i>a</i><em>я</em><b></b></span><span>language relay</span></a>
@@ -211,7 +227,7 @@
       </div>
     </nav>
 
-    <main id="top">
+    <main>
       <div class="hero">
         <div>
           <div class="eyebrow i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · open source">macos utility · local by design · open source</div>
@@ -230,16 +246,47 @@
           <div class="demo-body">
             <div class="terminal-prompt"><strong>alex@mac</strong> ~ % relay</div>
             <textarea class="demo-input" id="demo-input" rows="4" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="type text in the wrong keyboard layout">ghbdtn? vbh</textarea>
-            <div class="demo-controls" aria-label="demo correction scope">
-              <button data-scope="phrase" aria-pressed="true">phrase · full tail</button>
-              <button data-scope="word" aria-pressed="false">word · last token</button>
+            <div class="demo-lab" aria-label="live relay settings">
+              <div class="demo-lab-row">
+                <span class="demo-lab-label">scope</span>
+                <div class="demo-controls" aria-label="demo correction scope">
+                  <button data-scope="phrase" aria-pressed="true">phrase · full tail</button>
+                  <button data-scope="word" aria-pressed="false">word · last token</button>
+                </div>
+              </div>
+              <div class="demo-lab-row">
+                <span class="demo-lab-label">case</span>
+                <div class="demo-case" aria-label="demo capitalization">
+                  <button data-case="preserve" aria-pressed="true">aA · keep</button>
+                  <button data-case="sentence" aria-pressed="false">Aa · sentence</button>
+                  <button data-case="uppercase" aria-pressed="false">AA · upper</button>
+                  <button data-case="lowercase" aria-pressed="false">aa · lower</button>
+                </div>
+              </div>
+              <div class="demo-lab-row">
+                <span class="demo-lab-label">cue</span>
+                <div class="demo-cues" aria-label="demo sound cue">
+                  <button data-demo-sound="pulse" aria-pressed="false">pulse</button>
+                  <button data-demo-sound="relay" aria-pressed="true">relay</button>
+                  <button data-demo-sound="scan" aria-pressed="false">scan</button>
+                  <button data-demo-sound="silent" aria-pressed="false">silent</button>
+                </div>
+              </div>
+              <div class="demo-lab-row">
+                <span class="demo-lab-label">examples</span>
+                <div class="demo-examples" aria-label="demo text examples">
+                  <button data-example="ghbdtn? vbh">ghbdtn? vbh</button>
+                  <button data-example="руддщ цщкдв">руддщ цщкдв</button>
+                  <button data-example="agent: rfr ltkf?">agent: rfr ltkf?</button>
+                </div>
+              </div>
             </div>
             <div class="demo-action">
               <button class="relay-button i18n" id="relay-button" data-en="relay text" data-ru="исправить текст">relay text</button>
-              <div class="key-pair" aria-hidden="true"><span class="key">shift</span><span class="key">shift</span></div>
+              <div class="key-pair" aria-hidden="true"><span class="key">shift²</span><span class="key">option</span></div>
             </div>
             <div class="receipt" aria-live="polite"><span id="demo-receipt">ready · type or press relay</span><strong>local</strong></div>
-            <p class="demo-note i18n" data-en="try any u.s. / russian–pc text. a clean double shift inside the field runs the same demo conversion." data-ru="введи текст в u.s. / russian–pc. чистый двойной shift внутри поля запускает ту же конвертацию.">try any u.s. / russian–pc text. a clean double shift inside the field runs the same demo conversion.</p>
+            <p class="demo-note i18n" data-en="type, choose scope + case + cue, then press relay. clean double shift or option inside the field runs the same conversion." data-ru="набери текст, выбери scope + case + cue и нажми relay. чистый двойной shift или option внутри поля запускает ту же конвертацию.">type, choose scope + case + cue, then press relay. clean double shift or option inside the field runs the same conversion.</p>
           </div>
         </div>
       </div>
@@ -347,14 +394,14 @@
         <div class="section-label">05 · micro feedback</div>
         <h2 class="i18n" data-en="eight short signals. one clear receipt." data-ru="восемь коротких сигналов. один ясный результат.">eight short signals. one clear receipt.</h2>
         <div class="sound-grid" id="sound-grid">
-          <button class="sound-pad" data-sound="pulse"><small>01 · 110ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>pulse</strong></button>
-          <button class="sound-pad" data-sound="relay"><small>02 · 140ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>relay</strong></button>
-          <button class="sound-pad" data-sound="scan"><small>03 · 170ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>scan</strong></button>
-          <button class="sound-pad" data-sound="flux"><small>04 · 200ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>flux</strong></button>
-          <button class="sound-pad" data-sound="prism"><small>05 · 120ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>prism</strong></button>
-          <button class="sound-pad" data-sound="tick"><small>06 · 075ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>tick</strong></button>
-          <button class="sound-pad" data-sound="fold"><small>07 · 145ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>fold</strong></button>
-          <button class="sound-pad" data-sound="nova"><small>08 · 180ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>nova</strong></button>
+          <button class="sound-pad" data-sound="pulse" aria-pressed="false"><small>01 · 110ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>pulse</strong></button>
+          <button class="sound-pad" data-sound="relay" aria-pressed="true"><small>02 · 140ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>relay</strong></button>
+          <button class="sound-pad" data-sound="scan" aria-pressed="false"><small>03 · 170ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>scan</strong></button>
+          <button class="sound-pad" data-sound="flux" aria-pressed="false"><small>04 · 200ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>flux</strong></button>
+          <button class="sound-pad" data-sound="prism" aria-pressed="false"><small>05 · 120ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>prism</strong></button>
+          <button class="sound-pad" data-sound="tick" aria-pressed="false"><small>06 · 075ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>tick</strong></button>
+          <button class="sound-pad" data-sound="fold" aria-pressed="false"><small>07 · 145ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>fold</strong></button>
+          <button class="sound-pad" data-sound="nova" aria-pressed="false"><small>08 · 180ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>nova</strong></button>
         </div>
       </section>
 
@@ -406,6 +453,10 @@
     const demoDirection = document.getElementById('demo-direction');
     let demoScope = 'phrase';
     let demoCase = 'preserve';
+    let demoSound = 'relay';
+    const player = new Audio();
+    player.preload = 'none';
+    player.volume = .55;
 
     const detectDirection = value => {
       const latin = (value.match(/[a-z]/gi) || []).length;
@@ -448,6 +499,24 @@
       syncPressed('[data-case]', demoCase, 'case');
       demoInput.focus({preventScroll:true});
     }));
+    const playCue = async (name = demoSound) => {
+      if (name === 'silent') return;
+      player.src = `sounds/${name}.mp3`;
+      try { await player.play(); } catch (_) {}
+    };
+    document.querySelectorAll('[data-demo-sound]').forEach(button => button.addEventListener('click', async () => {
+      demoSound = button.dataset.demoSound;
+      syncPressed('[data-demo-sound]', demoSound, 'demoSound');
+      document.querySelectorAll('.sound-pad').forEach(item => item.setAttribute('aria-pressed', String(item.dataset.sound === demoSound)));
+      await playCue();
+      demoInput.focus({preventScroll:true});
+    }));
+    document.querySelectorAll('[data-example]').forEach(button => button.addEventListener('click', () => {
+      demoInput.value = button.dataset.example;
+      demoReceipt.textContent = 'ready · example loaded · press relay';
+      demoInput.focus({preventScroll:true});
+      demoInput.setSelectionRange(demoInput.value.length,demoInput.value.length);
+    }));
     const relayDemo = () => {
       const value = demoInput.value || 'ghbdtn? vbh';
       const [start, end] = candidateRange(value, demoScope);
@@ -463,6 +532,7 @@
       setTimeout(() => { delete root.dataset.relaying; demo.classList.remove('is-keying'); }, 230);
       demoInput.focus({preventScroll:true});
       demoInput.setSelectionRange(demoInput.value.length,demoInput.value.length);
+      void playCue();
     };
     document.getElementById('relay-button').addEventListener('click', relayDemo);
     let shiftClean = false;
@@ -480,15 +550,23 @@
       } else if (shiftClean) lastShiftTap = now;
       shiftClean = false;
     });
+    let optionClean = false;
+    demoInput.addEventListener('keydown', event => {
+      if (event.key === 'Alt' && !event.repeat) optionClean = true;
+      else if (event.altKey) optionClean = false;
+    });
+    demoInput.addEventListener('keyup', event => {
+      if (event.key === 'Alt' && optionClean) relayDemo();
+      optionClean = false;
+    });
 
-    const player = new Audio();
-    player.preload = 'none';
-    player.volume = .55;
     document.querySelectorAll('.sound-pad').forEach(pad => pad.addEventListener('click', async () => {
       document.querySelectorAll('.sound-pad').forEach(item => item.classList.remove('is-playing'));
+      document.querySelectorAll('.sound-pad').forEach(item => item.setAttribute('aria-pressed', String(item === pad)));
+      demoSound = pad.dataset.sound;
+      syncPressed('[data-demo-sound]', demoSound, 'demoSound');
       pad.classList.add('is-playing');
-      player.src = `sounds/${pad.dataset.sound}.mp3`;
-      try { await player.play(); } catch (_) { pad.classList.remove('is-playing'); }
+      await playCue(pad.dataset.sound);
       setTimeout(() => pad.classList.remove('is-playing'), 420);
     }));
   </script>
