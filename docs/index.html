@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Type Relay – local keyboard layout repair for macOS</title>
+  <meta name="description" content="Type Relay repairs text typed in the wrong U.S. or Russian – PC keyboard layout. A local native macOS instrument by Alex Povaliaev.">
+  <meta name="theme-color" content="#f4f2ec">
+  <style>
+    :root { --paper:#f4f2ec; --ink:#222019; --muted:#6e6a62; --hair:#d9d5cb; --fill:#eae7df; }
+    * { box-sizing:border-box; }
+    html { background:var(--paper); color:var(--ink); font-family:"SFMono-Regular",ui-monospace,Menlo,monospace; }
+    body { margin:0; }
+    a { color:inherit; }
+    .shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; }
+    nav { height:64px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--hair); font-size:12px; letter-spacing:.04em; }
+    .brand { font-weight:700; text-decoration:none; }
+    .family { color:var(--muted); }
+    .hero { min-height:650px; display:grid; grid-template-columns:1.1fr .9fr; gap:72px; align-items:center; padding:72px 0; }
+    .kicker,.section-no { color:var(--muted); text-transform:uppercase; letter-spacing:.16em; font-size:11px; font-weight:700; }
+    h1 { font-size:clamp(58px,8vw,104px); line-height:.88; letter-spacing:-.08em; margin:24px 0 28px; }
+    .lead { max-width:650px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:22px; line-height:1.42; margin:0 0 36px; }
+    .actions { display:flex; flex-wrap:wrap; gap:10px; }
+    .button { display:inline-flex; height:46px; align-items:center; padding:0 18px; border:1px solid var(--ink); text-decoration:none; font-size:12px; font-weight:700; }
+    .button.primary { background:var(--ink); color:var(--paper); }
+    .instrument { aspect-ratio:1; border:12px solid var(--ink); padding:54px; display:grid; grid-template-rows:auto 1fr auto; background:var(--paper); }
+    .instrument small { text-align:center; letter-spacing:.18em; font-weight:700; }
+    .relay { display:grid; grid-template-columns:1fr 74px 1fr; align-items:center; }
+    .cell { height:180px; display:grid; place-items:center; border:8px solid var(--ink); font-size:82px; font-weight:800; }
+    .cell.active { background:var(--ink); color:var(--paper); }
+    .track { text-align:center; font-size:46px; font-weight:800; line-height:.75; }
+    .instrument strong { text-align:center; letter-spacing:.2em; font-size:18px; }
+    section { border-top:1px solid var(--hair); padding:78px 0; }
+    h2 { font-size:42px; letter-spacing:-.045em; margin:14px 0 38px; }
+    .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--hair); border:1px solid var(--hair); }
+    .card { min-height:190px; padding:24px; background:var(--paper); }
+    .card strong { display:block; font-size:28px; margin-bottom:48px; }
+    .card span { display:block; font-size:12px; color:var(--muted); line-height:1.5; }
+    .case-grid .card:first-child { background:var(--ink); color:var(--paper); }
+    .case-grid .card:first-child span { color:var(--paper); opacity:.65; }
+    .split { display:grid; grid-template-columns:1fr 1fr; gap:72px; }
+    .copy { font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:18px; line-height:1.55; }
+    pre { margin:24px 0 0; padding:22px; overflow:auto; background:var(--ink); color:var(--paper); font-size:12px; line-height:1.7; }
+    audio { width:100%; margin-top:24px; }
+    footer { border-top:1px solid var(--hair); padding:28px 0 54px; display:flex; justify-content:space-between; color:var(--muted); font-size:11px; }
+    @media (max-width:800px) { .hero,.split { grid-template-columns:1fr; } .hero { gap:38px; } .grid { grid-template-columns:1fr 1fr; } .instrument { max-width:480px; } }
+    @media (max-width:480px) { .grid { grid-template-columns:1fr; } .instrument { padding:28px; } .cell { height:130px; font-size:58px; } .relay { grid-template-columns:1fr 54px 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav>
+      <a class="brand" href="#">type relay</a>
+      <span class="family">apowall instruments / 02</span>
+    </nav>
+
+    <main>
+      <div class="hero">
+        <div>
+          <div class="kicker">native macOS menu-bar instrument</div>
+          <h1>wrong layout.<br>fixed.</h1>
+          <p class="lead">Repair the last phrase or word typed in the wrong U.S. / Russian – PC layout. One clean gesture, verified replacement, entirely local.</p>
+          <div class="actions">
+            <a class="button primary" href="https://github.com/aPoWall/type-relay/releases/latest">download</a>
+            <a class="button" href="https://github.com/aPoWall/type-relay">source on github</a>
+          </div>
+        </div>
+        <div class="instrument" aria-label="Type Relay icon">
+          <small>INSTRUMENT / 02</small>
+          <div class="relay"><div class="cell active">A</div><div class="track">→<br>◆<br>←</div><div class="cell">Я</div></div>
+          <strong>TYPE RELAY</strong>
+        </div>
+      </div>
+
+      <section>
+        <div class="section-no">01 / correction</div>
+        <h2>Two scopes. Four cases.</h2>
+        <div class="grid case-grid">
+          <div class="card"><strong>aA</strong><span>preserve<br>hELLO → hELLO</span></div>
+          <div class="card"><strong>Aa</strong><span>sentence<br>hELLO → Hello</span></div>
+          <div class="card"><strong>AA</strong><span>uppercase<br>hELLO → HELLO</span></div>
+          <div class="card"><strong>aa</strong><span>lowercase<br>hELLO → hello</span></div>
+        </div>
+      </section>
+
+      <section class="split">
+        <div>
+          <div class="section-no">02 / gestures</div>
+          <h2>Clean by design.</h2>
+          <p class="copy"><strong>Double Shift</strong> or a clean standalone <strong>Option</strong> tap repairs text. Option with Command, a letter, or any other modifier stays untouched.</p>
+        </div>
+        <div>
+          <div class="section-no">03 / local</div>
+          <h2>No text log.</h2>
+          <p class="copy">The transient buffer lives in memory, clears on context changes and Secure Input, and never reaches a server. Writable fields are read back before Type Relay reports success.</p>
+        </div>
+      </section>
+
+      <section class="split">
+        <div>
+          <div class="section-no">04 / feedback</div>
+          <h2>Micro-SFX.</h2>
+          <p class="copy">Pulse, Relay, Scan, and Flux – four 110–200 ms generated glitch cues with four volume presets.</p>
+          <audio controls preload="none" src="type-relay-sfx-preview.mp3">Audio preview</audio>
+        </div>
+        <div>
+          <div class="section-no">05 / install</div>
+          <h2>Swift. AppKit. MIT.</h2>
+          <pre><code>git clone https://github.com/aPoWall/type-relay.git
+cd type-relay
+make install</code></pre>
+        </div>
+      </section>
+    </main>
+
+    <footer><span>type relay 2.2</span><span>alex povaliaev · lisbon · 2026</span></footer>
+  </div>
+</body>
+</html>

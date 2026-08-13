@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-layout_root="~/Documents/_code/_tools/layout-pilot"
+layout_root="$(cd "$(dirname "$0")/.." && pwd)"
 layout_harness="$layout_root/.build/LiveTextFieldHarness.app/Contents/MacOS/LiveTextFieldHarness"
 layout_emitter="$layout_root/.build/ShiftEmitter"
 layout_hs="/opt/homebrew/bin/hs"
@@ -112,4 +112,4 @@ if [[ "$($layout_hs -c 'return hs.keycodes.currentLayout()')" != "Russian – PC
   exit 1
 fi
 
-print "PASS: Layout Pilot live integration suite"
+print "PASS: Type Relay live integration suite"

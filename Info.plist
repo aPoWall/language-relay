@@ -11,17 +11,17 @@
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Layout Pilot</string>
+  <string>Type Relay</string>
   <key>CFBundleDisplayName</key>
-  <string>Layout Pilot</string>
+  <string>Type Relay</string>
   <key>CFBundleIconFile</key>
   <string>LayoutPilot</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>2.1.0</string>
+  <string>2.2.0</string>
   <key>CFBundleVersion</key>
-  <string>3</string>
+  <string>4</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key>
@@ -29,7 +29,7 @@
   <key>LSUIElement</key>
   <true/>
   <key>NSHumanReadableCopyright</key>
-  <string>Copyright 2026 Alex Povaliaev. Local utility.</string>
+  <string>Copyright 2026 Alex Povaliaev · aPoWall Instruments.</string>
   <key>NSPrincipalClass</key>
   <string>NSApplication</string>
 </dict>

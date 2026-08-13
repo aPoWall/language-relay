@@ -40,7 +40,7 @@ private final class HarnessDelegate: NSObject, NSApplicationDelegate {
             backing: .buffered,
             defer: false
         )
-        window.title = "Layout Pilot Live Test"
+        window.title = "Type Relay Live Test"
         window.contentView = scroll
         window.center()
         window.makeKeyAndOrderFront(nil)

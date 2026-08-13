@@ -1,19 +1,21 @@
 SHELL := /bin/zsh
 
-APP_NAME := Layout Pilot
+APP_NAME := Type Relay
 BIN_NAME := LayoutPilot
 BUILD_DIR := .build
 APP_DIR := $(BUILD_DIR)/$(APP_NAME).app
 BUILD_STAMP := $(BUILD_DIR)/.built
-SHAPERKIT := ../shaper-shared/ShaperKit.swift
+SHAPERKIT := native/ShaperKit.swift
 ICON_SOURCE := native/IconRenderer.swift
 ICON_RENDERER := $(BUILD_DIR)/IconRenderer
 ICONSET := $(BUILD_DIR)/LayoutPilot.iconset
 ICON_FILE := assets/LayoutPilot.icns
+SOUND_FILES := assets/Sounds/pulse.aiff assets/Sounds/relay.aiff assets/Sounds/scan.aiff assets/Sounds/flux.aiff
 INSTALL_DIR := $(HOME)/Applications/$(APP_NAME).app
 AGENT_LABEL := dev.alex.layout-pilot
 AGENT_SOURCE := LaunchAgent.plist
 AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
+BRIDGE_DIR := $(HOME)/.config/type-relay
 USER_ID := $(shell /usr/bin/id -u)
 
 .PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test install clean
@@ -31,11 +33,13 @@ $(ICON_FILE): $(ICON_SOURCE)
 	"$(ICON_RENDERER)" "$(ICONSET)"
 	iconutil -c icns "$(ICONSET)" -o "$(ICON_FILE)"
 
-$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) Info.plist $(ICON_FILE)
+$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) Info.plist $(ICON_FILE) $(SOUND_FILES)
+	@test "$(words $(SOUND_FILES))" = "4" || (echo "expected exactly four feedback sounds" >&2; exit 1)
 	rm -rf "$(APP_DIR)"
-	mkdir -p "$(APP_DIR)/Contents/MacOS" "$(APP_DIR)/Contents/Resources"
+	mkdir -p "$(APP_DIR)/Contents/MacOS" "$(APP_DIR)/Contents/Resources/Sounds"
 	cp Info.plist "$(APP_DIR)/Contents/Info.plist"
 	cp "$(ICON_FILE)" "$(APP_DIR)/Contents/Resources/LayoutPilot.icns"
+	cp $(SOUND_FILES) "$(APP_DIR)/Contents/Resources/Sounds/"
 	swiftc -parse-as-library "$(SHAPERKIT)" native/LayoutPilot.swift \
 		-framework AppKit \
 		-framework ApplicationServices \
@@ -77,7 +81,10 @@ install: test
 	ditto "$(APP_DIR)" "$(INSTALL_DIR)"
 	codesign --verify --deep --strict "$(INSTALL_DIR)"
 	mkdir -p "$(HOME)/Library/LaunchAgents" "$(HOME)/Library/Logs/layout-pilot"
-	cp "$(AGENT_SOURCE)" "$(AGENT_DEST)"
+	sed 's|__HOME__|$(HOME)|g' "$(AGENT_SOURCE)" > "$(AGENT_DEST)"
+	mkdir -p "$(BRIDGE_DIR)"
+	cp hammerspoon-layout-pilot.lua "$(BRIDGE_DIR)/hammerspoon.lua"
+	touch "$(BRIDGE_DIR)/hammerspoon-bridge"
 	: > "$(HOME)/Library/Logs/layout-pilot/layout-pilot.out.log"
 	: > "$(HOME)/Library/Logs/layout-pilot/layout-pilot.err.log"
 	/bin/launchctl bootstrap gui/$(USER_ID) "$(AGENT_DEST)"

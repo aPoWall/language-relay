@@ -64,52 +64,51 @@ private struct LayoutPilotIconRenderer {
 
         ink.setStroke()
         let outer = NSBezierPath(rect: NSRect(x: 152, y: 152, width: 720, height: 720))
-        outer.lineWidth = 18
+        outer.lineWidth = 16
         outer.stroke()
 
-        let left = NSRect(x: 218, y: 310, width: 224, height: 404)
-        let right = NSRect(x: 582, y: 310, width: 224, height: 404)
+        let left = NSRect(x: 210, y: 346, width: 218, height: 338)
+        let right = NSRect(x: 596, y: 318, width: 218, height: 338)
         ink.setFill()
         NSBezierPath(rect: left).fill()
         let rightPath = NSBezierPath(rect: right)
-        rightPath.lineWidth = 18
+        rightPath.lineWidth = 16
         rightPath.stroke()
 
-        draw("A", in: left, color: paper, size: 186)
-        draw("РУ", in: right, color: ink, size: 104)
+        draw("A", in: left, color: paper, size: 158)
+        draw("Я", in: right, color: ink, size: 148)
 
         let upper = NSBezierPath()
-        upper.move(to: NSPoint(x: 460, y: 585))
-        upper.line(to: NSPoint(x: 564, y: 585))
-        upper.line(to: NSPoint(x: 530, y: 619))
-        upper.move(to: NSPoint(x: 564, y: 585))
-        upper.line(to: NSPoint(x: 530, y: 551))
-        upper.lineWidth = 18
+        upper.move(to: NSPoint(x: 452, y: 566))
+        upper.line(to: NSPoint(x: 572, y: 566))
+        upper.line(to: NSPoint(x: 542, y: 596))
+        upper.move(to: NSPoint(x: 572, y: 566))
+        upper.line(to: NSPoint(x: 542, y: 536))
+        upper.lineWidth = 15
         upper.lineJoinStyle = .miter
         upper.stroke()
 
         let lower = NSBezierPath()
-        lower.move(to: NSPoint(x: 564, y: 439))
-        lower.line(to: NSPoint(x: 460, y: 439))
-        lower.line(to: NSPoint(x: 494, y: 473))
-        lower.move(to: NSPoint(x: 460, y: 439))
-        lower.line(to: NSPoint(x: 494, y: 405))
-        lower.lineWidth = 18
+        lower.move(to: NSPoint(x: 572, y: 446))
+        lower.line(to: NSPoint(x: 452, y: 446))
+        lower.line(to: NSPoint(x: 482, y: 476))
+        lower.move(to: NSPoint(x: 452, y: 446))
+        lower.line(to: NSPoint(x: 482, y: 416))
+        lower.lineWidth = 15
         lower.lineJoinStyle = .miter
         lower.stroke()
 
-        let caption = "LAYOUT PILOT"
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        NSAttributedString(
-            string: caption,
-            attributes: [
-                .font: mono(size: 42, weight: .semibold),
-                .foregroundColor: ink,
-                .paragraphStyle: paragraph,
-                .kern: 6,
-            ]
-        ).draw(in: NSRect(x: 190, y: 205, width: 644, height: 64))
+        let node = NSBezierPath()
+        node.move(to: NSPoint(x: 512, y: 526))
+        node.line(to: NSPoint(x: 534, y: 506))
+        node.line(to: NSPoint(x: 512, y: 486))
+        node.line(to: NSPoint(x: 490, y: 506))
+        node.close()
+        node.fill()
+
+        drawLabel("INSTRUMENT / 02", in: NSRect(x: 190, y: 744, width: 644, height: 36), size: 25, kern: 4)
+
+        drawLabel("TYPE RELAY", in: NSRect(x: 190, y: 218, width: 644, height: 64), size: 42, kern: 7)
 
         context.flushGraphics()
         NSGraphicsContext.restoreGraphicsState()
@@ -138,6 +137,20 @@ private struct LayoutPilotIconRenderer {
             width: rect.width,
             height: measured.height + 16
         ))
+    }
+
+    private static func drawLabel(_ text: String, in rect: NSRect, size: CGFloat, kern: CGFloat) {
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        NSAttributedString(
+            string: text,
+            attributes: [
+                .font: mono(size: size, weight: .semibold),
+                .foregroundColor: NSColor(srgbRed: 0.133, green: 0.125, blue: 0.098, alpha: 1),
+                .paragraphStyle: paragraph,
+                .kern: kern,
+            ]
+        ).draw(in: rect)
     }
 
     private static func mono(size: CGFloat, weight: NSFont.Weight) -> NSFont {

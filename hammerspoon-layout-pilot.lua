@@ -1,5 +1,5 @@
 -- layout-pilot:start
--- Layout Pilot bridge v2.1
+-- Type Relay bridge v2.2
 --
 -- Double Shift or a clean Option tap fixes selected text / the last phrase
 -- typed in the wrong layout. The bridge never creates a selection. It first
@@ -12,13 +12,16 @@ if layoutPilotInputTap then
   layoutPilotInputTap = nil
 end
 
-local layoutPilotBinary = "~/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot"
+local layoutPilotHome = assert(os.getenv("HOME"), "Type Relay requires HOME")
+local layoutPilotBinary = layoutPilotHome .. "/Applications/Type Relay.app/Contents/MacOS/LayoutPilot"
+local layoutPilotSoundDirectory = layoutPilotHome .. "/Applications/Type Relay.app/Contents/Resources/Sounds"
 local layoutPilotMarker = 1280329266 -- "LPV2"
 local layoutPilotBusy = false
 local layoutPilotTask = nil
 local layoutPilotBuffer = ""
 local layoutPilotBufferApp = nil
 local layoutPilotSyntheticUntil = 0
+local layoutPilotSoundCache = {}
 local layoutPilotEventTypes = hs.eventtap.event.types
 local layoutPilotEventProperties = hs.eventtap.event.properties
 local layoutPilotTapState = {
@@ -28,7 +31,8 @@ local layoutPilotTapState = {
 local layoutPilotSettings = {
   phraseMode = true,
   soundEnabled = true,
-  soundName = "Pop",
+  soundName = "pulse",
+  soundLevel = "balanced",
   capitalizationMode = "preserve",
   shiftEnabled = true,
   optionEnabled = true,
@@ -50,13 +54,16 @@ end
 
 function layoutPilotReloadSettings()
   local mode = layoutPilotReadStringDefault("fixMode", "phrase")
-  local soundName = layoutPilotReadStringDefault("soundName", "Pop")
+  local soundName = layoutPilotReadStringDefault("soundName", "pulse")
+  local soundLevel = layoutPilotReadStringDefault("soundLevel", "balanced")
   local capitalizationMode = layoutPilotReadStringDefault("capitalizationMode", "preserve")
   layoutPilotSettings.phraseMode = not mode:match("lastWord")
-  layoutPilotSettings.soundEnabled = layoutPilotReadDefault("soundEnabled", true)
-  layoutPilotSettings.soundName = ({Pop = true, Glass = true, Ping = true, Purr = true})[soundName]
-    and soundName or "Pop"
-  layoutPilotSettings.capitalizationMode = ({preserve = true, sentence = true, uppercase = true})[capitalizationMode]
+  layoutPilotSettings.soundName = ({pulse = true, relay = true, scan = true, flux = true})[soundName]
+    and soundName or "pulse"
+  layoutPilotSettings.soundLevel = ({silent = true, quiet = true, balanced = true, full = true})[soundLevel]
+    and soundLevel or "balanced"
+  layoutPilotSettings.soundEnabled = layoutPilotSettings.soundLevel ~= "silent"
+  layoutPilotSettings.capitalizationMode = ({preserve = true, sentence = true, uppercase = true, lowercase = true})[capitalizationMode]
     and capitalizationMode or "preserve"
   layoutPilotSettings.shiftEnabled = layoutPilotReadDefault("shiftEnabled", true)
   layoutPilotSettings.optionEnabled = layoutPilotReadDefault("optionEnabled", true)
@@ -222,9 +229,14 @@ end
 
 local function layoutPilotPlaySuccessSound()
   if not layoutPilotSettings.soundEnabled then return end
-  local sound = hs.sound.getByName(layoutPilotSettings.soundName)
+  local sound = layoutPilotSoundCache[layoutPilotSettings.soundName]
+  if not sound then
+    sound = hs.sound.getByFile(layoutPilotSoundDirectory .. "/" .. layoutPilotSettings.soundName .. ".aiff")
+    layoutPilotSoundCache[layoutPilotSettings.soundName] = sound
+  end
   if sound then
-    pcall(function() sound:volume(0.82) end)
+    local volume = ({quiet = 0.25, balanced = 0.55, full = 0.82})[layoutPilotSettings.soundLevel] or 0.55
+    pcall(function() sound:volume(volume) end)
     sound:play()
   end
 end
@@ -507,8 +519,8 @@ local function layoutPilotCompleteTap(state, requiredTaps, now)
   return false
 end
 
-local function layoutPilotHandleModifier(name, isDown, onlyModifier, requiredTaps, now)
-  local state = layoutPilotTapState[name]
+local function layoutPilotHandleModifier(name, isDown, onlyModifier, requiredTaps, now, stateOverride)
+  local state = stateOverride or layoutPilotTapState[name]
   if onlyModifier and isDown and not state.down then
     state.down = true
     state.clean = true
@@ -624,6 +636,17 @@ function layoutPilotQATrigger(modifier, taps)
   return fired
 end
 
+function layoutPilotQAOptionSequence(kind)
+  local state = {down = false, clean = false, lastTap = 0}
+  if kind == "with-command" then
+    layoutPilotHandleModifier("option", true, false, 1, 1.0, state)
+    return false
+  end
+  layoutPilotHandleModifier("option", true, true, 1, 1.0, state)
+  if kind == "with-key" then state.clean = false end
+  return layoutPilotHandleModifier("option", false, false, 1, 1.1, state)
+end
+
 function layoutPilotQABufferCandidate(value, phraseMode)
   local previous = layoutPilotBuffer
   layoutPilotBuffer = value
@@ -643,9 +666,10 @@ end
 function layoutPilotQASettings()
   return layoutPilotSettings.soundName
     .. "|" .. layoutPilotSettings.capitalizationMode
+    .. "|" .. layoutPilotSettings.soundLevel
     .. "|" .. tostring(layoutPilotSettings.soundEnabled)
 end
 
-hs.settings.set("layout_pilot_bridge_ver", "2.1.0")
+hs.settings.set("layout_pilot_bridge_ver", "2.2.0")
 hs.settings.set("layout_pilot_last_status", hs.settings.get("layout_pilot_last_status") or "ready")
 -- layout-pilot:end

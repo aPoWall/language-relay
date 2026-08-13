@@ -6,7 +6,7 @@
   <string>dev.alex.layout-pilot</string>
   <key>ProgramArguments</key>
   <array>
-    <string>~/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot</string>
+    <string>__HOME__/Applications/Type Relay.app/Contents/MacOS/LayoutPilot</string>
     <string>--background</string>
   </array>
   <key>RunAtLoad</key>
@@ -23,8 +23,8 @@
   <key>ProcessType</key>
   <string>Interactive</string>
   <key>StandardOutPath</key>
-  <string>~/Library/Logs/layout-pilot/layout-pilot.out.log</string>
+  <string>__HOME__/Library/Logs/layout-pilot/layout-pilot.out.log</string>
   <key>StandardErrorPath</key>
-  <string>~/Library/Logs/layout-pilot/layout-pilot.err.log</string>
+  <string>__HOME__/Library/Logs/layout-pilot/layout-pilot.err.log</string>
 </dict>
 </plist>
