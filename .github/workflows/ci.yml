@@ -14,8 +14,14 @@ jobs:
       - name: Build and test core
         run: make test
       - name: Test offscreen UI
-        run: '".build/Type Relay.app/Contents/MacOS/LayoutPilot" --ui-self-test'
+        run: '".build/Language Relay.app/Contents/MacOS/LanguageRelay" --ui-self-test'
       - name: Verify signature and audio bundle
         run: |
-          codesign --verify --deep --strict ".build/Type Relay.app"
-          test "$(find ".build/Type Relay.app/Contents/Resources/Sounds" -name '*.aiff' | wc -l | tr -d ' ')" = 4
+          codesign --verify --deep --strict ".build/Language Relay.app"
+          test "$(find ".build/Language Relay.app/Contents/Resources/Sounds" -name '*.aiff' | wc -l | tr -d ' ')" = 8
+      - name: Validate agent CLI and website assets
+        run: |
+          node --check bin/language-relay.mjs
+          npm pack --dry-run >/dev/null
+          test "$(find docs/sounds -name '*.mp3' | wc -l | tr -d ' ')" = 8
+          ! grep -q '<audio' docs/index.html

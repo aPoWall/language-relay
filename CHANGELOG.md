@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.3.0 – 2026-08-13
+
+- renamed the product and public surface to **Language Relay**;
+- replaced the framed app icon with a size-aware relay-core mark;
+- added Prism, Tick, Fold, and Nova procedural micro-SFX;
+- added Caramba trigger-owner detection and safe gesture suspension;
+- added JSON status, doctor, and capabilities surfaces for agents;
+- added a GitHub-backed `npx` installer shim;
+- rebuilt the mini-site with RU/EN glitch localization, custom sound pads, and an interactive repair proof.
+
 ## 2.2.0 – 2026-08-13
 
 - renamed Layout Pilot to **Type Relay**;

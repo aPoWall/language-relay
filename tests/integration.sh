@@ -112,4 +112,4 @@ if [[ "$($layout_hs -c 'return hs.keycodes.currentLayout()')" != "Russian – PC
   exit 1
 fi
 
-print "PASS: Type Relay live integration suite"
+print "PASS: Language Relay live integration suite"

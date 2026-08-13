@@ -1,6 +1,6 @@
 # Asset licenses and provenance
 
-## Type Relay micro-SFX
+## Language Relay micro-SFX
 
 Files:
 
@@ -9,7 +9,16 @@ Files:
 - `assets/Sounds/scan.aiff`
 - `assets/Sounds/flux.aiff`
 
-Generated on 2026-08-13 with **ElevenLabs Sound Effects v2**, then edited locally with FFmpeg into mono 44.1 kHz / 16-bit AIFF cues between 110 and 200 ms. The prompts requested abstract, short, non-musical digital relay/glitch feedback with no voice or identifiable melody.
+These four cues were generated on 2026-08-13 with **ElevenLabs Sound Effects v2**, then edited locally with FFmpeg into mono 44.1 kHz / 16-bit micro-cues.
+
+Procedural cues created locally with SoX on 2026-08-13:
+
+- `assets/Sounds/prism.aiff`
+- `assets/Sounds/tick.aiff`
+- `assets/Sounds/fold.aiff`
+- `assets/Sounds/nova.aiff`
+
+The prompts and procedural patches requested abstract, short, non-musical digital relay/glitch feedback with no voice or identifiable melody. The procedural cues are original project assets released with this repository under MIT.
 
 Source and terms:
 

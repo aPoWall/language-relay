@@ -1,21 +1,21 @@
 SHELL := /bin/zsh
 
-APP_NAME := Type Relay
-BIN_NAME := LayoutPilot
+APP_NAME := Language Relay
+BIN_NAME := LanguageRelay
 BUILD_DIR := .build
 APP_DIR := $(BUILD_DIR)/$(APP_NAME).app
 BUILD_STAMP := $(BUILD_DIR)/.built
 SHAPERKIT := native/ShaperKit.swift
 ICON_SOURCE := native/IconRenderer.swift
 ICON_RENDERER := $(BUILD_DIR)/IconRenderer
-ICONSET := $(BUILD_DIR)/LayoutPilot.iconset
-ICON_FILE := assets/LayoutPilot.icns
-SOUND_FILES := assets/Sounds/pulse.aiff assets/Sounds/relay.aiff assets/Sounds/scan.aiff assets/Sounds/flux.aiff
+ICONSET := $(BUILD_DIR)/LanguageRelay.iconset
+ICON_FILE := assets/LanguageRelay.icns
+SOUND_FILES := assets/Sounds/pulse.aiff assets/Sounds/relay.aiff assets/Sounds/scan.aiff assets/Sounds/flux.aiff assets/Sounds/prism.aiff assets/Sounds/tick.aiff assets/Sounds/fold.aiff assets/Sounds/nova.aiff
 INSTALL_DIR := $(HOME)/Applications/$(APP_NAME).app
 AGENT_LABEL := dev.alex.layout-pilot
 AGENT_SOURCE := LaunchAgent.plist
 AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
-BRIDGE_DIR := $(HOME)/.config/type-relay
+BRIDGE_DIR := $(HOME)/.config/language-relay
 USER_ID := $(shell /usr/bin/id -u)
 
 .PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test install clean
@@ -34,11 +34,11 @@ $(ICON_FILE): $(ICON_SOURCE)
 	iconutil -c icns "$(ICONSET)" -o "$(ICON_FILE)"
 
 $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) Info.plist $(ICON_FILE) $(SOUND_FILES)
-	@test "$(words $(SOUND_FILES))" = "4" || (echo "expected exactly four feedback sounds" >&2; exit 1)
+	@test "$(words $(SOUND_FILES))" = "8" || (echo "expected exactly eight feedback sounds" >&2; exit 1)
 	rm -rf "$(APP_DIR)"
 	mkdir -p "$(APP_DIR)/Contents/MacOS" "$(APP_DIR)/Contents/Resources/Sounds"
 	cp Info.plist "$(APP_DIR)/Contents/Info.plist"
-	cp "$(ICON_FILE)" "$(APP_DIR)/Contents/Resources/LayoutPilot.icns"
+	cp "$(ICON_FILE)" "$(APP_DIR)/Contents/Resources/LanguageRelay.icns"
 	cp $(SOUND_FILES) "$(APP_DIR)/Contents/Resources/Sounds/"
 	swiftc -parse-as-library "$(SHAPERKIT)" native/LayoutPilot.swift \
 		-framework AppKit \

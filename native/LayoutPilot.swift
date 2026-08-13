@@ -4,12 +4,12 @@ import Carbon
 import Foundation
 
 private enum AppIdentity {
-    static let name = "Type Relay"
+    static let name = "Language Relay"
     static let bundleID = "dev.alex.layout-pilot"
     static let usID = "com.apple.keylayout.US"
     static let russianPCID = "com.apple.keylayout.RussianWin"
     static let hammerspoonBridgeMarker = FileManager.default.homeDirectoryForCurrentUser
-        .appendingPathComponent(".config/type-relay/hammerspoon-bridge")
+        .appendingPathComponent(".config/language-relay/hammerspoon-bridge")
         .path
 }
 
@@ -60,6 +60,10 @@ private enum FeedbackSound: String, CaseIterable {
     case relay
     case scan
     case flux
+    case prism
+    case tick
+    case fold
+    case nova
 }
 
 private enum FeedbackLevel: String {
@@ -521,7 +525,7 @@ private final class DoubleShiftMonitor {
 
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 420
-    static let height: CGFloat = 488
+    static let height: CGFloat = 522
     static let contentWidth: CGFloat = 388
 }
 
@@ -756,7 +760,7 @@ private enum LayoutPilotStatusGlyph {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Type Relay input source"
+        image.accessibilityDescription = "Language Relay input source"
         return image
     }
 
@@ -911,7 +915,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
         button.imagePosition = .imageOnly
         button.imageScaling = .scaleNone
-        button.setAccessibilityLabel("Type Relay")
+        button.setAccessibilityLabel("Language Relay")
         button.setAccessibilityHelp("Left click opens controls. Right click opens quick actions.")
     }
 
@@ -919,7 +923,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let currentID = InputSources.currentID()
         let russian = currentID == AppIdentity.russianPCID
         statusItem.button?.image = LayoutPilotStatusGlyph.make(russianActive: russian)
-        statusItem.button?.toolTip = "Type Relay · ⇧⇧ or clean ⌥ repairs the last wrong-layout text"
+        statusItem.button?.toolTip = "Language Relay · ⇧⇧ or clean ⌥ repairs the last wrong-layout text"
         if let previous = lastObservedInputID,
            previous != currentID,
            popover?.isShown == true {
@@ -930,6 +934,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private var usesHammerspoonBridge: Bool {
         FileManager.default.fileExists(atPath: AppIdentity.hammerspoonBridgeMarker)
+    }
+
+    private var carambaRunning: Bool {
+        !NSRunningApplication.runningApplications(
+            withBundleIdentifier: "tech.caramba.switcher"
+        ).isEmpty
     }
 
     @objc private func statusItemAction(_ sender: NSStatusBarButton) {
@@ -1004,8 +1014,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             root.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -10),
         ])
 
-        root.addArrangedSubview(label("type relay", size: 20, weight: .semibold, color: UI.ink, height: 27))
-        root.addArrangedSubview(label("apowall instrument 02 · local text repair · v2.2", size: 8.8, weight: .semibold, color: UI.muted, height: 13))
+        root.addArrangedSubview(label("language relay", size: 20, weight: .semibold, color: UI.ink, height: 27))
+        root.addArrangedSubview(label("apowall instrument 02 · local layout bridge · v2.3", size: 8.8, weight: .semibold, color: UI.muted, height: 13))
         root.addArrangedSubview(hairLine(width: LayoutPilotPanelMetrics.contentWidth))
 
         root.addArrangedSubview(sectionHeader("01 · input source · current state + one switch", width: LayoutPilotPanelMetrics.contentWidth))
@@ -1107,6 +1117,23 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         soundRow.addArrangedSubview(flux)
         root.addArrangedSubview(soundRow)
 
+        let soundRowTwo = NSStackView()
+        soundRowTwo.orientation = .horizontal
+        soundRowTwo.spacing = 6
+        let prism = squareButton("05 prism", action: #selector(setSoundPrism), width: 92.5, height: 30)
+        prism.isActive = soundEnabled && soundName == "prism"
+        let tick = squareButton("06 tick", action: #selector(setSoundTick), width: 92.5, height: 30)
+        tick.isActive = soundEnabled && soundName == "tick"
+        let fold = squareButton("07 fold", action: #selector(setSoundFold), width: 92.5, height: 30)
+        fold.isActive = soundEnabled && soundName == "fold"
+        let nova = squareButton("08 nova", action: #selector(setSoundNova), width: 92.5, height: 30)
+        nova.isActive = soundEnabled && soundName == "nova"
+        soundRowTwo.addArrangedSubview(prism)
+        soundRowTwo.addArrangedSubview(tick)
+        soundRowTwo.addArrangedSubview(fold)
+        soundRowTwo.addArrangedSubview(nova)
+        root.addArrangedSubview(soundRowTwo)
+
         let levelRow = NSStackView()
         levelRow.orientation = .horizontal
         levelRow.spacing = 6
@@ -1143,9 +1170,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             diagnosticStack.trailingAnchor.constraint(equalTo: diagnostic.trailingAnchor, constant: -10),
             diagnosticStack.centerYAnchor.constraint(equalTo: diagnostic.centerYAnchor),
         ])
-        let bridge = usesHammerspoonBridge ? "bridge · online" : "bridge · native"
+        let bridge = carambaRunning
+            ? "compat · caramba"
+            : (usesHammerspoonBridge ? "bridge · online" : "bridge · native")
         diagnosticStack.addArrangedSubview(label(bridge, size: 8.2, weight: .semibold, color: UI.ink, width: 108, height: 13))
-        diagnosticStack.addArrangedSubview(label("last · \(bridgeStatus())", size: 8.0, weight: .semibold, color: UI.muted, width: 242, height: 13))
+        let detail = carambaRunning ? "shift / option owned by caramba" : "last · \(bridgeStatus())"
+        diagnosticStack.addArrangedSubview(label(detail, size: 8.0, weight: .semibold, color: UI.muted, width: 242, height: 13))
         root.addArrangedSubview(diagnostic)
 
         root.addArrangedSubview(label(
@@ -1256,14 +1286,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private func showNativeMenu() {
         let menu = NSMenu()
-        let open = NSMenuItem(title: "open type relay", action: #selector(openPanelFromMenu), keyEquivalent: "")
+        let open = NSMenuItem(title: "open language relay", action: #selector(openPanelFromMenu), keyEquivalent: "")
         open.target = self
         menu.addItem(open)
         let toggle = NSMenuItem(title: "switch layout", action: #selector(toggleLayout), keyEquivalent: "")
         toggle.target = self
         menu.addItem(toggle)
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "quit type relay", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "quit language relay", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
@@ -1271,6 +1301,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func performFix() {
+        guard !carambaRunning else { return }
         if usesHammerspoonBridge {
             let task = Process()
             task.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/hs")
@@ -1315,6 +1346,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     @objc private func setSoundRelay() { selectSound(.relay) }
     @objc private func setSoundScan() { selectSound(.scan) }
     @objc private func setSoundFlux() { selectSound(.flux) }
+    @objc private func setSoundPrism() { selectSound(.prism) }
+    @objc private func setSoundTick() { selectSound(.tick) }
+    @objc private func setSoundFold() { selectSound(.fold) }
+    @objc private func setSoundNova() { selectSound(.nova) }
     @objc private func setLevelSilent() { selectLevel(.silent) }
     @objc private func setLevelQuiet() { selectLevel(.quiet) }
     @objc private func setLevelBalanced() { selectLevel(.balanced) }
@@ -1416,7 +1451,7 @@ private struct LayoutPilotMain {
     @MainActor
     static func main() {
         guard let core = LayoutConversionCore() else {
-            fputs("Type Relay: U.S. and Russian – PC input sources are required.\n", stderr)
+            fputs("Language Relay: U.S. and Russian – PC input sources are required.\n", stderr)
             exit(2)
         }
 
@@ -1436,7 +1471,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; panel=420x488; glyph=64x18; window=none")
+            print("PASS: background UI self-test; panel=420x522; glyph=64x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {
@@ -1467,6 +1502,36 @@ private struct LayoutPilotMain {
             print("accessibility=\(AXIsProcessTrusted())")
             exit(0)
         }
+        if arguments.contains("--status-json") || arguments.contains("--doctor-json") {
+            let current = InputSources.currentID() ?? "unknown"
+            let caramba = !NSRunningApplication.runningApplications(
+                withBundleIdentifier: "tech.caramba.switcher"
+            ).isEmpty
+            writeJSONObject([
+                "schemaVersion": 1,
+                "app": AppIdentity.name,
+                "version": "2.3.0",
+                "inputSourceID": current,
+                "accessibilityTrusted": AXIsProcessTrusted(),
+                "carambaRunning": caramba,
+                "ready": current == AppIdentity.usID || current == AppIdentity.russianPCID,
+            ])
+            exit(0)
+        }
+        if arguments.contains("--capabilities-json") {
+            writeJSONObject([
+                "schemaVersion": 1,
+                "app": AppIdentity.name,
+                "version": "2.3.0",
+                "pair": [AppIdentity.usID, AppIdentity.russianPCID],
+                "scopes": ["word", "phrase"],
+                "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
+                "commands": ["convert", "convert-phrase", "switch", "status", "doctor"],
+                "localOnly": true,
+                "textLogging": false,
+            ])
+            exit(0)
+        }
         if arguments.contains("--switch") {
             exit(InputSources.toggle() ? 0 : 4)
         }
@@ -1479,7 +1544,12 @@ private struct LayoutPilotMain {
 
     private static func writeJSON(_ conversion: Conversion) {
         let payload = ["text": conversion.text, "sourceID": conversion.sourceID, "targetID": conversion.targetID]
-        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: []) else { exit(5) }
+        writeJSONObject(payload)
+    }
+
+    private static func writeJSONObject(_ payload: Any) {
+        guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else { exit(5) }
         FileHandle.standardOutput.write(data)
+        FileHandle.standardOutput.write(Data("\n".utf8))
     }
 }

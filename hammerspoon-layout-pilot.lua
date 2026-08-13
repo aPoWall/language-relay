@@ -1,5 +1,5 @@
 -- layout-pilot:start
--- Type Relay bridge v2.2
+-- Language Relay bridge v2.3
 --
 -- Double Shift or a clean Option tap fixes selected text / the last phrase
 -- typed in the wrong layout. The bridge never creates a selection. It first
@@ -12,9 +12,9 @@ if layoutPilotInputTap then
   layoutPilotInputTap = nil
 end
 
-local layoutPilotHome = assert(os.getenv("HOME"), "Type Relay requires HOME")
-local layoutPilotBinary = layoutPilotHome .. "/Applications/Type Relay.app/Contents/MacOS/LayoutPilot"
-local layoutPilotSoundDirectory = layoutPilotHome .. "/Applications/Type Relay.app/Contents/Resources/Sounds"
+local layoutPilotHome = assert(os.getenv("HOME"), "Language Relay requires HOME")
+local layoutPilotBinary = layoutPilotHome .. "/Applications/Language Relay.app/Contents/MacOS/LanguageRelay"
+local layoutPilotSoundDirectory = layoutPilotHome .. "/Applications/Language Relay.app/Contents/Resources/Sounds"
 local layoutPilotMarker = 1280329266 -- "LPV2"
 local layoutPilotBusy = false
 local layoutPilotTask = nil
@@ -58,7 +58,10 @@ function layoutPilotReloadSettings()
   local soundLevel = layoutPilotReadStringDefault("soundLevel", "balanced")
   local capitalizationMode = layoutPilotReadStringDefault("capitalizationMode", "preserve")
   layoutPilotSettings.phraseMode = not mode:match("lastWord")
-  layoutPilotSettings.soundName = ({pulse = true, relay = true, scan = true, flux = true})[soundName]
+  layoutPilotSettings.soundName = ({
+    pulse = true, relay = true, scan = true, flux = true,
+    prism = true, tick = true, fold = true, nova = true,
+  })[soundName]
     and soundName or "pulse"
   layoutPilotSettings.soundLevel = ({silent = true, quiet = true, balanced = true, full = true})[soundLevel]
     and soundLevel or "balanced"
@@ -71,6 +74,11 @@ function layoutPilotReloadSettings()
 end
 
 layoutPilotReloadSettings()
+
+local function layoutPilotCarambaRunning()
+  local apps = hs.application.applicationsForBundleID("tech.caramba.switcher")
+  return type(apps) == "table" and #apps > 0
+end
 
 local function layoutPilotUTF16Length(text)
   local units = 0
@@ -587,6 +595,13 @@ layoutPilotInputTap = hs.eventtap.new(
       and event:getProperty(layoutPilotEventProperties.eventSourceUserData) or 0
     if marker == layoutPilotMarker then return false end
 
+    if layoutPilotCarambaRunning() then
+      if layoutPilotBuffer ~= "" then layoutPilotClearBuffer() end
+      layoutPilotResetModifierTaps()
+      hs.settings.set("layout_pilot_last_status", "compat-caramba-owns-triggers")
+      return false
+    end
+
     local eventType = event:getType()
     if eventType == layoutPilotEventTypes.leftMouseDown or eventType == layoutPilotEventTypes.rightMouseDown then
       layoutPilotClearBuffer()
@@ -670,6 +685,10 @@ function layoutPilotQASettings()
     .. "|" .. tostring(layoutPilotSettings.soundEnabled)
 end
 
-hs.settings.set("layout_pilot_bridge_ver", "2.2.0")
+function layoutPilotQACompatibility()
+  return layoutPilotCarambaRunning() and "caramba" or "language-relay"
+end
+
+hs.settings.set("layout_pilot_bridge_ver", "2.3.0")
 hs.settings.set("layout_pilot_last_status", hs.settings.get("layout_pilot_last_status") or "ready")
 -- layout-pilot:end

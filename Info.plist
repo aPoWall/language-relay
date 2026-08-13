@@ -5,23 +5,23 @@
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
-  <string>LayoutPilot</string>
+  <string>LanguageRelay</string>
   <key>CFBundleIdentifier</key>
   <string>dev.alex.layout-pilot</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Type Relay</string>
+  <string>Language Relay</string>
   <key>CFBundleDisplayName</key>
-  <string>Type Relay</string>
+  <string>Language Relay</string>
   <key>CFBundleIconFile</key>
-  <string>LayoutPilot</string>
+  <string>LanguageRelay</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
-  <string>2.2.0</string>
+  <string>2.3.0</string>
   <key>CFBundleVersion</key>
-  <string>4</string>
+  <string>5</string>
   <key>LSApplicationCategoryType</key>
   <string>public.app-category.utilities</string>
   <key>LSMinimumSystemVersion</key>

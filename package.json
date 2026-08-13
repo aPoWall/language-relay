@@ -1,0 +1,26 @@
+{
+  "name": "language-relay",
+  "version": "2.3.0",
+  "description": "Local macOS keyboard layout bridge for people and agents",
+  "license": "MIT",
+  "private": false,
+  "type": "module",
+  "bin": {
+    "language-relay": "bin/language-relay.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "os": ["darwin"],
+  "files": [
+    "bin",
+    "native",
+    "assets",
+    "Makefile",
+    "Info.plist",
+    "LaunchAgent.plist",
+    "hammerspoon-layout-pilot.lua",
+    "LICENSE",
+    "README.md"
+  ]
+}

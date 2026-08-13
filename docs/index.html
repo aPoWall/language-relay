@@ -1,119 +1,266 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Type Relay – local keyboard layout repair for macOS</title>
-  <meta name="description" content="Type Relay repairs text typed in the wrong U.S. or Russian – PC keyboard layout. A local native macOS instrument by Alex Povaliaev.">
+  <title>Language Relay – wrong alphabet, one tap</title>
+  <meta name="description" content="A local macOS layout bridge for people and agents. Repair U.S. / Russian–PC text, switch layouts, keep your flow.">
   <meta name="theme-color" content="#f4f2ec">
+  <meta property="og:title" content="Language Relay – wrong alphabet, one tap">
+  <meta property="og:description" content="Local layout repair and a deterministic JSON CLI for macOS.">
+  <meta property="og:image" content="https://apowall.github.io/language-relay/language-relay-social.png">
   <style>
-    :root { --paper:#f4f2ec; --ink:#222019; --muted:#6e6a62; --hair:#d9d5cb; --fill:#eae7df; }
+    :root {
+      --paper:#f4f2ec; --ink:#222019; --muted:#716d64;
+      --line:#d8d4c8; --wash:#eae7df; --signal:#c8ff18;
+      --mono:"JetBrains Mono","SFMono-Regular",ui-monospace,Menlo,monospace;
+      --ease:cubic-bezier(.2,.8,.2,1);
+    }
     * { box-sizing:border-box; }
-    html { background:var(--paper); color:var(--ink); font-family:"SFMono-Regular",ui-monospace,Menlo,monospace; }
-    body { margin:0; }
-    a { color:inherit; }
-    .shell { width:min(1120px,calc(100% - 32px)); margin:0 auto; }
-    nav { height:64px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--hair); font-size:12px; letter-spacing:.04em; }
-    .brand { font-weight:700; text-decoration:none; }
-    .family { color:var(--muted); }
-    .hero { min-height:650px; display:grid; grid-template-columns:1.1fr .9fr; gap:72px; align-items:center; padding:72px 0; }
-    .kicker,.section-no { color:var(--muted); text-transform:uppercase; letter-spacing:.16em; font-size:11px; font-weight:700; }
-    h1 { font-size:clamp(58px,8vw,104px); line-height:.88; letter-spacing:-.08em; margin:24px 0 28px; }
-    .lead { max-width:650px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:22px; line-height:1.42; margin:0 0 36px; }
-    .actions { display:flex; flex-wrap:wrap; gap:10px; }
-    .button { display:inline-flex; height:46px; align-items:center; padding:0 18px; border:1px solid var(--ink); text-decoration:none; font-size:12px; font-weight:700; }
+    html { scroll-behavior:smooth; background:var(--paper); color:var(--ink); font-family:var(--mono); }
+    body { margin:0; overflow-x:hidden; }
+    button,a { color:inherit; font:inherit; }
+    button { cursor:pointer; }
+    a { text-decoration:none; }
+    .shell { width:min(1180px,calc(100% - 40px)); margin:0 auto; }
+    .nav { height:64px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+    .wordmark { display:flex; align-items:center; gap:11px; font-size:15px; font-weight:750; letter-spacing:.04em; }
+    .relay-mark { width:32px; height:32px; position:relative; background:var(--ink); transform:rotate(45deg); flex:0 0 auto; }
+    .relay-mark::before,.relay-mark::after { content:""; position:absolute; height:4px; width:28px; top:14px; left:2px; background:var(--paper); }
+    .relay-mark::before { transform:rotate(45deg); }
+    .relay-mark::after { transform:rotate(-45deg); }
+    .relay-mark i { position:absolute; width:8px; height:8px; left:12px; top:12px; background:var(--signal); z-index:2; }
+    .nav-actions { display:flex; align-items:center; gap:8px; }
+    .micro-button { height:32px; border:1px solid var(--ink); background:transparent; padding:0 12px; font-size:10px; font-weight:750; letter-spacing:.08em; text-transform:uppercase; transition:background 160ms var(--ease),color 160ms var(--ease); }
+    .micro-button:hover,.micro-button:focus-visible { background:var(--ink); color:var(--paper); outline:none; }
+    .hero { min-height:680px; display:grid; grid-template-columns:minmax(0,640px) minmax(360px,1fr); gap:72px; align-items:center; padding:68px 0 76px; }
+    .eyebrow,.section-label { font-size:10px; font-weight:750; letter-spacing:.16em; text-transform:uppercase; color:var(--muted); }
+    h1 { max-width:760px; margin:20px 0 26px; font-size:clamp(58px,7.2vw,102px); line-height:.89; letter-spacing:-.075em; font-weight:760; }
+    .lead { max-width:625px; margin:0 0 30px; font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:21px; line-height:1.45; }
+    .ru-line { min-height:19px; margin:0 0 28px; color:var(--muted); font-size:12px; }
+    .actions { display:flex; flex-wrap:wrap; gap:8px; }
+    .button { min-height:44px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--ink); padding:0 17px; font-size:11px; font-weight:750; letter-spacing:.04em; transition:transform 160ms var(--ease),background 160ms var(--ease),color 160ms var(--ease); }
+    .button:hover,.button:focus-visible { transform:translateY(-2px); outline:none; }
     .button.primary { background:var(--ink); color:var(--paper); }
-    .instrument { aspect-ratio:1; border:12px solid var(--ink); padding:54px; display:grid; grid-template-rows:auto 1fr auto; background:var(--paper); }
-    .instrument small { text-align:center; letter-spacing:.18em; font-weight:700; }
-    .relay { display:grid; grid-template-columns:1fr 74px 1fr; align-items:center; }
-    .cell { height:180px; display:grid; place-items:center; border:8px solid var(--ink); font-size:82px; font-weight:800; }
-    .cell.active { background:var(--ink); color:var(--paper); }
-    .track { text-align:center; font-size:46px; font-weight:800; line-height:.75; }
-    .instrument strong { text-align:center; letter-spacing:.2em; font-size:18px; }
-    section { border-top:1px solid var(--hair); padding:78px 0; }
-    h2 { font-size:42px; letter-spacing:-.045em; margin:14px 0 38px; }
-    .grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; background:var(--hair); border:1px solid var(--hair); }
-    .card { min-height:190px; padding:24px; background:var(--paper); }
-    .card strong { display:block; font-size:28px; margin-bottom:48px; }
-    .card span { display:block; font-size:12px; color:var(--muted); line-height:1.5; }
-    .case-grid .card:first-child { background:var(--ink); color:var(--paper); }
-    .case-grid .card:first-child span { color:var(--paper); opacity:.65; }
-    .split { display:grid; grid-template-columns:1fr 1fr; gap:72px; }
-    .copy { font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:18px; line-height:1.55; }
-    pre { margin:24px 0 0; padding:22px; overflow:auto; background:var(--ink); color:var(--paper); font-size:12px; line-height:1.7; }
-    audio { width:100%; margin-top:24px; }
-    footer { border-top:1px solid var(--hair); padding:28px 0 54px; display:flex; justify-content:space-between; color:var(--muted); font-size:11px; }
-    @media (max-width:800px) { .hero,.split { grid-template-columns:1fr; } .hero { gap:38px; } .grid { grid-template-columns:1fr 1fr; } .instrument { max-width:480px; } }
-    @media (max-width:480px) { .grid { grid-template-columns:1fr; } .instrument { padding:28px; } .cell { height:130px; font-size:58px; } .relay { grid-template-columns:1fr 54px 1fr; } }
+    .button.primary:hover { background:#000; }
+    .install-rail { margin-top:14px; display:grid; grid-template-columns:1fr 44px; border:1px solid var(--ink); max-width:560px; background:var(--ink); color:var(--paper); }
+    .install-rail code { min-width:0; padding:13px 15px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:11px; }
+    .copy { border:0; border-left:1px solid #5b584f; background:transparent; color:var(--paper); font-size:15px; }
+    .copy:hover,.copy:focus-visible { background:var(--signal); color:var(--ink); outline:none; }
+    .proof { border:1px solid var(--ink); background:var(--paper); padding:22px; min-height:454px; display:flex; flex-direction:column; justify-content:space-between; position:relative; }
+    .proof::after { content:""; position:absolute; width:10px; height:10px; right:17px; top:17px; background:var(--signal); transform:rotate(45deg); }
+    .proof-head { display:flex; justify-content:space-between; color:var(--muted); font-size:9px; letter-spacing:.12em; text-transform:uppercase; }
+    .proof-stage { border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:38px 0; }
+    .typed { font-size:clamp(25px,3.3vw,42px); letter-spacing:-.045em; line-height:1.1; word-break:break-word; }
+    .typed.wrong { color:var(--muted); text-decoration:line-through; text-decoration-thickness:1px; }
+    .relay-line { height:54px; display:flex; align-items:center; gap:10px; color:var(--muted); font-size:10px; }
+    .relay-line::before { content:""; width:38px; height:1px; background:var(--ink); }
+    .relay-line i { width:8px; height:8px; background:var(--signal); transform:rotate(45deg); }
+    .proof-button { width:100%; height:48px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); font-weight:750; }
+    .proof-button:hover,.proof-button:focus-visible { background:var(--signal); color:var(--ink); outline:none; }
+    section { border-top:1px solid var(--line); padding:76px 0; }
+    h2 { max-width:820px; margin:14px 0 34px; font-size:clamp(38px,5vw,66px); line-height:.96; letter-spacing:-.055em; }
+    .proof-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); }
+    .feature { min-height:220px; padding:24px; background:var(--paper); display:flex; flex-direction:column; justify-content:space-between; }
+    .feature strong { font-size:21px; letter-spacing:-.03em; }
+    .feature p { margin:0; color:var(--muted); font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:15px; line-height:1.5; }
+    .compat { margin-top:1px; min-height:116px; border:1px solid var(--line); display:grid; grid-template-columns:200px 1fr; gap:24px; align-items:center; padding:20px 24px; }
+    .compat strong { font-size:12px; }
+    .compat p { margin:0; color:var(--muted); font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:14px; line-height:1.45; }
+    .agent-grid { display:grid; grid-template-columns:.8fr 1.2fr; gap:72px; align-items:end; }
+    .agent-copy { font-family:-apple-system,BlinkMacSystemFont,sans-serif; font-size:18px; line-height:1.55; margin:0; color:var(--muted); }
+    .terminal { background:var(--ink); color:var(--paper); border:1px solid var(--ink); }
+    .terminal-head { height:38px; display:flex; align-items:center; justify-content:space-between; padding:0 14px; border-bottom:1px solid #4a473f; color:#aaa69d; font-size:9px; letter-spacing:.12em; }
+    pre { margin:0; padding:21px; overflow:auto; font-size:11px; line-height:1.8; }
+    .signal { color:var(--signal); }
+    .sound-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; border:1px solid var(--line); background:var(--line); }
+    .sound-pad { min-height:106px; border:0; background:var(--paper); padding:15px; text-align:left; display:grid; grid-template-rows:auto 1fr auto; transition:background 160ms var(--ease),color 160ms var(--ease); }
+    .sound-pad:hover,.sound-pad:focus-visible,.sound-pad.is-playing { background:var(--ink); color:var(--paper); outline:none; }
+    .sound-pad small { color:var(--muted); font-size:9px; }
+    .sound-pad:hover small,.sound-pad.is-playing small { color:var(--paper); opacity:.58; }
+    .wave { width:100%; height:22px; display:flex; align-items:center; gap:3px; }
+    .wave i { display:block; width:2px; background:currentColor; opacity:.8; }
+    .wave i:nth-child(1),.wave i:nth-child(7){height:5px}.wave i:nth-child(2),.wave i:nth-child(6){height:11px}.wave i:nth-child(3),.wave i:nth-child(5){height:18px}.wave i:nth-child(4){height:22px}.wave i:nth-child(8){height:8px}.wave i:nth-child(9){height:14px}
+    .sound-pad strong { font-size:12px; }
+    .install-section { text-align:center; }
+    .install-section h2 { margin-left:auto; margin-right:auto; }
+    .install-section .install-rail { margin:28px auto 0; text-align:left; }
+    .meta { margin-top:20px; color:var(--muted); font-size:10px; }
+    footer { border-top:1px solid var(--line); min-height:86px; display:flex; align-items:center; justify-content:space-between; color:var(--muted); font-size:10px; }
+    .footer-links { display:flex; gap:18px; }
+    [data-lang="ru"] .en-only,[data-lang="en"] .ru-only { display:none; }
+    html[data-switching="true"] .i18n { animation:relay-glitch 220ms steps(2,end); }
+    html[data-switching="true"] .relay-mark i { animation:signal-flash 220ms steps(2,end); }
+    @keyframes relay-glitch { 0%{transform:translateX(0);filter:none} 25%{transform:translateX(7px);filter:contrast(1.4)} 50%{transform:translateX(-6px);clip-path:inset(34% 0 28%)} 75%{transform:translateX(3px);clip-path:inset(8% 0 63%)} 100%{transform:translateX(0);clip-path:none} }
+    @keyframes signal-flash { 0%,100%{background:var(--signal)} 50%{background:var(--paper)} 75%{background:var(--ink)} }
+    @media (max-width:860px) {
+      .hero,.agent-grid { grid-template-columns:1fr; gap:42px; }
+      .hero { padding-top:54px; }
+      .proof { max-width:540px; min-height:390px; }
+      .proof-grid { grid-template-columns:1fr; }
+      .feature { min-height:170px; }
+      .sound-grid { grid-template-columns:repeat(2,1fr); }
+      .compat { grid-template-columns:1fr; gap:10px; }
+    }
+    @media (max-width:540px) {
+      .shell { width:min(100% - 24px,1180px); }
+      .nav { height:58px; }
+      .wordmark { font-size:12px; }
+      .family { display:none; }
+      h1 { font-size:46px; line-height:.92; overflow-wrap:anywhere; }
+      .lead { font-size:17px; max-width:100%; overflow-wrap:anywhere; }
+      .nav-actions > a { display:none; }
+      .hero { min-width:0; }
+      .proof { min-width:0; width:100%; padding:18px; }
+      .proof-head span:last-child { display:none; }
+      .install-rail code { font-size:9px; padding-left:11px; }
+      section { padding:58px 0; }
+      .sound-pad { min-height:92px; }
+      footer { align-items:flex-start; flex-direction:column; justify-content:center; gap:10px; }
+    }
+    @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   </style>
 </head>
 <body>
   <div class="shell">
-    <nav>
-      <a class="brand" href="#">type relay</a>
-      <span class="family">apowall instruments / 02</span>
+    <nav class="nav">
+      <a class="wordmark" href="#top" aria-label="Language Relay home"><span class="relay-mark" aria-hidden="true"><i></i></span><span>language relay</span></a>
+      <div class="nav-actions">
+        <span class="family eyebrow">apowall / 02</span>
+        <button class="micro-button" id="lang-toggle" aria-label="Switch website language">en ⇄ ру</button>
+        <a class="micro-button" href="https://github.com/aPoWall/language-relay">github ↗</a>
+      </div>
     </nav>
 
-    <main>
+    <main id="top">
       <div class="hero">
         <div>
-          <div class="kicker">native macOS menu-bar instrument</div>
-          <h1>wrong layout.<br>fixed.</h1>
-          <p class="lead">Repair the last phrase or word typed in the wrong U.S. / Russian – PC layout. One clean gesture, verified replacement, entirely local.</p>
+          <div class="eyebrow i18n" data-en="macOS · local · open source" data-ru="macOS · локально · open source">macOS · local · open source</div>
+          <h1 class="i18n" data-en="wrong alphabet. one tap." data-ru="не та раскладка. одно нажатие.">wrong alphabet. one tap.</h1>
+          <p class="lead i18n" data-en="Repair the last word or phrase, switch the active layout, keep your flow." data-ru="Исправляй последнее слово или фразу, переключай раскладку и не теряй мысль.">Repair the last word or phrase, switch the active layout, keep your flow.</p>
+          <p class="ru-line i18n" data-en="the thought moved on. the layout caught up." data-ru="мысль уже ушла дальше. раскладка догнала.">the thought moved on. the layout caught up.</p>
           <div class="actions">
-            <a class="button primary" href="https://github.com/aPoWall/type-relay/releases/latest">download</a>
-            <a class="button" href="https://github.com/aPoWall/type-relay">source on github</a>
+            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3" data-ru="скачать v2.3">download v2.3</a>
+            <a class="button i18n" href="https://github.com/aPoWall/language-relay" data-en="source on github ↗" data-ru="код на github ↗">source on github ↗</a>
           </div>
+          <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="Copy install command">⌘</button></div>
         </div>
-        <div class="instrument" aria-label="Type Relay icon">
-          <small>INSTRUMENT / 02</small>
-          <div class="relay"><div class="cell active">A</div><div class="track">→<br>◆<br>←</div><div class="cell">Я</div></div>
-          <strong>TYPE RELAY</strong>
+
+        <div class="proof" aria-label="Interactive layout repair proof">
+          <div class="proof-head"><span>live relay / 01</span><span>u.s. → ru-pc</span></div>
+          <div class="proof-stage">
+            <div class="typed wrong" id="wrong-sample">ghbdtn, vbh</div>
+            <div class="relay-line"><i></i><span>verified local repair</span></div>
+            <div class="typed" id="right-sample">привет, мир</div>
+          </div>
+          <button class="proof-button i18n" id="proof-toggle" data-en="relay again · ⇧⇧" data-ru="повторить · ⇧⇧">relay again · ⇧⇧</button>
         </div>
       </div>
 
       <section>
-        <div class="section-no">01 / correction</div>
-        <h2>Two scopes. Four cases.</h2>
-        <div class="grid case-grid">
-          <div class="card"><strong>aA</strong><span>preserve<br>hELLO → hELLO</span></div>
-          <div class="card"><strong>Aa</strong><span>sentence<br>hELLO → Hello</span></div>
-          <div class="card"><strong>AA</strong><span>uppercase<br>hELLO → HELLO</span></div>
-          <div class="card"><strong>aa</strong><span>lowercase<br>hELLO → hello</span></div>
+        <div class="section-label">01 / signal</div>
+        <h2 class="i18n" data-en="Small gesture. verified result." data-ru="Короткий жест. проверенный результат.">Small gesture. verified result.</h2>
+        <div class="proof-grid">
+          <article class="feature"><strong>repair · word / phrase</strong><p class="i18n" data-en="Double Shift or a clean Option tap repairs the last language run. No visible selection. No duplicate paste." data-ru="Двойной Shift или чистый Option исправляет последний языковой фрагмент. Без выделения и дублей.">Double Shift or a clean Option tap repairs the last language run. No visible selection. No duplicate paste.</p></article>
+          <article class="feature"><strong>switch · current layout</strong><p class="i18n" data-en="One state, one switch. Caps / Hyper can stay in Karabiner; Language Relay reads the final event." data-ru="Одно состояние, одно переключение. Caps / Hyper остаётся в Karabiner; Relay читает финальное событие.">One state, one switch. Caps / Hyper can stay in Karabiner; Language Relay reads the final event.</p></article>
+          <article class="feature"><strong>local · no text log</strong><p class="i18n" data-en="Conversion is derived from installed macOS layouts. The transient buffer stays in memory and clears on context change." data-ru="Конвертация строится по раскладкам macOS. Временный буфер живёт в памяти и очищается при смене контекста.">Conversion is derived from installed macOS layouts. The transient buffer stays in memory and clears on context change.</p></article>
+        </div>
+        <div class="compat"><strong>caramba-aware</strong><p class="i18n" data-en="Caramba adds auto-switching, typo repair, ё rules, exceptions, custom sounds and plain paste. It uses the same Shift / Option gestures, so when Caramba runs it owns those triggers; Language Relay keeps menu, Caps / Hyper and CLI access." data-ru="Caramba добавляет автопереключение, опечатки, ёфикатор, исключения, свои звуки и plain paste. Она использует те же Shift / Option, поэтому при её запуске эти жесты принадлежат Caramba; у Language Relay остаются меню, Caps / Hyper и CLI.">Caramba adds auto-switching, typo repair, ё rules, exceptions, custom sounds and plain paste. It uses the same Shift / Option gestures, so when Caramba runs it owns those triggers; Language Relay keeps menu, Caps / Hyper and CLI access.</p></div>
+      </section>
+
+      <section class="agent-grid">
+        <div>
+          <div class="section-label">02 / agents</div>
+          <h2 class="i18n" data-en="A layout tool agents can reason about." data-ru="Раскладка с понятным интерфейсом для агентов.">A layout tool agents can reason about.</h2>
+          <p class="agent-copy i18n" data-en="Deterministic JSON in and out, stable capabilities, local diagnostics. Text never enters status receipts." data-ru="Детерминированный JSON, стабильные capabilities и локальная диагностика. Текст не попадает в status receipts.">Deterministic JSON in and out, stable capabilities, local diagnostics. Text never enters status receipts.</p>
+        </div>
+        <div class="terminal">
+          <div class="terminal-head"><span>language-relay / json schema 1</span><span class="signal">● local</span></div>
+          <pre><code><span class="signal">$</span> language-relay --convert-json ghbdtn
+{"sourceID":"…US","targetID":"…RussianWin","text":"привет"}
+
+<span class="signal">$</span> language-relay --doctor-json
+{"accessibilityTrusted":true,"carambaRunning":false,"ready":true}
+
+<span class="signal">$</span> language-relay --capabilities-json
+{"scopes":["word","phrase"],"localOnly":true}</code></pre>
         </div>
       </section>
 
-      <section class="split">
-        <div>
-          <div class="section-no">02 / gestures</div>
-          <h2>Clean by design.</h2>
-          <p class="copy"><strong>Double Shift</strong> or a clean standalone <strong>Option</strong> tap repairs text. Option with Command, a letter, or any other modifier stays untouched.</p>
-        </div>
-        <div>
-          <div class="section-no">03 / local</div>
-          <h2>No text log.</h2>
-          <p class="copy">The transient buffer lives in memory, clears on context changes and Secure Input, and never reaches a server. Writable fields are read back before Type Relay reports success.</p>
+      <section>
+        <div class="section-label">03 / feedback</div>
+        <h2 class="i18n" data-en="Eight tiny signals. no browser chrome." data-ru="Восемь коротких сигналов. без браузерного плеера.">Eight tiny signals. no browser chrome.</h2>
+        <div class="sound-grid" id="sound-grid">
+          <button class="sound-pad" data-sound="pulse"><small>01 / 110ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>pulse</strong></button>
+          <button class="sound-pad" data-sound="relay"><small>02 / 140ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>relay</strong></button>
+          <button class="sound-pad" data-sound="scan"><small>03 / 170ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>scan</strong></button>
+          <button class="sound-pad" data-sound="flux"><small>04 / 200ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>flux</strong></button>
+          <button class="sound-pad" data-sound="prism"><small>05 / 120ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>prism</strong></button>
+          <button class="sound-pad" data-sound="tick"><small>06 / 075ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>tick</strong></button>
+          <button class="sound-pad" data-sound="fold"><small>07 / 145ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>fold</strong></button>
+          <button class="sound-pad" data-sound="nova"><small>08 / 180ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>nova</strong></button>
         </div>
       </section>
 
-      <section class="split">
-        <div>
-          <div class="section-no">04 / feedback</div>
-          <h2>Micro-SFX.</h2>
-          <p class="copy">Pulse, Relay, Scan, and Flux – four 110–200 ms generated glitch cues with four volume presets.</p>
-          <audio controls preload="none" src="type-relay-sfx-preview.mp3">Audio preview</audio>
-        </div>
-        <div>
-          <div class="section-no">05 / install</div>
-          <h2>Swift. AppKit. MIT.</h2>
-          <pre><code>git clone https://github.com/aPoWall/type-relay.git
-cd type-relay
-make install</code></pre>
-        </div>
+      <section class="install-section">
+        <div class="section-label">04 / install</div>
+        <h2 class="i18n" data-en="One command. zero cloud." data-ru="Одна команда. ноль облака.">One command. zero cloud.</h2>
+        <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="Copy install command">⌘</button></div>
+        <div class="meta">macOS 13+ · Swift / AppKit · MIT · U.S. ⇄ Russian–PC</div>
       </section>
     </main>
 
-    <footer><span>type relay 2.2</span><span>alex povaliaev · lisbon · 2026</span></footer>
+    <footer><span>language relay 2.3 · alex povaliaev</span><span class="footer-links"><a href="https://github.com/aPoWall/language-relay">github</a><a href="https://github.com/aPoWall/language-relay/blob/main/SECURITY.md">privacy</a><a href="https://caramba-switcher.com/mac">caramba</a></span></footer>
   </div>
+
+  <script>
+    const root = document.documentElement;
+    const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const stored = localStorage.getItem('language-relay-lang');
+    let lang = stored || (navigator.language.toLowerCase().startsWith('ru') ? 'ru' : 'en');
+    const applyLanguage = (next, animate = true) => {
+      lang = next;
+      if (animate && !reduceMotion) root.dataset.switching = 'true';
+      setTimeout(() => {
+        root.dataset.lang = lang;
+        root.lang = lang;
+        document.querySelectorAll('.i18n').forEach(node => node.textContent = node.dataset[lang]);
+        localStorage.setItem('language-relay-lang', lang);
+      }, animate && !reduceMotion ? 90 : 0);
+      setTimeout(() => delete root.dataset.switching, 240);
+    };
+    applyLanguage(lang, false);
+    document.getElementById('lang-toggle').addEventListener('click', () => applyLanguage(lang === 'en' ? 'ru' : 'en'));
+
+    document.querySelectorAll('.copy').forEach(button => button.addEventListener('click', async () => {
+      await navigator.clipboard.writeText(button.dataset.copy);
+      const before = button.textContent;
+      button.textContent = '✓';
+      setTimeout(() => button.textContent = before, 900);
+    }));
+
+    const wrong = document.getElementById('wrong-sample');
+    const right = document.getElementById('right-sample');
+    let reversed = false;
+    document.getElementById('proof-toggle').addEventListener('click', () => {
+      reversed = !reversed;
+      wrong.textContent = reversed ? 'руддщ, цщкдв' : 'ghbdtn, vbh';
+      right.textContent = reversed ? 'hello, world' : 'привет, мир';
+      if (!reduceMotion) {
+        right.animate([{opacity:0,transform:'translateX(-8px)'},{opacity:1,transform:'translateX(0)'}],{duration:190,easing:'cubic-bezier(.2,.8,.2,1)'});
+      }
+    });
+
+    const player = new Audio();
+    player.preload = 'none';
+    player.volume = .55;
+    document.querySelectorAll('.sound-pad').forEach(pad => pad.addEventListener('click', async () => {
+      document.querySelectorAll('.sound-pad').forEach(item => item.classList.remove('is-playing'));
+      pad.classList.add('is-playing');
+      player.src = `sounds/${pad.dataset.sound}.mp3`;
+      try { await player.play(); } catch (_) { pad.classList.remove('is-playing'); }
+      setTimeout(() => pad.classList.remove('is-playing'), 420);
+    }));
+  </script>
 </body>
 </html>

@@ -6,7 +6,7 @@
   <string>dev.alex.layout-pilot</string>
   <key>ProgramArguments</key>
   <array>
-    <string>__HOME__/Applications/Type Relay.app/Contents/MacOS/LayoutPilot</string>
+    <string>__HOME__/Applications/Language Relay.app/Contents/MacOS/LanguageRelay</string>
     <string>--background</string>
   </array>
   <key>RunAtLoad</key>

@@ -59,56 +59,55 @@ private struct LayoutPilotIconRenderer {
 
         let paper = NSColor(srgbRed: 0.957, green: 0.949, blue: 0.925, alpha: 1)
         let ink = NSColor(srgbRed: 0.133, green: 0.125, blue: 0.098, alpha: 1)
+        let signal = NSColor(srgbRed: 0.784, green: 1.0, blue: 0.094, alpha: 1)
         paper.setFill()
         NSBezierPath(roundedRect: NSRect(x: 48, y: 48, width: 928, height: 928), xRadius: 192, yRadius: 192).fill()
 
-        ink.setStroke()
-        let outer = NSBezierPath(rect: NSRect(x: 152, y: 152, width: 720, height: 720))
-        outer.lineWidth = 16
-        outer.stroke()
-
-        let left = NSRect(x: 210, y: 346, width: 218, height: 338)
-        let right = NSRect(x: 596, y: 318, width: 218, height: 338)
+        // One relay core, readable from 16 px through 1024 px. The two
+        // negative-space rails cross inside the diamond: source becomes target.
         ink.setFill()
-        NSBezierPath(rect: left).fill()
-        let rightPath = NSBezierPath(rect: right)
-        rightPath.lineWidth = 16
-        rightPath.stroke()
+        let core = NSBezierPath()
+        core.move(to: NSPoint(x: 512, y: 232))
+        core.line(to: NSPoint(x: 792, y: 512))
+        core.line(to: NSPoint(x: 512, y: 792))
+        core.line(to: NSPoint(x: 232, y: 512))
+        core.close()
+        core.fill()
 
-        draw("A", in: left, color: paper, size: 158)
-        draw("Я", in: right, color: ink, size: 148)
+        let railWidth: CGFloat = 54
+        let upperRail = NSBezierPath()
+        upperRail.move(to: NSPoint(x: 144, y: 650))
+        upperRail.line(to: NSPoint(x: 394, y: 650))
+        upperRail.line(to: NSPoint(x: 630, y: 374))
+        upperRail.line(to: NSPoint(x: 880, y: 374))
+        upperRail.lineWidth = railWidth
+        upperRail.lineCapStyle = .butt
 
-        let upper = NSBezierPath()
-        upper.move(to: NSPoint(x: 452, y: 566))
-        upper.line(to: NSPoint(x: 572, y: 566))
-        upper.line(to: NSPoint(x: 542, y: 596))
-        upper.move(to: NSPoint(x: 572, y: 566))
-        upper.line(to: NSPoint(x: 542, y: 536))
-        upper.lineWidth = 15
-        upper.lineJoinStyle = .miter
-        upper.stroke()
+        let lowerRail = NSBezierPath()
+        lowerRail.move(to: NSPoint(x: 144, y: 374))
+        lowerRail.line(to: NSPoint(x: 394, y: 374))
+        lowerRail.line(to: NSPoint(x: 630, y: 650))
+        lowerRail.line(to: NSPoint(x: 880, y: 650))
+        lowerRail.lineWidth = railWidth
+        lowerRail.lineCapStyle = .butt
 
-        let lower = NSBezierPath()
-        lower.move(to: NSPoint(x: 572, y: 446))
-        lower.line(to: NSPoint(x: 452, y: 446))
-        lower.line(to: NSPoint(x: 482, y: 476))
-        lower.move(to: NSPoint(x: 452, y: 446))
-        lower.line(to: NSPoint(x: 482, y: 416))
-        lower.lineWidth = 15
-        lower.lineJoinStyle = .miter
-        lower.stroke()
+        paper.setStroke()
+        upperRail.stroke()
+        lowerRail.stroke()
 
+        signal.setFill()
         let node = NSBezierPath()
-        node.move(to: NSPoint(x: 512, y: 526))
-        node.line(to: NSPoint(x: 534, y: 506))
-        node.line(to: NSPoint(x: 512, y: 486))
-        node.line(to: NSPoint(x: 490, y: 506))
+        node.move(to: NSPoint(x: 512, y: 466))
+        node.line(to: NSPoint(x: 558, y: 512))
+        node.line(to: NSPoint(x: 512, y: 558))
+        node.line(to: NSPoint(x: 466, y: 512))
         node.close()
         node.fill()
 
-        drawLabel("INSTRUMENT / 02", in: NSRect(x: 190, y: 744, width: 644, height: 36), size: 25, kern: 4)
-
-        drawLabel("TYPE RELAY", in: NSRect(x: 190, y: 218, width: 644, height: 64), size: 42, kern: 7)
+        if pixels >= 128 {
+            draw("A", in: NSRect(x: 154, y: 690, width: 150, height: 96), color: ink, size: 72)
+            draw("Я", in: NSRect(x: 720, y: 234, width: 150, height: 96), color: ink, size: 68)
+        }
 
         context.flushGraphics()
         NSGraphicsContext.restoreGraphicsState()

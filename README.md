@@ -1,80 +1,94 @@
-# Type Relay
+# Language Relay
 
-**Type Relay** is a tiny native macOS instrument that repairs text typed in the wrong keyboard layout. It is part of **aPoWall Instruments** – a family of focused productivity tools by Alex Povaliaev.
+![Language Relay](docs/language-relay-social.png)
 
-It currently supports this exact pair:
+**Language Relay** is a local macOS layout bridge for people and agents. It repairs text typed in the wrong layout, switches the active source, and exposes deterministic JSON commands. It belongs to **aPoWall Instruments** – focused productivity tools by Alex Povaliaev.
 
-- `U.S.` – `com.apple.keylayout.US`
-- `Russian – PC` – `com.apple.keylayout.RussianWin`
+Current pair: `U.S.` ⇄ `Russian – PC`. Conversion, settings, and the transient typing buffer stay on the Mac. There is no telemetry, account, typed-text log, database, or runtime network request.
 
-All text conversion happens locally. There is no telemetry, typed-text log, account, database, or network request at runtime.
+[Website](https://apowall.github.io/language-relay/) · [Latest release](https://github.com/aPoWall/language-relay/releases/latest)
 
-## What it does
+## What ships
 
-- `⇧ ⇧` – repair the latest wrong-layout text;
-- clean `⌥` tap – repair text, or switch layout when there is nothing to repair;
-- `⌥` combined with Command, Shift, Control, or a typed key is ignored;
-- optional Caps Lock mapping can switch the input source directly;
-- current layout is visible in a compact `A ⇄ РУ` menu-bar glyph;
-- left click opens controls, right click opens quick actions;
-- writable Accessibility fields are replaced atomically and verified;
-- web/Electron fallback verifies deletion before paste, avoiding duplicated text;
-- clipboard contents are restored after fallback paste.
-
-## Controls
-
-### Scope
-
-| Mode | Result |
-| --- | --- |
-| **Last phrase** | repairs the current language run before the cursor |
-| **Last word** | repairs one token before the cursor |
-
-### Letter case
-
-Given `hELLO`, the four modes are explicit:
-
-| UI | Mode | Result |
-| --- | --- | --- |
-| `aA` | Preserve | `hELLO` |
-| `Aa` | Sentence | `Hello` |
-| `AA` | Uppercase | `HELLO` |
-| `aa` | Lowercase | `hello` |
-
-### Feedback
-
-Four generated micro-SFX are included: **Pulse**, **Relay**, **Scan**, and **Flux**. Volume presets are **Mute 00**, **Low 25**, **Mid 55**, and **High 82**. Selecting a sound previews it; successful verified repairs use the selected sound.
-
-## Requirements
-
-- macOS 13 or newer;
-- Apple Command Line Tools (`swiftc`);
-- [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission;
-- both U.S. and Russian – PC input sources enabled in System Settings.
+- `⇧ ⇧` repairs the latest wrong-layout phrase or word;
+- clean standalone `⌥` repairs text, or switches the layout when there is nothing to repair;
+- Option with Command, Shift, Control, or another key stays untouched;
+- Caps / Hyper switching can remain in Karabiner-Elements;
+- Accessibility replacement is read back before success is reported;
+- guarded web/Electron fallback avoids duplicated text and restores the clipboard;
+- preserve, sentence, uppercase, and lowercase modes;
+- eight short feedback cues and four volume levels;
+- menu-bar state, local diagnostics, and JSON CLI.
 
 ## Install
 
+One command from GitHub:
+
 ```bash
-git clone https://github.com/aPoWall/type-relay.git
-cd type-relay
+npx github:aPoWall/language-relay install
+```
+
+Or build directly:
+
+```bash
+git clone https://github.com/aPoWall/language-relay.git
+cd language-relay
 make install
 ```
 
-`make install` builds and ad-hoc signs the app, installs it to `~/Applications/Type Relay.app`, installs the LaunchAgent, and copies the bridge to `~/.config/type-relay/hammerspoon.lua`.
-
-Add this once to `~/.hammerspoon/init.lua`:
+Add this once to `~/.hammerspoon/init.lua`, then reload Hammerspoon:
 
 ```lua
-dofile(os.getenv("HOME") .. "/.config/type-relay/hammerspoon.lua")
+dofile(os.getenv("HOME") .. "/.config/language-relay/hammerspoon.lua")
 ```
 
-Then reload Hammerspoon:
+Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission, and both supported input sources enabled.
+
+## Controls
+
+| Module | Choices |
+| --- | --- |
+| Scope | Last phrase · Last word |
+| Case | `aA` Preserve · `Aa` Sentence · `AA` Uppercase · `aa` Lowercase |
+| Triggers | Double Shift · clean Option |
+| Feedback | Pulse · Relay · Scan · Flux · Prism · Tick · Fold · Nova |
+| Level | Mute 00 · Low 25 · Mid 55 · High 82 |
+
+Given `hELLO`, the case modes produce `hELLO`, `Hello`, `HELLO`, and `hello`.
+
+## Agent CLI
+
+The native binary and the npm shim return stable JSON without logging input text:
 
 ```bash
-/opt/homebrew/bin/hs -c 'hs.reload()'
+language-relay convert ghbdtn
+language-relay status
+language-relay doctor
+language-relay capabilities
+language-relay switch
 ```
 
-## Build and background QA
+Direct native surface:
+
+```bash
+"$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --convert-json ghbdtn
+"$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --doctor-json
+"$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --capabilities-json
+```
+
+The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename.
+
+## Caramba and Karabiner
+
+Karabiner transforms hardware events before macOS posts its virtual-keyboard output, so Language Relay can coexist with Caps / Hyper rules when those rules do not emit a clean standalone Option or Double Shift.
+
+[Caramba Switcher for macOS](https://caramba-switcher.com/mac) owns the same Double Shift, Option, and Single Shift gestures. When its bundle is running, Language Relay automatically stops acting on Shift / Option and keeps menu, Caps / Hyper, and CLI access. Choose one gesture owner. Caramba remains the stronger automatic language model with typo repair, ё rules, exceptions, per-app disabling, custom sounds, and plain paste.
+
+## Other languages
+
+Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine can be generalized to deterministic keyboard-layout pairs such as Latin/Cyrillic, Latin/Greek, or Latin/Hebrew. Same-script pairs are harder to detect, while IME, dead-key, and compose layouts need a separate architecture. The site does not claim universal language support yet.
+
+## Build and QA
 
 ```bash
 make test
@@ -82,35 +96,15 @@ make install
 make integration-test
 ```
 
-The default suite stays in the background: no app window, focus change, keyboard event, or sound playback. `make live-integration-test` is a separate manual lane that intentionally drives a temporary text field.
-
-Useful diagnostics:
-
-```bash
-"$HOME/Applications/Type Relay.app/Contents/MacOS/LayoutPilot" --self-test
-"$HOME/Applications/Type Relay.app/Contents/MacOS/LayoutPilot" --ui-self-test
-"$HOME/Applications/Type Relay.app/Contents/MacOS/LayoutPilot" --convert-json GHBDTN --capitalization lowercase
-"$HOME/Applications/Type Relay.app/Contents/MacOS/LayoutPilot" --status
-```
+The default suite stays in the background: no app window, focus change, keyboard event, or sound playback. `make live-integration-test` is the separate manual lane.
 
 ## Architecture
 
-- **Swift/AppKit** – menu-bar app, settings panel, layout conversion, CLI test surface;
-- **Carbon `UCKeyTranslate`** – builds the real mapping from installed keyboard layouts;
-- **Hammerspoon** – clean modifier state machine, in-memory typing buffer, Accessibility replacement and verified fallback;
-- **LaunchAgent** – background startup without a Dock icon;
-- **ShaperKit** – vendored visual primitives for deterministic standalone builds.
+- Swift/AppKit menu-bar app and CLI;
+- Carbon `UCKeyTranslate` layout maps;
+- Hammerspoon clean-modifier state machine and verified fallback;
+- LaunchAgent background startup;
+- vendored ShaperKit primitives;
+- MIT code and documented sound provenance.
 
-The bundle identifier remains `dev.alex.layout-pilot` to preserve settings during the rename from Layout Pilot.
-
-## Privacy and security
-
-Typed text remains in memory only and is cleared on app/focus/mouse/navigation changes and Secure Input. See [SECURITY.md](SECURITY.md) for reporting and the trust boundary.
-
-## Sounds
-
-The bundled sounds were generated with ElevenLabs Sound Effects and edited into short mono AIFF feedback cues. Provenance and attribution are recorded in [ASSET-LICENSES.md](ASSET-LICENSES.md).
-
-## License
-
-Code is released under the [MIT License](LICENSE). Generated audio follows the terms listed in `ASSET-LICENSES.md`.
+See [SECURITY.md](SECURITY.md), [ASSET-LICENSES.md](ASSET-LICENSES.md), and [CONTRIBUTING.md](CONTRIBUTING.md).

@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#f4f2ec"/>
+  <path d="M916 132 1100 316 916 500 732 316Z" fill="#222019"/>
+  <path d="M654 407H840L992 225H1148M654 225H840L992 407H1148" fill="none" stroke="#f4f2ec" stroke-width="34"/>
+  <path d="m916 286 30 30-30 30-30-30Z" fill="#c8ff18"/>
+  <text x="72" y="102" fill="#716d64" font-family="Courier" font-size="20" font-weight="700" letter-spacing="3">APOWALL INSTRUMENTS / 02</text>
+  <text x="72" y="246" fill="#222019" font-family="Courier" font-size="78" font-weight="700" letter-spacing="-5">language relay</text>
+  <text x="72" y="338" fill="#222019" font-family="Courier" font-size="42" font-weight="700">wrong alphabet.</text>
+  <text x="72" y="394" fill="#222019" font-family="Courier" font-size="42" font-weight="700">one tap.</text>
+  <text x="72" y="542" fill="#716d64" font-family="Courier" font-size="20">macOS · local · open source · agent-ready</text>
+</svg>
