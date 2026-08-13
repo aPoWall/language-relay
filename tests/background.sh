@@ -52,6 +52,12 @@ layout_capabilities_json="$("$layout_installed" --capabilities-json)"
 /bin/test -s "$layout_root/docs/language-relay-post.png"
 /bin/test -s "$layout_root/docs/language-relay-post.svg"
 /bin/test -s "$layout_root/docs/language-relay-panel.png"
+grep -Fq "typed in the wrong layout? don't retype it." "$layout_root/docs/index.html"
+grep -Fq "event.key === 'Enter' && (event.metaKey || event.ctrlKey)" "$layout_root/docs/index.html"
+if grep -Eq "event\.key === '(Shift|Alt)'" "$layout_root/docs/index.html"; then
+  echo "site demo must not own global app gestures" >&2
+  exit 1
+fi
 /bin/test -f "$HOME/.config/language-relay/hammerspoon-bridge"
 [[ "$(find "$HOME/Applications/Language Relay.app/Contents/Resources/Sounds" -type f -name '*.aiff' | wc -l | tr -d ' ')" == "8" ]]
 
