@@ -8,9 +8,11 @@ Personal native macOS status-bar utility for Alex's exact input-source pair:
 ## Behavior
 
 - tap `Caps Lock` – Karabiner toggles U.S. / Russian – PC through `~/bin/input-source-toggle`;
-- press `Shift` twice – Layout Pilot converts selected text, or the last wrong-layout phrase before the cursor;
+- press `Shift` twice or tap `Option` alone – Layout Pilot converts selected text, or the last wrong-layout phrase before the cursor;
+- an `Option` tap with no correctable text switches the input source; `Option` combined with another key never triggers;
 - after conversion, the system input source follows the converted language;
-- menu bar shows `A` or `РУ`;
+- the menu bar shows an elongated `A ⇄ РУ` glyph; left click opens the Shaper control panel, right click opens quick actions;
+- correction first replaces a writable `AXValue` and verifies the read-back without creating a selection; web/Electron fallback uses an in-memory keystroke buffer, backspaces, and a clipboard-preserving paste;
 - all conversion is local; there is no network, telemetry, typed-text log, SQLite, or notification history.
 
 The character map is generated from the two installed macOS layouts through Carbon `UCKeyTranslate`. It therefore uses the actual Russian – PC punctuation map rather than a hard-coded generic Russian table.
@@ -38,7 +40,7 @@ LaunchAgent:
 ~/Library/LaunchAgents/dev.alex.layout-pilot.plist
 ```
 
-The input bridge runs inside the already trusted Hammerspoon process. Layout Pilot itself therefore needs no additional Accessibility grant. The bridge prefers direct AX selection/replacement and preserves every pasteboard item when an app requires the copy/paste fallback.
+The input bridge runs inside the already trusted Hammerspoon process. Layout Pilot itself therefore needs no additional Accessibility grant. The bridge never persists typed text, never creates its own visible selection, verifies writable AX fields before reporting success, and preserves every pasteboard item when an app requires the event fallback.
 
 Caramba Switcher is disabled in Login Items while Layout Pilot is active, avoiding two simultaneous keyboard event monitors. The Caramba app remains installed for rollback.
 
@@ -56,6 +58,7 @@ The separate `make live-integration-test` target drives a temporary Cocoa field 
 
 ```bash
 "$HOME/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot" --self-test
+"$HOME/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot" --ui-self-test
 "$HOME/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot" --convert ghbdtn
 "$HOME/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot" --status
 "$HOME/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot" --switch

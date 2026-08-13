@@ -449,14 +449,100 @@ private final class DoubleShiftMonitor {
     }
 }
 
+private enum LayoutPilotPanelMetrics {
+    static let width: CGFloat = 480
+    static let height: CGFloat = 430
+    static let contentWidth: CGFloat = 432
+}
+
+private final class LayoutPilotRootView: NSView {
+    var closeAction: (() -> Void)?
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            closeAction?()
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
+private enum LayoutPilotStatusGlyph {
+    static func make(russianActive: Bool) -> NSImage {
+        let size = NSSize(width: 64, height: 18)
+        let image = NSImage(size: size, flipped: false) { rect in
+            NSColor.black.setStroke()
+            NSColor.black.setFill()
+
+            drawCell(NSRect(x: 1, y: 1, width: 18, height: 16), text: "A", active: !russianActive)
+            drawCell(NSRect(x: 43, y: 1, width: 20, height: 16), text: "РУ", active: russianActive)
+
+            let upper = NSBezierPath()
+            upper.move(to: NSPoint(x: 21, y: 11.5))
+            upper.line(to: NSPoint(x: 39, y: 11.5))
+            upper.line(to: NSPoint(x: 35, y: 15))
+            upper.move(to: NSPoint(x: 39, y: 11.5))
+            upper.line(to: NSPoint(x: 35, y: 8))
+            upper.lineWidth = 1
+            upper.stroke()
+
+            let lower = NSBezierPath()
+            lower.move(to: NSPoint(x: 41, y: 6.5))
+            lower.line(to: NSPoint(x: 23, y: 6.5))
+            lower.line(to: NSPoint(x: 27, y: 10))
+            lower.move(to: NSPoint(x: 23, y: 6.5))
+            lower.line(to: NSPoint(x: 27, y: 3))
+            lower.lineWidth = 1
+            lower.stroke()
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = "Layout Pilot input source"
+        return image
+    }
+
+    private static func drawCell(_ rect: NSRect, text: String, active: Bool) {
+        let path = NSBezierPath(rect: rect)
+        path.lineWidth = 1
+        if active {
+            path.fill()
+        } else {
+            path.stroke()
+        }
+
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: text == "A" ? 9.5 : 7.4, weight: .semibold),
+            .foregroundColor: NSColor.black,
+            .paragraphStyle: paragraph,
+            .kern: 0.1,
+        ]
+        let textValue = NSAttributedString(string: text, attributes: attributes)
+        let textRect = NSRect(x: rect.minX, y: rect.minY + 2.2, width: rect.width, height: rect.height - 2)
+        if active {
+            NSGraphicsContext.saveGraphicsState()
+            NSGraphicsContext.current?.compositingOperation = .destinationOut
+            textValue.draw(in: textRect)
+            NSGraphicsContext.restoreGraphicsState()
+        } else {
+            textValue.draw(in: textRect)
+        }
+    }
+}
+
 @MainActor
-private final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
+private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let core: LayoutConversionCore
     private let fixer: TextFixer
     private let defaults = UserDefaults.standard
     private var statusItem: NSStatusItem!
     private var monitor: DoubleShiftMonitor!
     private var refreshTimer: Timer?
+    private var popover: NSPopover?
+    private var lastPopoverCloseAt = Date.distantPast
 
     private var mode: FixMode {
         get { FixMode(rawValue: defaults.string(forKey: "fixMode") ?? "phrase") ?? .phrase }
@@ -468,6 +554,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
         set { defaults.set(newValue, forKey: "soundEnabled") }
     }
 
+    private var shiftEnabled: Bool {
+        get { defaults.object(forKey: "shiftEnabled") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "shiftEnabled") }
+    }
+
+    private var optionEnabled: Bool {
+        get { defaults.object(forKey: "optionEnabled") as? Bool ?? true }
+        set { defaults.set(newValue, forKey: "optionEnabled") }
+    }
+
     init(core: LayoutConversionCore) {
         self.core = core
         self.fixer = TextFixer(core: core)
@@ -475,25 +571,26 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        enforceSingleInstance()
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            self?.enforceSingleInstance()
+        }
         NSApp.setActivationPolicy(.accessory)
-        statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
-        statusItem.button?.font = NSFont.monospacedSystemFont(ofSize: 12, weight: .medium)
-        let menu = NSMenu()
-        menu.delegate = self
-        statusItem.menu = menu
+        UI.setMode(.light)
+        setupStatusItem()
 
         monitor = DoubleShiftMonitor { [weak self] in self?.performFix() }
         if !usesHammerspoonBridge { monitor.start() }
-        updateStatusTitle()
-        rebuildMenu()
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: true) { [weak self] _ in
-            Task { @MainActor in self?.updateStatusTitle() }
+        updateStatusButton()
+        let timer = Timer(timeInterval: 0.6, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.updateStatusButton() }
         }
+        RunLoop.main.add(timer, forMode: .common)
+        refreshTimer = timer
 
         if !usesHammerspoonBridge, !fixer.hasAccessibilityPermission {
             fixer.requestAccessibilityPermission()
         }
-        NSLog("[LayoutPilot] started; layouts=\(core.us.name),\(core.russianPC.name); bridge=\(usesHammerspoonBridge); accessibility=\(fixer.hasAccessibilityPermission)")
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -501,78 +598,286 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
         refreshTimer?.invalidate()
     }
 
-    func menuWillOpen(_ menu: NSMenu) {
-        rebuildMenu()
+    func popoverDidClose(_ notification: Notification) {
+        lastPopoverCloseAt = Date()
     }
 
-    private func updateStatusTitle() {
-        let current = InputSources.currentID()
-        statusItem.button?.title = current == AppIdentity.russianPCID ? "РУ" : "A"
-        statusItem.button?.toolTip = "Layout Pilot · ⇧⇧ fixes text typed in the wrong layout"
+    private func enforceSingleInstance() {
+        let mine = NSRunningApplication.current
+        let others = NSRunningApplication.runningApplications(withBundleIdentifier: AppIdentity.bundleID)
+            .filter {
+                $0.processIdentifier != mine.processIdentifier
+                    && !$0.isTerminated
+                    && $0.bundleURL == mine.bundleURL
+            }
+        let myKey = (mine.launchDate ?? .distantPast, mine.processIdentifier)
+        for other in others {
+            let otherKey = (other.launchDate ?? .distantPast, other.processIdentifier)
+            if otherKey < myKey { exit(0) }
+        }
+    }
+
+    private func setupStatusItem() {
+        statusItem = NSStatusBar.system.statusItem(withLength: 64)
+        statusItem.autosaveName = "dev.alex.layout-pilot.status-item.v2"
+        statusItem.menu = nil
+        statusItem.isVisible = true
+        guard let button = statusItem.button else { return }
+        button.target = self
+        button.action = #selector(statusItemAction(_:))
+        button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+        button.imagePosition = .imageOnly
+        button.imageScaling = .scaleNone
+        button.setAccessibilityLabel("Layout Pilot")
+        button.setAccessibilityHelp("Left click opens controls. Right click opens quick actions.")
+    }
+
+    private func updateStatusButton() {
+        let russian = InputSources.currentID() == AppIdentity.russianPCID
+        statusItem.button?.image = LayoutPilotStatusGlyph.make(russianActive: russian)
+        statusItem.button?.toolTip = "Layout Pilot · ⇧⇧ or clean ⌥ fixes wrong-layout text"
     }
 
     private var usesHammerspoonBridge: Bool {
         FileManager.default.fileExists(atPath: AppIdentity.hammerspoonBridgeMarker)
     }
 
-    private func rebuildMenu() {
-        guard let menu = statusItem.menu else { return }
-        menu.removeAllItems()
+    @objc private func statusItemAction(_ sender: NSStatusBarButton) {
+        let event = NSApp.currentEvent
+        if event?.type == .rightMouseUp || event?.modifierFlags.contains(.control) == true {
+            showNativeMenu()
+            return
+        }
+        if popover?.isShown == true {
+            popover?.performClose(nil)
+            return
+        }
+        guard Date().timeIntervalSince(lastPopoverCloseAt) > 0.35 else { return }
+        showPopover()
+    }
 
-        let header = NSMenuItem(title: "layout pilot", action: nil, keyEquivalent: "")
-        header.isEnabled = false
-        header.attributedTitle = NSAttributedString(
-            string: "layout pilot",
-            attributes: [.font: NSFont.monospacedSystemFont(ofSize: 13, weight: .semibold)]
+    private func showPopover() {
+        buildPopover()
+        guard let popover, let button = statusItem.button else { return }
+        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        if let root = popover.contentViewController?.view {
+            root.window?.makeFirstResponder(root)
+        }
+    }
+
+    private func buildPopover() {
+        let controller = NSViewController()
+        controller.view = makePanelContent()
+        controller.preferredContentSize = NSSize(
+            width: LayoutPilotPanelMetrics.width,
+            height: LayoutPilotPanelMetrics.height
         )
-        menu.addItem(header)
+
+        let next = NSPopover()
+        next.behavior = .transient
+        next.animates = !UI.reduceMotion
+        next.appearance = NSAppearance(named: .aqua)
+        next.contentSize = controller.preferredContentSize
+        next.contentViewController = controller
+        next.delegate = self
+        popover = next
+    }
+
+    private func rebuildPopoverContent() {
+        guard popover?.isShown == true else { return }
+        popover?.contentViewController?.view = makePanelContent()
+    }
+
+    private func makePanelContent() -> NSView {
+        let content = LayoutPilotRootView(frame: NSRect(
+            x: 0,
+            y: 0,
+            width: LayoutPilotPanelMetrics.width,
+            height: LayoutPilotPanelMetrics.height
+        ))
+        content.closeAction = { [weak self] in self?.popover?.performClose(nil) }
+        content.wantsLayer = true
+        content.layer?.backgroundColor = UI.bg.cgColor
+        content.layer?.borderColor = UI.hair.cgColor
+        content.layer?.borderWidth = 1
+
+        let root = NSStackView()
+        root.orientation = .vertical
+        root.alignment = .leading
+        root.spacing = 7
+        root.translatesAutoresizingMaskIntoConstraints = false
+        content.addSubview(root)
+        NSLayoutConstraint.activate([
+            root.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 24),
+            root.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -24),
+            root.topAnchor.constraint(equalTo: content.topAnchor, constant: 18),
+            root.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -14),
+        ])
+
+        root.addArrangedSubview(label("layout pilot", size: 22, weight: .semibold, color: UI.ink, height: 29))
+        root.addArrangedSubview(label("u.s. ⇄ russian – pc · local · no text log", size: 9.5, weight: .semibold, color: UI.muted, height: 16))
+        root.addArrangedSubview(hairLine(width: LayoutPilotPanelMetrics.contentWidth))
+
+        let layoutRow = NSStackView()
+        layoutRow.orientation = .horizontal
+        layoutRow.alignment = .centerY
+        layoutRow.spacing = 6
+        let current = InputSources.currentID()
+        let us = squareButton("A · U.S.", action: #selector(selectUS), width: 190, height: 62)
+        us.isActive = current == AppIdentity.usID
+        let rail = label("⇄", size: 17, weight: .semibold, color: UI.ink, width: 40, height: 62, centered: true)
+        let ru = squareButton("РУ · PC", action: #selector(selectRussian), width: 190, height: 62)
+        ru.isActive = current == AppIdentity.russianPCID
+        layoutRow.addArrangedSubview(us)
+        layoutRow.addArrangedSubview(rail)
+        layoutRow.addArrangedSubview(ru)
+        root.addArrangedSubview(layoutRow)
+
+        root.addArrangedSubview(sectionHeader("correction scope", width: LayoutPilotPanelMetrics.contentWidth))
+        let modeRow = NSStackView()
+        modeRow.orientation = .horizontal
+        modeRow.spacing = 6
+        let phrase = squareButton("last phrase", action: #selector(setPhraseMode), width: 213, height: 31)
+        phrase.isActive = mode == .phrase
+        let word = squareButton("last word", action: #selector(setLastWordMode), width: 213, height: 31)
+        word.isActive = mode == .lastWord
+        modeRow.addArrangedSubview(phrase)
+        modeRow.addArrangedSubview(word)
+        root.addArrangedSubview(modeRow)
+
+        root.addArrangedSubview(sectionHeader("triggers · clean modifier taps only", width: LayoutPilotPanelMetrics.contentWidth))
+        let triggerRow = NSStackView()
+        triggerRow.orientation = .horizontal
+        triggerRow.spacing = 6
+        let shift = squareButton("⇧ ⇧ · double shift", action: #selector(toggleShift), width: 213, height: 37)
+        shift.isActive = shiftEnabled
+        let option = squareButton("⌥ · option tap", action: #selector(toggleOption), width: 213, height: 37)
+        option.isActive = optionEnabled
+        triggerRow.addArrangedSubview(shift)
+        triggerRow.addArrangedSubview(option)
+        root.addArrangedSubview(triggerRow)
+
+        root.addArrangedSubview(sectionHeader("feedback", width: LayoutPilotPanelMetrics.contentWidth))
+        let soundRow = NSStackView()
+        soundRow.orientation = .horizontal
+        soundRow.spacing = 6
+        let sound = squareButton("sound", action: #selector(enableSound), width: 213, height: 31)
+        sound.isActive = soundEnabled
+        let silent = squareButton("silent", action: #selector(disableSound), width: 213, height: 31)
+        silent.isActive = !soundEnabled
+        soundRow.addArrangedSubview(sound)
+        soundRow.addArrangedSubview(silent)
+        root.addArrangedSubview(soundRow)
+
+        let diagnostic = NSView()
+        diagnostic.translatesAutoresizingMaskIntoConstraints = false
+        diagnostic.wantsLayer = true
+        diagnostic.layer?.backgroundColor = UI.fill.cgColor
+        diagnostic.layer?.borderColor = UI.hair.cgColor
+        diagnostic.layer?.borderWidth = 1
+        diagnostic.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
+        diagnostic.heightAnchor.constraint(equalToConstant: 43).isActive = true
+        let diagnosticStack = NSStackView()
+        diagnosticStack.orientation = .vertical
+        diagnosticStack.alignment = .leading
+        diagnosticStack.spacing = 2
+        diagnosticStack.translatesAutoresizingMaskIntoConstraints = false
+        diagnostic.addSubview(diagnosticStack)
+        NSLayoutConstraint.activate([
+            diagnosticStack.leadingAnchor.constraint(equalTo: diagnostic.leadingAnchor, constant: 10),
+            diagnosticStack.trailingAnchor.constraint(equalTo: diagnostic.trailingAnchor, constant: -10),
+            diagnosticStack.centerYAnchor.constraint(equalTo: diagnostic.centerYAnchor),
+        ])
+        let bridge = usesHammerspoonBridge ? "bridge · hammerspoon online" : "bridge · native fallback"
+        diagnosticStack.addArrangedSubview(label(bridge, size: 8.8, weight: .semibold, color: UI.ink, height: 13))
+        diagnosticStack.addArrangedSubview(label("last fix · \(bridgeStatus())", size: 8.2, weight: .semibold, color: UI.muted, height: 13))
+        root.addArrangedSubview(diagnostic)
+
+        root.addArrangedSubview(label(
+            "caps tap switch · ⇧⇧ / ⌥ fix · esc close",
+            size: 8.2,
+            weight: .semibold,
+            color: UI.muted,
+            height: 14
+        ))
+        return content
+    }
+
+    private func label(
+        _ text: String,
+        size: CGFloat,
+        weight: NSFont.Weight,
+        color: NSColor,
+        width: CGFloat = LayoutPilotPanelMetrics.contentWidth,
+        height: CGFloat,
+        centered: Bool = false
+    ) -> NSTextField {
+        let field = NSTextField(labelWithString: text.lowercased())
+        field.font = UI.mono(size, weight: weight)
+        field.textColor = color
+        field.alignment = centered ? .center : .left
+        field.lineBreakMode = .byTruncatingTail
+        field.translatesAutoresizingMaskIntoConstraints = false
+        field.widthAnchor.constraint(equalToConstant: width).isActive = true
+        field.heightAnchor.constraint(equalToConstant: height).isActive = true
+        return field
+    }
+
+    private func squareButton(_ title: String, action: Selector, width: CGFloat, height: CGFloat) -> ShaperButton {
+        let button = ShaperButton(title, target: self, action: action, width: width, height: height)
+        button.layer?.cornerRadius = 0
+        return button
+    }
+
+    private func bridgeStatus() -> String {
+        guard usesHammerspoonBridge, FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/hs") else {
+            return "native ready"
+        }
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/hs")
+        process.arguments = ["-c", "return tostring(hs.settings.get('layout_pilot_last_status') or 'ready')"]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            process.waitUntilExit()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            let value = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+            return value?.isEmpty == false ? value! : "ready"
+        } catch {
+            return "bridge unavailable"
+        }
+    }
+
+    func runBackgroundUISelfTest() -> Bool {
+        let panel = makePanelContent()
+        panel.layoutSubtreeIfNeeded()
+        let glyph = LayoutPilotStatusGlyph.make(russianActive: false)
+        return panel.frame.size == NSSize(
+            width: LayoutPilotPanelMetrics.width,
+            height: LayoutPilotPanelMetrics.height
+        )
+            && panel.window == nil
+            && !panel.subviews.isEmpty
+            && glyph.size == NSSize(width: 64, height: 18)
+            && glyph.isTemplate
+    }
+
+    private func showNativeMenu() {
+        let menu = NSMenu()
+        let open = NSMenuItem(title: "open layout pilot", action: #selector(openPanelFromMenu), keyEquivalent: "")
+        open.target = self
+        menu.addItem(open)
+        let toggle = NSMenuItem(title: "switch layout", action: #selector(toggleLayout), keyEquivalent: "")
+        toggle.target = self
+        menu.addItem(toggle)
         menu.addItem(.separator())
-
-        let layouts = NSMenuItem(title: "U.S. ↔ Russian – PC", action: nil, keyEquivalent: "")
-        layouts.isEnabled = false
-        menu.addItem(layouts)
-
-        let hotkey = NSMenuItem(title: "fix wrong layout · ⇧⇧", action: #selector(fixNow), keyEquivalent: "")
-        hotkey.target = self
-        menu.addItem(hotkey)
-
-        let switchItem = NSMenuItem(title: "switch layout · Caps tap", action: #selector(toggleLayout), keyEquivalent: "")
-        switchItem.target = self
-        menu.addItem(switchItem)
-        menu.addItem(.separator())
-
-        let phrase = NSMenuItem(title: "mode · last phrase", action: #selector(setPhraseMode), keyEquivalent: "")
-        phrase.target = self
-        phrase.state = mode == .phrase ? .on : .off
-        menu.addItem(phrase)
-
-        let word = NSMenuItem(title: "mode · last word", action: #selector(setLastWordMode), keyEquivalent: "")
-        word.target = self
-        word.state = mode == .lastWord ? .on : .off
-        menu.addItem(word)
-
-        let sound = NSMenuItem(title: "sound", action: #selector(toggleSound), keyEquivalent: "")
-        sound.target = self
-        sound.state = soundEnabled ? .on : .off
-        menu.addItem(sound)
-        menu.addItem(.separator())
-
-        let permissionTitle = usesHammerspoonBridge
-            ? "input bridge · Hammerspoon"
-            : (fixer.hasAccessibilityPermission ? "accessibility · granted" : "accessibility · open settings")
-        let permission = NSMenuItem(title: permissionTitle, action: #selector(openAccessibility), keyEquivalent: "")
-        permission.target = self
-        permission.isEnabled = !usesHammerspoonBridge
-        menu.addItem(permission)
-
-        let login = NSMenuItem(title: "starts at login · launch agent", action: nil, keyEquivalent: "")
-        login.isEnabled = false
-        login.state = .on
-        menu.addItem(login)
-        menu.addItem(.separator())
-
         let quit = NSMenuItem(title: "quit layout pilot", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
         menu.addItem(quit)
+        statusItem.menu = menu
+        statusItem.button?.performClick(nil)
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in self?.statusItem.menu = nil }
     }
 
     private func performFix() {
@@ -586,15 +891,46 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate
         fixer.fix(mode: mode) { [weak self] success in
             guard let self else { return }
             if success, self.soundEnabled { NSSound(named: "Tink")?.play() }
-            self.updateStatusTitle()
+            self.updateStatusButton()
         }
     }
 
-    @objc private func fixNow() { performFix() }
-    @objc private func toggleLayout() { _ = InputSources.toggle(); updateStatusTitle() }
-    @objc private func setPhraseMode() { mode = .phrase; rebuildMenu() }
-    @objc private func setLastWordMode() { mode = .lastWord; rebuildMenu() }
-    @objc private func toggleSound() { soundEnabled.toggle(); rebuildMenu() }
+    private func reloadBridgeSettings() {
+        guard usesHammerspoonBridge else { return }
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/hs")
+        task.arguments = ["-c", "return tostring(layoutPilotReloadSettings())"]
+        try? task.run()
+    }
+
+    @objc private func openPanelFromMenu() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in self?.showPopover() }
+    }
+
+    @objc private func toggleLayout() {
+        _ = InputSources.toggle()
+        updateStatusButton()
+        rebuildPopoverContent()
+    }
+
+    @objc private func selectUS() {
+        _ = InputSources.select(AppIdentity.usID)
+        updateStatusButton()
+        rebuildPopoverContent()
+    }
+
+    @objc private func selectRussian() {
+        _ = InputSources.select(AppIdentity.russianPCID)
+        updateStatusButton()
+        rebuildPopoverContent()
+    }
+
+    @objc private func setPhraseMode() { mode = .phrase; reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func setLastWordMode() { mode = .lastWord; reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func toggleShift() { shiftEnabled.toggle(); reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func toggleOption() { optionEnabled.toggle(); reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func enableSound() { soundEnabled = true; reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func disableSound() { soundEnabled = false; reloadBridgeSettings(); rebuildPopoverContent() }
 
     @objc private func openAccessibility() {
         fixer.requestAccessibilityPermission()
@@ -618,6 +954,8 @@ private enum SelfTest {
         expect("Ghbdtn", "Привет")
         expect("Vbh!", "Мир!")
         expect("ghbdtn&", "привет?")
+        expect("fewfw", "ауцац")
+        expect("ауцаау", "fewffe")
 
         let phrase = core.convertTrailingPhrase("Привет ghbdtn rfr ltkf")?.text
         if phrase != "Привет привет как дела" {
@@ -636,7 +974,7 @@ private enum SelfTest {
             for failure in failures { fputs("FAIL: \(failure)\n", stderr) }
             return 1
         }
-        print("PASS: 7 layout conversion tests; \(core.us.name) ↔ \(core.russianPC.name)")
+        print("PASS: 9 layout conversion tests; \(core.us.name) ↔ \(core.russianPC.name)")
         return 0
     }
 }
@@ -653,6 +991,15 @@ private struct LayoutPilotMain {
         let arguments = CommandLine.arguments
         if arguments.contains("--self-test") {
             exit(SelfTest.run(core: core))
+        }
+        if arguments.contains("--ui-self-test") {
+            let delegate = AppDelegate(core: core)
+            guard delegate.runBackgroundUISelfTest() else {
+                fputs("FAIL: background UI self-test\n", stderr)
+                exit(6)
+            }
+            print("PASS: background UI self-test; panel=480x430; glyph=64x18; window=none")
+            exit(0)
         }
         if let index = arguments.firstIndex(of: "--convert"), arguments.indices.contains(index + 1) {
             guard let conversion = core.convertAll(arguments[index + 1]) else { exit(3) }

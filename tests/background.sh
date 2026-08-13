@@ -9,6 +9,8 @@ layout_agent="gui/$UID/dev.alex.layout-pilot"
 
 "$layout_built" --self-test
 "$layout_installed" --self-test
+"$layout_built" --ui-self-test
+"$layout_installed" --ui-self-test
 
 layout_latin_json="$("$layout_installed" --convert-json "ghbdtn")"
 [[ "$layout_latin_json" == *'"text":"привет"'* ]]
@@ -24,19 +26,27 @@ layout_phrase_json="$("$layout_installed" --convert-phrase-json "Привет gh
 /usr/bin/plutil -lint "$layout_root/Info.plist" >/dev/null
 /usr/bin/plutil -lint "$layout_root/LaunchAgent.plist" >/dev/null
 /usr/bin/codesign --verify --deep --strict "~/Applications/Layout Pilot.app"
+/bin/test -s "$layout_root/assets/LayoutPilot.icns"
+/bin/test -s "~/Applications/Layout Pilot.app/Contents/Resources/LayoutPilot.icns"
 /bin/test -f "~/.config/layout-pilot/hammerspoon-bridge"
 
-[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "1.1.0" ]]
-[[ "$($layout_hs -c 'return tostring(layoutPilotDoubleShiftTap and layoutPilotDoubleShiftTap:isEnabled())')" == "true" ]]
+[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "2.0.0" ]]
+[[ "$($layout_hs -c 'return tostring(layoutPilotInputTap and layoutPilotInputTap:isEnabled())')" == "true" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local r=layoutPilotQARange(value, 22, true); return r.location.."|"..r.length')" == "9|13" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local r=layoutPilotQARange(value, 22, false); return r.location.."|"..r.length')" == "16|6" ]]
-/usr/bin/diff -u \
-  <(/usr/bin/sed -n '/-- layout-pilot:start/,/-- layout-pilot:end/p' ~/.hammerspoon/init.lua) \
-  "$layout_root/hammerspoon-layout-pilot.lua"
+[[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local v,c=layoutPilotQAReplace(value,16,6,"привет"); return v.."|"..c')" == $'🙂 first\nПривет привет|22' ]]
+[[ "$($layout_hs -c 'return tostring(layoutPilotQATrigger("shift",1)).."|"..tostring(layoutPilotQATrigger("shift",2)).."|"..tostring(layoutPilotQATrigger("option",1))')" == "0|1|1" ]]
+[[ "$($layout_hs -c 'return layoutPilotQABufferCandidate("Привет ghbdtn  ",false)')" == "ghbdtn  " ]]
+rg -q 'clean Option tap' "$layout_root/hammerspoon-layout-pilot.lua"
+! rg -q 'selecting-line|selected-by-pilot|AXSelectedTextRange", directRange' "$layout_root/hammerspoon-layout-pilot.lua"
+rg -q 'dofile\("~/Documents/_code/_tools/layout-pilot/hammerspoon-layout-pilot.lua"\)' ~/.hammerspoon/init.lua
 
 /bin/launchctl print "$layout_agent" | /usr/bin/grep -q 'state = running'
 layout_process_count="$(/usr/bin/pgrep -f '^~/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot --background$' | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
 [[ "$layout_process_count" == "1" ]]
+
+layout_stderr="~/Library/Logs/layout-pilot/layout-pilot.err.log"
+[[ ! -s "$layout_stderr" ]]
 
 if /usr/bin/pgrep -if '/Applications/Caramba Switcher.app/' >/dev/null; then
   print -u2 "FAIL: Caramba Switcher is still running"

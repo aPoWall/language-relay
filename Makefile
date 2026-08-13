@@ -5,23 +5,38 @@ BIN_NAME := LayoutPilot
 BUILD_DIR := .build
 APP_DIR := $(BUILD_DIR)/$(APP_NAME).app
 BUILD_STAMP := $(BUILD_DIR)/.built
+SHAPERKIT := ../shaper-shared/ShaperKit.swift
+ICON_SOURCE := native/IconRenderer.swift
+ICON_RENDERER := $(BUILD_DIR)/IconRenderer
+ICONSET := $(BUILD_DIR)/LayoutPilot.iconset
+ICON_FILE := assets/LayoutPilot.icns
 INSTALL_DIR := $(HOME)/Applications/$(APP_NAME).app
 AGENT_LABEL := dev.alex.layout-pilot
 AGENT_SOURCE := LaunchAgent.plist
 AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
 USER_ID := $(shell /usr/bin/id -u)
 
-.PHONY: all build test background-test integration-test live-harness shift-emitter live-integration-test install clean
+.PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test install clean
 
 all: build
 
 build: $(BUILD_STAMP)
 
-$(BUILD_STAMP): native/LayoutPilot.swift Info.plist
+icon: $(ICON_FILE)
+
+$(ICON_FILE): $(ICON_SOURCE)
+	mkdir -p "$(BUILD_DIR)" assets
+	swiftc -parse-as-library "$(ICON_SOURCE)" -framework AppKit -o "$(ICON_RENDERER)"
+	rm -rf "$(ICONSET)"
+	"$(ICON_RENDERER)" "$(ICONSET)"
+	iconutil -c icns "$(ICONSET)" -o "$(ICON_FILE)"
+
+$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) Info.plist $(ICON_FILE)
 	rm -rf "$(APP_DIR)"
 	mkdir -p "$(APP_DIR)/Contents/MacOS" "$(APP_DIR)/Contents/Resources"
 	cp Info.plist "$(APP_DIR)/Contents/Info.plist"
-	swiftc -parse-as-library native/LayoutPilot.swift \
+	cp "$(ICON_FILE)" "$(APP_DIR)/Contents/Resources/LayoutPilot.icns"
+	swiftc -parse-as-library "$(SHAPERKIT)" native/LayoutPilot.swift \
 		-framework AppKit \
 		-framework ApplicationServices \
 		-framework Carbon \
@@ -63,6 +78,8 @@ install: test
 	codesign --verify --deep --strict "$(INSTALL_DIR)"
 	mkdir -p "$(HOME)/Library/LaunchAgents" "$(HOME)/Library/Logs/layout-pilot"
 	cp "$(AGENT_SOURCE)" "$(AGENT_DEST)"
+	: > "$(HOME)/Library/Logs/layout-pilot/layout-pilot.out.log"
+	: > "$(HOME)/Library/Logs/layout-pilot/layout-pilot.err.log"
 	/bin/launchctl bootstrap gui/$(USER_ID) "$(AGENT_DEST)"
 	/bin/launchctl enable gui/$(USER_ID)/$(AGENT_LABEL)
 

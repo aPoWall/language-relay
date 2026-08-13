@@ -1,38 +1,54 @@
 -- layout-pilot:start
--- Double Shift fixes selected text or the last wrong-layout phrase. The native
--- Layout Pilot binary owns real U.S. / Russian – PC mapping; Hammerspoon is the
--- already-trusted input bridge, so the app itself needs no new Accessibility grant.
+-- Layout Pilot bridge v2.0
+--
+-- Double Shift or a clean Option tap fixes selected text / the last phrase
+-- typed in the wrong layout. The bridge never creates a selection. It first
+-- attempts an invisible AXValue replacement and falls back to buffered
+-- backspaces + a clipboard-preserving paste for web/Electron fields.
+-- Typed text stays in memory only and is never logged or persisted.
+
 local layoutPilotBinary = "~/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot"
+local layoutPilotMarker = 1280329266 -- "LPV2"
 local layoutPilotBusy = false
 local layoutPilotTask = nil
-local layoutPilotLastShiftTap = 0
-local layoutPilotCleanShiftDown = false
+local layoutPilotBuffer = ""
+local layoutPilotBufferApp = nil
+local layoutPilotSyntheticUntil = 0
+local layoutPilotEventTypes = hs.eventtap.event.types
+local layoutPilotEventProperties = hs.eventtap.event.properties
+local layoutPilotTapState = {
+  shift = {down = false, clean = false, lastTap = 0},
+  option = {down = false, clean = false, lastTap = 0},
+}
+local layoutPilotSettings = {
+  phraseMode = true,
+  soundEnabled = true,
+  shiftEnabled = true,
+  optionEnabled = true,
+}
 
-local function layoutPilotRestorePasteboard(snapshot)
-  if snapshot then hs.pasteboard.writeAllData(snapshot) end
+local function layoutPilotReadDefault(key, fallback)
+  local out = hs.execute("/usr/bin/defaults read dev.alex.layout-pilot " .. key .. " 2>/dev/null") or ""
+  out = out:gsub("%s+$", "")
+  if out == "1" or out == "true" then return true end
+  if out == "0" or out == "false" then return false end
+  return fallback
 end
 
-local function layoutPilotSelectedText(focused)
-  local ok, value = pcall(function()
-    return focused and focused:attributeValue("AXSelectedText") or nil
-  end)
-  if ok and type(value) == "string" and value:match("%S") then return value end
-  return nil
+function layoutPilotReloadSettings()
+  local mode = hs.execute("/usr/bin/defaults read dev.alex.layout-pilot fixMode 2>/dev/null") or ""
+  layoutPilotSettings.phraseMode = not mode:match("lastWord")
+  layoutPilotSettings.soundEnabled = layoutPilotReadDefault("soundEnabled", true)
+  layoutPilotSettings.shiftEnabled = layoutPilotReadDefault("shiftEnabled", true)
+  layoutPilotSettings.optionEnabled = layoutPilotReadDefault("optionEnabled", true)
+  return true
 end
 
-local function layoutPilotSoundEnabled()
-  local out = hs.execute("/usr/bin/defaults read dev.alex.layout-pilot soundEnabled 2>/dev/null") or ""
-  return not out:match("^0%s*$")
-end
-
-local function layoutPilotPhraseMode()
-  local out = hs.execute("/usr/bin/defaults read dev.alex.layout-pilot fixMode 2>/dev/null") or ""
-  return not out:match("lastWord")
-end
+layoutPilotReloadSettings()
 
 local function layoutPilotUTF16Length(text)
   local units = 0
-  for _, codepoint in utf8.codes(text) do
+  for _, codepoint in utf8.codes(text or "") do
     units = units + (codepoint > 0xFFFF and 2 or 1)
   end
   return units
@@ -53,189 +69,417 @@ local function layoutPilotRangeForValue(value, caretUnits, phraseMode)
   local caretByte = layoutPilotByteOffsetForUTF16(value, caretUnits)
   local prefix = value:sub(1, caretByte - 1)
   local startByte
+
   if phraseMode then
     local lastNewline = prefix:match(".*()\n")
     startByte = lastNewline and (lastNewline + 1) or 1
   else
-    startByte = prefix:find("%S+$") or (#prefix + 1)
+    local withoutTrailing = prefix:gsub("%s+$", "")
+    startByte = withoutTrailing:find("%S+$")
   end
 
+  if not startByte then return nil end
   local location = layoutPilotUTF16Length(value:sub(1, startByte - 1))
   local length = caretUnits - location
   if length <= 0 then return nil end
   return {location = location, length = length}
 end
 
-local function layoutPilotSelectionRange(focused, phraseMode)
-  if not focused then return nil end
-  local value = focused:attributeValue("AXValue")
-  local caret = focused:attributeValue("AXSelectedTextRange")
-  if type(caret) ~= "table" or type(caret.location) ~= "number" then return nil end
-  return layoutPilotRangeForValue(value, caret.location + (caret.length or 0), phraseMode)
+local function layoutPilotStringForRange(value, range)
+  if type(value) ~= "string" or type(range) ~= "table" then return nil end
+  local startByte = layoutPilotByteOffsetForUTF16(value, range.location)
+  local endByte = layoutPilotByteOffsetForUTF16(value, range.location + range.length)
+  return value:sub(startByte, endByte - 1)
 end
 
-function layoutPilotQARange(value, caretUnits, phraseMode)
-  return layoutPilotRangeForValue(value, caretUnits, phraseMode)
+local function layoutPilotReplaceRange(value, range, replacement)
+  if type(value) ~= "string" or type(range) ~= "table" or type(replacement) ~= "string" then return nil end
+  local startByte = layoutPilotByteOffsetForUTF16(value, range.location)
+  local endByte = layoutPilotByteOffsetForUTF16(value, range.location + range.length)
+  local nextValue = value:sub(1, startByte - 1) .. replacement .. value:sub(endByte)
+  return nextValue, range.location + layoutPilotUTF16Length(replacement)
 end
 
-local function layoutPilotFinish(snapshot, success, detail)
-  if success then hs.settings.set("layout_pilot_last_status", detail or "success") end
-  hs.timer.doAfter(success and 0.45 or 0.05, function()
-    layoutPilotRestorePasteboard(snapshot)
-    layoutPilotBusy = false
+local function layoutPilotTrimBuffer()
+  local count = utf8.len(layoutPilotBuffer) or 0
+  if count <= 256 then return end
+  local offset = utf8.offset(layoutPilotBuffer, count - 255)
+  if offset then layoutPilotBuffer = layoutPilotBuffer:sub(offset) end
+end
+
+local function layoutPilotClearBuffer()
+  layoutPilotBuffer = ""
+  layoutPilotBufferApp = nil
+end
+
+local function layoutPilotBackspaceBuffer()
+  if layoutPilotBuffer == "" then return end
+  local offset = utf8.offset(layoutPilotBuffer, -1)
+  if offset then layoutPilotBuffer = layoutPilotBuffer:sub(1, offset - 1) end
+end
+
+local function layoutPilotBufferCandidate(phraseMode)
+  if not layoutPilotBuffer:match("%S") then return nil end
+  if phraseMode then return layoutPilotBuffer end
+  local withoutTrailing = layoutPilotBuffer:gsub("%s+$", "")
+  local word = withoutTrailing:match("%S+$")
+  if not word then return nil end
+  local trailing = layoutPilotBuffer:sub(#withoutTrailing + 1)
+  return word .. trailing
+end
+
+local function layoutPilotSelectedText(focused)
+  local ok, value = pcall(function()
+    return focused and focused:attributeValue("AXSelectedText") or nil
+  end)
+  if ok and type(value) == "string" and value:match("%S") then return value end
+  return nil
+end
+
+local function layoutPilotFocusedContext(phraseMode)
+  local front = hs.application.frontmostApplication()
+  local bundleID = front and front:bundleID() or nil
+  local focused = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
+  local value = focused and focused:attributeValue("AXValue") or nil
+  local caret = focused and focused:attributeValue("AXSelectedTextRange") or nil
+  local selected = layoutPilotSelectedText(focused)
+  local range = nil
+  local candidate = nil
+  local manualSelection = false
+
+  if selected then
+    candidate = selected
+    manualSelection = true
+    if type(caret) == "table" and type(caret.location) == "number" and (caret.length or 0) > 0 then
+      range = {location = caret.location, length = caret.length}
+    end
+  elseif type(value) == "string" and type(caret) == "table" and type(caret.location) == "number" then
+    range = layoutPilotRangeForValue(value, caret.location + (caret.length or 0), phraseMode)
+    candidate = range and layoutPilotStringForRange(value, range) or nil
+  end
+
+  if type(candidate) ~= "string" or not candidate:match("%S") then
+    candidate = layoutPilotBufferCandidate(phraseMode)
+    range = nil
+    value = nil
+  end
+
+  return {
+    app = front,
+    bundleID = bundleID,
+    focused = focused,
+    value = value,
+    range = range,
+    candidate = candidate,
+    manualSelection = manualSelection,
+    phraseMode = phraseMode and not manualSelection,
+  }
+end
+
+local function layoutPilotSameTarget(context)
+  local front = hs.application.frontmostApplication()
+  if context.bundleID and (not front or front:bundleID() ~= context.bundleID) then return false end
+  if context.focused then
+    local current = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
+    if current ~= context.focused then return false end
+  end
+  if context.value and context.focused:attributeValue("AXValue") ~= context.value then return false end
+  return true
+end
+
+local function layoutPilotSetTargetLayout(targetID)
+  local target = targetID == "com.apple.keylayout.RussianWin" and "Russian – PC" or "U.S."
+  local changed = hs.keycodes.setLayout(target)
+  hs.settings.set("layout_pilot_last_layout", target .. "|set=" .. tostring(changed))
+end
+
+local function layoutPilotPlaySuccessSound()
+  if not layoutPilotSettings.soundEnabled then return end
+  local sound = hs.sound.getByName("Tink")
+  if sound then sound:play() end
+end
+
+local function layoutPilotFinish(success, detail, targetID, verified)
+  hs.settings.set("layout_pilot_last_status", detail or (success and "success" or "failed"))
+  if success and targetID then layoutPilotSetTargetLayout(targetID) end
+  if success then
+    layoutPilotClearBuffer()
+    if verified then layoutPilotPlaySuccessSound() end
+  end
+  layoutPilotBusy = false
+end
+
+local function layoutPilotPostMarkedKey(modifiers, key, isDown)
+  local event = hs.eventtap.event.newKeyEvent(modifiers or {}, key, isDown)
+  if event and layoutPilotEventProperties.eventSourceUserData then
+    event:setProperty(layoutPilotEventProperties.eventSourceUserData, layoutPilotMarker)
+  end
+  if event then event:post() end
+end
+
+local function layoutPilotFallbackApply(context, replacement, targetID, expectedValue)
+  if not layoutPilotSameTarget(context) then
+    layoutPilotFinish(false, "stale-target")
+    return
+  end
+
+  local deleteCount = context.manualSelection and 0 or (utf8.len(context.candidate or "") or 0)
+  if deleteCount > 512 then
+    layoutPilotFinish(false, "candidate-too-long")
+    return
+  end
+
+  local snapshot = hs.pasteboard.readAllData()
+  layoutPilotSyntheticUntil = hs.timer.secondsSinceEpoch() + 0.75
+  for _ = 1, deleteCount do
+    layoutPilotPostMarkedKey({}, "delete", true)
+    layoutPilotPostMarkedKey({}, "delete", false)
+  end
+
+  hs.timer.doAfter(0.015, function()
+    hs.pasteboard.setContents(replacement)
+    local pasteboardChange = hs.pasteboard.changeCount()
+    layoutPilotPostMarkedKey({"cmd"}, "v", true)
+    layoutPilotPostMarkedKey({"cmd"}, "v", false)
+
+    hs.timer.doAfter(0.12, function()
+      local verified = false
+      if expectedValue and context.focused then
+        local ok, current = pcall(function() return context.focused:attributeValue("AXValue") end)
+        verified = ok and current == expectedValue
+      end
+      layoutPilotFinish(true, verified and "success-events-verified" or "success-events", targetID, verified)
+    end)
+
+    hs.timer.doAfter(0.45, function()
+      if hs.pasteboard.changeCount() == pasteboardChange and snapshot then
+        hs.pasteboard.writeAllData(snapshot)
+      end
+    end)
   end)
 end
 
-local function layoutPilotConvert(text, phraseMode, snapshot, selectedByPilot, targetElement)
+local function layoutPilotApplyConversion(context, payload)
+  if not layoutPilotSameTarget(context) then
+    layoutPilotFinish(false, "stale-target")
+    return
+  end
+
+  local expectedValue, expectedCaret
+  if context.value and context.range then
+    expectedValue, expectedCaret = layoutPilotReplaceRange(context.value, context.range, payload.text)
+  end
+
+  if expectedValue and context.focused then
+    local settable = false
+    pcall(function() settable = context.focused:isAttributeSettable("AXValue") == true end)
+    if settable then
+      pcall(function() context.focused:setAttributeValue("AXValue", expectedValue) end)
+      local ok, readback = pcall(function() return context.focused:attributeValue("AXValue") end)
+      if ok and readback == expectedValue then
+        pcall(function()
+          context.focused:setAttributeValue("AXSelectedTextRange", {location = expectedCaret, length = 0})
+        end)
+        layoutPilotFinish(true, "success-ax-verified", payload.targetID, true)
+        return
+      end
+    end
+  end
+
+  layoutPilotFallbackApply(context, payload.text, payload.targetID, expectedValue)
+end
+
+local function layoutPilotConvert(context)
+  local flag = context.phraseMode and "--convert-phrase-json" or "--convert-json"
   hs.settings.set("layout_pilot_last_status", "converting")
-  local flag = phraseMode and "--convert-phrase-json" or "--convert-json"
   layoutPilotTask = hs.task.new(layoutPilotBinary, function(code, stdout, stderr)
     layoutPilotTask = nil
     if code ~= 0 then
-      hs.settings.set("layout_pilot_last_status", "task-exit-" .. tostring(code))
-      if selectedByPilot then hs.eventtap.keyStroke({}, "right", 0) end
-      layoutPilotFinish(snapshot, false)
+      layoutPilotFinish(false, "task-exit-" .. tostring(code))
       return
     end
 
     local ok, payload = pcall(hs.json.decode, stdout)
     if not ok or type(payload) ~= "table" or type(payload.text) ~= "string" then
-      hs.settings.set("layout_pilot_last_status", "json-failed")
-      if selectedByPilot then hs.eventtap.keyStroke({}, "right", 0) end
-      layoutPilotFinish(snapshot, false)
+      layoutPilotFinish(false, "json-failed")
       return
     end
-
-    local axOK, axResult = pcall(function()
-      return targetElement and targetElement:setAttributeValue("AXSelectedText", payload.text) or false
-    end)
-    local usedAX = axOK and axResult ~= false and axResult ~= nil
-    if not usedAX then
-      hs.pasteboard.setContents(payload.text)
-      hs.eventtap.keyStroke({"cmd"}, "v", 0)
-    end
-    local targetLayout = payload.targetID == "com.apple.keylayout.RussianWin" and "Russian – PC" or "U.S."
-    local layoutSet = hs.keycodes.setLayout(targetLayout)
-    hs.settings.set(
-      "layout_pilot_last_layout",
-      targetLayout .. "|set=" .. tostring(layoutSet) .. "|current=" .. tostring(hs.keycodes.currentLayout())
-    )
-    if layoutPilotSoundEnabled() then
-      local sound = hs.sound.getByName("Tink")
-      if sound then sound:play() end
-    end
-    layoutPilotFinish(snapshot, true, usedAX and "success-ax" or "success-paste")
-  end, {flag, text})
+    layoutPilotApplyConversion(context, payload)
+  end, {flag, context.candidate})
 
   if not layoutPilotTask or not layoutPilotTask:start() then
     layoutPilotTask = nil
-    hs.settings.set("layout_pilot_last_status", "task-start-failed")
-    if selectedByPilot then hs.eventtap.keyStroke({}, "right", 0) end
-    layoutPilotFinish(snapshot, false)
+    layoutPilotFinish(false, "task-start-failed")
   end
 end
 
-function layoutPilotFix()
-  if layoutPilotBusy then return end
+local function layoutPilotToggleLayoutOnly()
+  local current = hs.keycodes.currentLayout()
+  local target = current == "Russian – PC" and "U.S." or "Russian – PC"
+  local changed = hs.keycodes.setLayout(target)
+  hs.settings.set("layout_pilot_last_status", changed and "layout-switched" or "layout-switch-failed")
+end
+
+function layoutPilotFix(trigger)
+  if layoutPilotBusy or hs.eventtap.isSecureInputEnabled() then return false end
   layoutPilotBusy = true
-  hs.settings.set("layout_pilot_last_status", "started")
+  hs.settings.set("layout_pilot_last_status", "started-" .. tostring(trigger or "manual"))
+
+  local context = layoutPilotFocusedContext(layoutPilotSettings.phraseMode)
+  if type(context.candidate) ~= "string" or not context.candidate:match("%S") then
+    layoutPilotBusy = false
+    if trigger == "option" then layoutPilotToggleLayoutOnly() end
+    return false
+  end
+
+  local count = utf8.len(context.candidate) or 0
+  if count == 0 or count > 512 then
+    layoutPilotFinish(false, "candidate-too-long")
+    return false
+  end
+
+  layoutPilotConvert(context)
+  return true
+end
+
+local function layoutPilotCompleteTap(state, requiredTaps, now)
+  if requiredTaps == 1 then
+    state.lastTap = 0
+    return true
+  end
+  if state.lastTap > 0 and now - state.lastTap <= 0.38 then
+    state.lastTap = 0
+    return true
+  end
+  state.lastTap = now
+  return false
+end
+
+local function layoutPilotHandleModifier(name, isDown, onlyModifier, requiredTaps, now)
+  local state = layoutPilotTapState[name]
+  if onlyModifier and isDown and not state.down then
+    state.down = true
+    state.clean = true
+    return false
+  end
+  if not isDown and state.down then
+    local clean = state.clean
+    state.down = false
+    state.clean = false
+    if clean then return layoutPilotCompleteTap(state, requiredTaps, now) end
+    state.lastTap = 0
+    return false
+  end
+  if state.down and not onlyModifier then state.clean = false end
+  return false
+end
+
+local function layoutPilotResetModifierTaps()
+  for _, state in pairs(layoutPilotTapState) do
+    state.down = false
+    state.clean = false
+    state.lastTap = 0
+  end
+end
+
+local function layoutPilotHandleTypedKey(event)
+  if hs.timer.secondsSinceEpoch() < layoutPilotSyntheticUntil then return end
+  if hs.eventtap.isSecureInputEnabled() then layoutPilotClearBuffer(); return end
+
   local front = hs.application.frontmostApplication()
-  local focused = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
-  local focusedRange = focused and focused:attributeValue("AXSelectedTextRange") or nil
-  hs.settings.set(
-    "layout_pilot_last_target",
-    (front and (front:name() .. "|" .. (front:bundleID() or "")) or "none")
-      .. "|" .. (focused and (focused:attributeValue("AXRole") or "no-role") or "no-focus")
-      .. "|range=" .. hs.inspect(focusedRange)
-      .. "|secure=" .. tostring(hs.eventtap.isSecureInputEnabled())
-  )
-  local snapshot = hs.pasteboard.readAllData()
-  local selected = layoutPilotSelectedText(focused)
-  if selected then
-    hs.settings.set("layout_pilot_last_status", "selected-text")
-    layoutPilotConvert(selected, false, snapshot, false, focused)
+  local bundleID = front and front:bundleID() or nil
+  if layoutPilotBufferApp and bundleID ~= layoutPilotBufferApp then layoutPilotClearBuffer() end
+  layoutPilotBufferApp = bundleID
+
+  local flags = event:getFlags()
+  local keyCode = event:getKeyCode()
+  if flags.cmd or flags.ctrl then layoutPilotClearBuffer(); return end
+  if keyCode == 36 or keyCode == 48 or keyCode == 53 or keyCode == 76 then
+    layoutPilotClearBuffer()
+    return
+  end
+  if keyCode == 51 then layoutPilotBackspaceBuffer(); return end
+  if keyCode == 123 or keyCode == 124 or keyCode == 125 or keyCode == 126 or keyCode == 115 or keyCode == 119 then
+    layoutPilotClearBuffer()
     return
   end
 
-  local phraseMode = layoutPilotPhraseMode()
-  local directRange = layoutPilotSelectionRange(focused, phraseMode)
-  local directSelectionOK = false
-  if directRange then
-    local ok, result = pcall(function()
-      return focused:setAttributeValue("AXSelectedTextRange", directRange)
-    end)
-    directSelectionOK = ok and result ~= false and result ~= nil
-  end
-  if directSelectionOK then
-    hs.settings.set("layout_pilot_last_status", phraseMode and "selecting-line-ax" or "selecting-word-ax")
-  else
-    hs.eventtap.keyStroke(phraseMode and {"cmd", "shift"} or {"alt", "shift"}, "left", 0)
-    hs.settings.set("layout_pilot_last_status", phraseMode and "selecting-line-keys" or "selecting-word-keys")
-  end
-  hs.timer.doAfter(0.10, function()
-    local afterSelect = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
-    local afterText = afterSelect and afterSelect:attributeValue("AXSelectedText") or nil
-    local afterRange = afterSelect and afterSelect:attributeValue("AXSelectedTextRange") or nil
-    hs.settings.set("layout_pilot_last_selection", "length=" .. tostring(type(afterText) == "string" and #afterText or -1) .. "|range=" .. hs.inspect(afterRange))
-    if type(afterText) == "string" and afterText:match("%S") then
-      hs.settings.set("layout_pilot_last_status", "selected-by-pilot")
-      layoutPilotConvert(afterText, phraseMode, snapshot, true, afterSelect)
-      return
-    end
-
-    hs.pasteboard.clearContents()
-    hs.eventtap.keyStroke({"cmd"}, "c", 0)
-    hs.timer.doAfter(0.14, function()
-      local line = hs.pasteboard.getContents()
-      if not line or not line:match("%S") then
-        hs.settings.set("layout_pilot_last_status", "copy-empty")
-        hs.eventtap.keyStroke({}, "right", 0)
-        layoutPilotFinish(snapshot, false)
-        return
-      end
-      hs.settings.set("layout_pilot_last_status", "copied-line")
-      layoutPilotConvert(line, phraseMode, snapshot, true, afterSelect)
-    end)
-  end)
+  local ok, characters = pcall(function() return event:getCharacters() end)
+  if not ok or type(characters) ~= "string" or characters == "" then return end
+  if characters:find("[%z\1-\31\127]") then return end
+  layoutPilotBuffer = layoutPilotBuffer .. characters
+  layoutPilotTrimBuffer()
 end
 
-local layoutPilotEventTypes = hs.eventtap.event.types
-layoutPilotDoubleShiftTap = hs.eventtap.new(
-  {layoutPilotEventTypes.flagsChanged, layoutPilotEventTypes.keyDown},
+layoutPilotInputTap = hs.eventtap.new(
+  {
+    layoutPilotEventTypes.flagsChanged,
+    layoutPilotEventTypes.keyDown,
+    layoutPilotEventTypes.leftMouseDown,
+    layoutPilotEventTypes.rightMouseDown,
+  },
   function(event)
-    if event:getType() == layoutPilotEventTypes.keyDown then
-      layoutPilotCleanShiftDown = false
-      layoutPilotLastShiftTap = 0
+    local marker = layoutPilotEventProperties.eventSourceUserData
+      and event:getProperty(layoutPilotEventProperties.eventSourceUserData) or 0
+    if marker == layoutPilotMarker then return false end
+
+    local eventType = event:getType()
+    if eventType == layoutPilotEventTypes.leftMouseDown or eventType == layoutPilotEventTypes.rightMouseDown then
+      layoutPilotClearBuffer()
+      layoutPilotResetModifierTaps()
+      return false
+    end
+    if eventType == layoutPilotEventTypes.keyDown then
+      for _, state in pairs(layoutPilotTapState) do
+        state.clean = false
+        state.lastTap = 0
+      end
+      layoutPilotHandleTypedKey(event)
       return false
     end
 
     local flags = event:getFlags()
-    local shiftDown = flags.shift == true
-    local onlyShift = shiftDown and not flags.cmd and not flags.alt and not flags.ctrl and not flags.fn
+    local now = hs.timer.secondsSinceEpoch()
+    local onlyShift = flags.shift == true and not flags.cmd and not flags.alt and not flags.ctrl and not flags.fn
+    local onlyOption = flags.alt == true and not flags.cmd and not flags.shift and not flags.ctrl and not flags.fn
+    local fireShift = layoutPilotHandleModifier("shift", flags.shift == true, onlyShift, 2, now)
+    local fireOption = layoutPilotHandleModifier("option", flags.alt == true, onlyOption, 1, now)
 
-    if onlyShift and not layoutPilotCleanShiftDown then
-      layoutPilotCleanShiftDown = true
-      return false
-    end
-    if not shiftDown and layoutPilotCleanShiftDown then
-      layoutPilotCleanShiftDown = false
-      local now = hs.timer.secondsSinceEpoch()
-      if layoutPilotLastShiftTap > 0 and now - layoutPilotLastShiftTap <= 0.38 then
-        layoutPilotLastShiftTap = 0
-        hs.timer.doAfter(0.06, layoutPilotFix)
-      else
-        layoutPilotLastShiftTap = now
-      end
-      return false
-    end
-
-    if not onlyShift then
-      layoutPilotCleanShiftDown = false
-      layoutPilotLastShiftTap = 0
+    if fireShift and layoutPilotSettings.shiftEnabled then
+      hs.timer.doAfter(0.035, function() layoutPilotFix("shift") end)
+    elseif fireOption and layoutPilotSettings.optionEnabled then
+      hs.timer.doAfter(0.035, function() layoutPilotFix("option") end)
     end
     return false
   end
 ):start()
 
-hs.settings.set("layout_pilot_bridge_ver", "1.1.0")
+function layoutPilotQARange(value, caretUnits, phraseMode)
+  return layoutPilotRangeForValue(value, caretUnits, phraseMode)
+end
+
+function layoutPilotQAReplace(value, location, length, replacement)
+  return layoutPilotReplaceRange(value, {location = location, length = length}, replacement)
+end
+
+function layoutPilotQATrigger(modifier, taps)
+  local state = {down = false, clean = false, lastTap = 0}
+  local required = modifier == "option" and 1 or 2
+  local fired = 0
+  for index = 1, taps do
+    if layoutPilotCompleteTap(state, required, 1 + index * 0.1) then fired = fired + 1 end
+  end
+  return fired
+end
+
+function layoutPilotQABufferCandidate(value, phraseMode)
+  local previous = layoutPilotBuffer
+  layoutPilotBuffer = value
+  local candidate = layoutPilotBufferCandidate(phraseMode)
+  layoutPilotBuffer = previous
+  return candidate
+end
+
+hs.settings.set("layout_pilot_bridge_ver", "2.0.0")
+hs.settings.set("layout_pilot_last_status", hs.settings.get("layout_pilot_last_status") or "ready")
 -- layout-pilot:end
