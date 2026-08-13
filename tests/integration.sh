@@ -12,6 +12,7 @@ layout_sentinel="LAYOUT_PILOT_CLIPBOARD_SENTINEL"
 
 layout_original_mode="$($layout_defaults read dev.alex.layout-pilot fixMode 2>/dev/null || true)"
 layout_original_sound="$($layout_defaults read dev.alex.layout-pilot soundEnabled 2>/dev/null || true)"
+layout_original_capitalization="$($layout_defaults read dev.alex.layout-pilot capitalizationMode 2>/dev/null || true)"
 layout_original_input="$($layout_hs -c 'return hs.keycodes.currentLayout()')"
 
 $layout_hs -c 'layoutPilotIntegrationClipboard=hs.pasteboard.readAllData(); layoutPilotIntegrationClipboardWasEmpty=(layoutPilotIntegrationClipboard==nil); hs.pasteboard.setContents("LAYOUT_PILOT_CLIPBOARD_SENTINEL")' >/dev/null
@@ -27,12 +28,18 @@ layout_cleanup() {
   else
     $layout_defaults delete dev.alex.layout-pilot soundEnabled 2>/dev/null || true
   fi
+  if [[ -n "$layout_original_capitalization" ]]; then
+    $layout_defaults write dev.alex.layout-pilot capitalizationMode -string "$layout_original_capitalization"
+  else
+    $layout_defaults delete dev.alex.layout-pilot capitalizationMode 2>/dev/null || true
+  fi
   $layout_hs -c 'if layoutPilotIntegrationClipboardWasEmpty then hs.pasteboard.clearContents() elseif layoutPilotIntegrationClipboard then hs.pasteboard.writeAllData(layoutPilotIntegrationClipboard) end; layoutPilotIntegrationClipboard=nil; layoutPilotIntegrationClipboardWasEmpty=nil' >/dev/null || true
   $layout_hs -c "hs.keycodes.setLayout([[${layout_original_input}]])" >/dev/null || true
 }
 trap layout_cleanup EXIT
 
 $layout_defaults write dev.alex.layout-pilot soundEnabled -bool false
+$layout_defaults write dev.alex.layout-pilot capitalizationMode -string preserve
 
 layout_assert_result() {
   local label="$1"
@@ -96,7 +103,7 @@ wait "$layout_double_shift_pid"
 /bin/sleep 0.8
 layout_assert_result "physical double Shift event path" "привет"
 
-if [[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_last_status")')" != "success-ax" ]]; then
+if [[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_last_status")')" != "success-ax-verified" ]]; then
   print -u2 "FAIL: Hammerspoon bridge did not complete through AX"
   exit 1
 fi
@@ -106,4 +113,3 @@ if [[ "$($layout_hs -c 'return hs.keycodes.currentLayout()')" != "Russian – PC
 fi
 
 print "PASS: Layout Pilot live integration suite"
-

@@ -29,6 +29,27 @@ private struct Conversion {
     let targetID: String
 }
 
+private enum CapitalizationMode: String {
+    case preserve
+    case sentence
+    case uppercase
+
+    func apply(to text: String) -> String {
+        switch self {
+        case .preserve:
+            return text
+        case .sentence:
+            var result = text.lowercased()
+            guard let letterIndex = result.firstIndex(where: \.isLetter) else { return result }
+            let nextIndex = result.index(after: letterIndex)
+            result.replaceSubrange(letterIndex..<nextIndex, with: String(result[letterIndex]).uppercased())
+            return result
+        case .uppercase:
+            return text.uppercased()
+        }
+    }
+}
+
 private enum InputSources {
     static func stringProperty(_ source: TISInputSource, _ key: CFString) -> String? {
         guard let pointer = TISGetInputSourceProperty(source, key) else { return nil }
@@ -138,13 +159,24 @@ private final class LayoutConversionCore {
         self.russianPC = russianPC
     }
 
-    func convertAll(_ text: String) -> Conversion? {
+    func convertAll(
+        _ text: String,
+        capitalization: CapitalizationMode = .preserve
+    ) -> Conversion? {
         guard let source = detectSource(for: text) else { return nil }
         let target = source.id == us.id ? russianPC : us
-        return convert(text, from: source, to: target)
+        guard let converted = convert(text, from: source, to: target) else { return nil }
+        return Conversion(
+            text: capitalization.apply(to: converted.text),
+            sourceID: converted.sourceID,
+            targetID: converted.targetID
+        )
     }
 
-    func convertTrailingPhrase(_ text: String) -> Conversion? {
+    func convertTrailingPhrase(
+        _ text: String,
+        capitalization: CapitalizationMode = .preserve
+    ) -> Conversion? {
         let tokens = tokenize(text)
         guard let lastWordIndex = tokens.lastIndex(where: { $0.isWord }),
               let phraseSource = detectSource(for: tokens[lastWordIndex].text)
@@ -167,7 +199,7 @@ private final class LayoutConversionCore {
         let target = phraseSource.id == us.id ? russianPC : us
         guard let converted = convert(phrase, from: phraseSource, to: target) else { return nil }
         return Conversion(
-            text: keep + converted.text,
+            text: keep + capitalization.apply(to: converted.text),
             sourceID: phraseSource.id,
             targetID: target.id
         )
@@ -271,7 +303,11 @@ private final class TextFixer {
         AXIsProcessTrustedWithOptions([key: true] as CFDictionary)
     }
 
-    func fix(mode: FixMode, completion: @escaping (Bool) -> Void) {
+    func fix(
+        mode: FixMode,
+        capitalization: CapitalizationMode,
+        completion: @escaping (Bool) -> Void
+    ) {
         guard hasAccessibilityPermission else {
             requestAccessibilityPermission()
             completion(false)
@@ -281,11 +317,16 @@ private final class TextFixer {
         let snapshot = PasteboardSnapshot.capture()
         if let selected = selectedTextFromAccessibility(),
            !selected.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-           let conversion = core.convertAll(selected) {
+           let conversion = core.convertAll(selected, capitalization: capitalization) {
             paste(conversion, snapshot: snapshot, completion: completion)
             return
         }
-        selectAndFix(mode: mode, snapshot: snapshot, completion: completion)
+        selectAndFix(
+            mode: mode,
+            capitalization: capitalization,
+            snapshot: snapshot,
+            completion: completion
+        )
     }
 
     private func selectedTextFromAccessibility() -> String? {
@@ -309,6 +350,7 @@ private final class TextFixer {
 
     private func selectAndFix(
         mode: FixMode,
+        capitalization: CapitalizationMode,
         snapshot: PasteboardSnapshot,
         completion: @escaping (Bool) -> Void
     ) {
@@ -333,8 +375,8 @@ private final class TextFixer {
                 }
 
                 let conversion = mode == .phrase
-                    ? self.core.convertTrailingPhrase(selected)
-                    : self.core.convertAll(selected)
+                    ? self.core.convertTrailingPhrase(selected, capitalization: capitalization)
+                    : self.core.convertAll(selected, capitalization: capitalization)
                 guard let conversion else {
                     self.cancelSelection(snapshot: snapshot, completion: completion)
                     return
@@ -451,7 +493,7 @@ private final class DoubleShiftMonitor {
 
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 480
-    static let height: CGFloat = 430
+    static let height: CGFloat = 500
     static let contentWidth: CGFloat = 432
 }
 
@@ -552,6 +594,22 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var soundEnabled: Bool {
         get { defaults.object(forKey: "soundEnabled") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "soundEnabled") }
+    }
+
+    private var soundName: String {
+        get {
+            let value = defaults.string(forKey: "soundName") ?? "Pop"
+            return ["Pop", "Glass", "Ping", "Purr"].contains(value) ? value : "Pop"
+        }
+        set { defaults.set(newValue, forKey: "soundName") }
+    }
+
+    private var capitalization: CapitalizationMode {
+        get {
+            CapitalizationMode(rawValue: defaults.string(forKey: "capitalizationMode") ?? "preserve")
+                ?? .preserve
+        }
+        set { defaults.set(newValue.rawValue, forKey: "capitalizationMode") }
     }
 
     private var shiftEnabled: Bool {
@@ -745,6 +803,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         modeRow.addArrangedSubview(word)
         root.addArrangedSubview(modeRow)
 
+        root.addArrangedSubview(sectionHeader("capitalization", width: LayoutPilotPanelMetrics.contentWidth))
+        let capitalizationRow = NSStackView()
+        capitalizationRow.orientation = .horizontal
+        capitalizationRow.spacing = 6
+        let preserve = squareButton("preserve", action: #selector(setCapitalizationPreserve), width: 140, height: 31)
+        preserve.isActive = capitalization == .preserve
+        let sentence = squareButton("sentence", action: #selector(setCapitalizationSentence), width: 140, height: 31)
+        sentence.isActive = capitalization == .sentence
+        let uppercase = squareButton("uppercase", action: #selector(setCapitalizationUppercase), width: 140, height: 31)
+        uppercase.isActive = capitalization == .uppercase
+        capitalizationRow.addArrangedSubview(preserve)
+        capitalizationRow.addArrangedSubview(sentence)
+        capitalizationRow.addArrangedSubview(uppercase)
+        root.addArrangedSubview(capitalizationRow)
+
         root.addArrangedSubview(sectionHeader("triggers · clean modifier taps only", width: LayoutPilotPanelMetrics.contentWidth))
         let triggerRow = NSStackView()
         triggerRow.orientation = .horizontal
@@ -761,11 +834,20 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let soundRow = NSStackView()
         soundRow.orientation = .horizontal
         soundRow.spacing = 6
-        let sound = squareButton("sound", action: #selector(enableSound), width: 213, height: 31)
-        sound.isActive = soundEnabled
-        let silent = squareButton("silent", action: #selector(disableSound), width: 213, height: 31)
+        let pop = squareButton("pop", action: #selector(setSoundPop), width: 81.6, height: 31)
+        pop.isActive = soundEnabled && soundName == "Pop"
+        let glass = squareButton("glass", action: #selector(setSoundGlass), width: 81.6, height: 31)
+        glass.isActive = soundEnabled && soundName == "Glass"
+        let ping = squareButton("ping", action: #selector(setSoundPing), width: 81.6, height: 31)
+        ping.isActive = soundEnabled && soundName == "Ping"
+        let purr = squareButton("purr", action: #selector(setSoundPurr), width: 81.6, height: 31)
+        purr.isActive = soundEnabled && soundName == "Purr"
+        let silent = squareButton("silent", action: #selector(disableSound), width: 81.6, height: 31)
         silent.isActive = !soundEnabled
-        soundRow.addArrangedSubview(sound)
+        soundRow.addArrangedSubview(pop)
+        soundRow.addArrangedSubview(glass)
+        soundRow.addArrangedSubview(ping)
+        soundRow.addArrangedSubview(purr)
         soundRow.addArrangedSubview(silent)
         root.addArrangedSubview(soundRow)
 
@@ -888,9 +970,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             try? task.run()
             return
         }
-        fixer.fix(mode: mode) { [weak self] success in
+        fixer.fix(mode: mode, capitalization: capitalization) { [weak self] success in
             guard let self else { return }
-            if success, self.soundEnabled { NSSound(named: "Tink")?.play() }
+            if success { self.playSelectedSound() }
             self.updateStatusButton()
         }
     }
@@ -927,10 +1009,36 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     @objc private func setPhraseMode() { mode = .phrase; reloadBridgeSettings(); rebuildPopoverContent() }
     @objc private func setLastWordMode() { mode = .lastWord; reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func setCapitalizationPreserve() { setCapitalization(.preserve) }
+    @objc private func setCapitalizationSentence() { setCapitalization(.sentence) }
+    @objc private func setCapitalizationUppercase() { setCapitalization(.uppercase) }
     @objc private func toggleShift() { shiftEnabled.toggle(); reloadBridgeSettings(); rebuildPopoverContent() }
     @objc private func toggleOption() { optionEnabled.toggle(); reloadBridgeSettings(); rebuildPopoverContent() }
-    @objc private func enableSound() { soundEnabled = true; reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func setSoundPop() { selectSound("Pop") }
+    @objc private func setSoundGlass() { selectSound("Glass") }
+    @objc private func setSoundPing() { selectSound("Ping") }
+    @objc private func setSoundPurr() { selectSound("Purr") }
     @objc private func disableSound() { soundEnabled = false; reloadBridgeSettings(); rebuildPopoverContent() }
+
+    private func setCapitalization(_ value: CapitalizationMode) {
+        capitalization = value
+        reloadBridgeSettings()
+        rebuildPopoverContent()
+    }
+
+    private func selectSound(_ name: String) {
+        soundName = name
+        soundEnabled = true
+        reloadBridgeSettings()
+        playSelectedSound()
+        rebuildPopoverContent()
+    }
+
+    private func playSelectedSound() {
+        guard soundEnabled, let sound = NSSound(named: soundName) else { return }
+        sound.volume = 0.82
+        sound.play()
+    }
 
     @objc private func openAccessibility() {
         fixer.requestAccessibilityPermission()
@@ -957,6 +1065,15 @@ private enum SelfTest {
         expect("fewfw", "ауцац")
         expect("ауцаау", "fewffe")
 
+        let sentence = core.convertAll("ghbdtn", capitalization: .sentence)?.text
+        if sentence != "Привет" { failures.append("sentence capitalization -> \(sentence ?? "nil")") }
+        let sentenceFromUppercase = core.convertAll("GHBDTN", capitalization: .sentence)?.text
+        if sentenceFromUppercase != "Привет" {
+            failures.append("sentence uppercase input -> \(sentenceFromUppercase ?? "nil")")
+        }
+        let uppercase = core.convertAll("ghbdtn", capitalization: .uppercase)?.text
+        if uppercase != "ПРИВЕТ" { failures.append("uppercase capitalization -> \(uppercase ?? "nil")") }
+
         let phrase = core.convertTrailingPhrase("Привет ghbdtn rfr ltkf")?.text
         if phrase != "Привет привет как дела" {
             failures.append("phrase -> \(phrase ?? "nil")")
@@ -974,7 +1091,7 @@ private enum SelfTest {
             for failure in failures { fputs("FAIL: \(failure)\n", stderr) }
             return 1
         }
-        print("PASS: 9 layout conversion tests; \(core.us.name) ↔ \(core.russianPC.name)")
+        print("PASS: 12 layout conversion tests; \(core.us.name) ↔ \(core.russianPC.name)")
         return 0
     }
 }
@@ -989,6 +1106,12 @@ private struct LayoutPilotMain {
         }
 
         let arguments = CommandLine.arguments
+        let capitalization: CapitalizationMode = {
+            guard let index = arguments.firstIndex(of: "--capitalization"),
+                  arguments.indices.contains(index + 1)
+            else { return .preserve }
+            return CapitalizationMode(rawValue: arguments[index + 1]) ?? .preserve
+        }()
         if arguments.contains("--self-test") {
             exit(SelfTest.run(core: core))
         }
@@ -998,21 +1121,24 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; panel=480x430; glyph=64x18; window=none")
+            print("PASS: background UI self-test; panel=480x500; glyph=64x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--convert"), arguments.indices.contains(index + 1) {
-            guard let conversion = core.convertAll(arguments[index + 1]) else { exit(3) }
+            guard let conversion = core.convertAll(arguments[index + 1], capitalization: capitalization) else { exit(3) }
             print(conversion.text)
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--convert-json"), arguments.indices.contains(index + 1) {
-            guard let conversion = core.convertAll(arguments[index + 1]) else { exit(3) }
+            guard let conversion = core.convertAll(arguments[index + 1], capitalization: capitalization) else { exit(3) }
             writeJSON(conversion)
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--convert-phrase-json"), arguments.indices.contains(index + 1) {
-            guard let conversion = core.convertTrailingPhrase(arguments[index + 1]) else { exit(3) }
+            guard let conversion = core.convertTrailingPhrase(
+                arguments[index + 1],
+                capitalization: capitalization
+            ) else { exit(3) }
             writeJSON(conversion)
             exit(0)
         }

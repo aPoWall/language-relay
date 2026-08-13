@@ -23,6 +23,12 @@ layout_cyrillic_json="$("$layout_installed" --convert-json "руддщ")"
 layout_phrase_json="$("$layout_installed" --convert-phrase-json "Привет ghbdtn rfr ltkf")"
 [[ "$layout_phrase_json" == *'"text":"Привет привет как дела"'* ]]
 
+layout_sentence_json="$("$layout_installed" --convert-json "ghbdtn" --capitalization sentence)"
+[[ "$layout_sentence_json" == *'"text":"Привет"'* ]]
+
+layout_uppercase_json="$("$layout_installed" --convert-json "ghbdtn" --capitalization uppercase)"
+[[ "$layout_uppercase_json" == *'"text":"ПРИВЕТ"'* ]]
+
 /usr/bin/plutil -lint "$layout_root/Info.plist" >/dev/null
 /usr/bin/plutil -lint "$layout_root/LaunchAgent.plist" >/dev/null
 /usr/bin/codesign --verify --deep --strict "~/Applications/Layout Pilot.app"
@@ -30,14 +36,20 @@ layout_phrase_json="$("$layout_installed" --convert-phrase-json "Привет gh
 /bin/test -s "~/Applications/Layout Pilot.app/Contents/Resources/LayoutPilot.icns"
 /bin/test -f "~/.config/layout-pilot/hammerspoon-bridge"
 
-[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "2.0.0" ]]
+[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "2.1.0" ]]
 [[ "$($layout_hs -c 'return tostring(layoutPilotInputTap and layoutPilotInputTap:isEnabled())')" == "true" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local r=layoutPilotQARange(value, 22, true); return r.location.."|"..r.length')" == "9|13" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local r=layoutPilotQARange(value, 22, false); return r.location.."|"..r.length')" == "16|6" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local v,c=layoutPilotQAReplace(value,16,6,"привет"); return v.."|"..c')" == $'🙂 first\nПривет привет|22' ]]
 [[ "$($layout_hs -c 'return tostring(layoutPilotQATrigger("shift",1)).."|"..tostring(layoutPilotQATrigger("shift",2)).."|"..tostring(layoutPilotQATrigger("option",1))')" == "0|1|1" ]]
 [[ "$($layout_hs -c 'return layoutPilotQABufferCandidate("Привет ghbdtn  ",false)')" == "ghbdtn  " ]]
+[[ "$($layout_hs -c 'return layoutPilotQAFallbackDecision("ghbdtn","","","привет",false)')" == "paste" ]]
+[[ "$($layout_hs -c 'return layoutPilotQAFallbackDecision("ghbdtn","ghbdtn","","привет",false)')" == "abort-delete" ]]
+[[ "$($layout_hs -c 'return layoutPilotQAFallbackDecision("ghbdtn","привет","","привет",false)')" == "done" ]]
+[[ "$($layout_hs -c 'return string.format("%.3f|%.3f",layoutPilotQADeletionDelay(1),layoutPilotQADeletionDelay(100))')" == "0.040|0.235" ]]
+[[ "$($layout_hs -c 'return layoutPilotQASettings()')" == "Pop|preserve|true" ]]
 rg -q 'clean Option tap' "$layout_root/hammerspoon-layout-pilot.lua"
+rg -q 'layoutPilotInputTap:stop' "$layout_root/hammerspoon-layout-pilot.lua"
 ! rg -q 'selecting-line|selected-by-pilot|AXSelectedTextRange", directRange' "$layout_root/hammerspoon-layout-pilot.lua"
 rg -q 'dofile\("~/Documents/_code/_tools/layout-pilot/hammerspoon-layout-pilot.lua"\)' ~/.hammerspoon/init.lua
 

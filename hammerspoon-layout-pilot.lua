@@ -1,11 +1,16 @@
 -- layout-pilot:start
--- Layout Pilot bridge v2.0
+-- Layout Pilot bridge v2.1
 --
 -- Double Shift or a clean Option tap fixes selected text / the last phrase
 -- typed in the wrong layout. The bridge never creates a selection. It first
 -- attempts an invisible AXValue replacement and falls back to buffered
 -- backspaces + a clipboard-preserving paste for web/Electron fields.
 -- Typed text stays in memory only and is never logged or persisted.
+
+if layoutPilotInputTap then
+  pcall(function() layoutPilotInputTap:stop() end)
+  layoutPilotInputTap = nil
+end
 
 local layoutPilotBinary = "~/Applications/Layout Pilot.app/Contents/MacOS/LayoutPilot"
 local layoutPilotMarker = 1280329266 -- "LPV2"
@@ -23,6 +28,8 @@ local layoutPilotTapState = {
 local layoutPilotSettings = {
   phraseMode = true,
   soundEnabled = true,
+  soundName = "Pop",
+  capitalizationMode = "preserve",
   shiftEnabled = true,
   optionEnabled = true,
 }
@@ -35,10 +42,22 @@ local function layoutPilotReadDefault(key, fallback)
   return fallback
 end
 
+local function layoutPilotReadStringDefault(key, fallback)
+  local out = hs.execute("/usr/bin/defaults read dev.alex.layout-pilot " .. key .. " 2>/dev/null") or ""
+  out = out:gsub("%s+$", "")
+  return out ~= "" and out or fallback
+end
+
 function layoutPilotReloadSettings()
-  local mode = hs.execute("/usr/bin/defaults read dev.alex.layout-pilot fixMode 2>/dev/null") or ""
+  local mode = layoutPilotReadStringDefault("fixMode", "phrase")
+  local soundName = layoutPilotReadStringDefault("soundName", "Pop")
+  local capitalizationMode = layoutPilotReadStringDefault("capitalizationMode", "preserve")
   layoutPilotSettings.phraseMode = not mode:match("lastWord")
   layoutPilotSettings.soundEnabled = layoutPilotReadDefault("soundEnabled", true)
+  layoutPilotSettings.soundName = ({Pop = true, Glass = true, Ping = true, Purr = true})[soundName]
+    and soundName or "Pop"
+  layoutPilotSettings.capitalizationMode = ({preserve = true, sentence = true, uppercase = true})[capitalizationMode]
+    and capitalizationMode or "preserve"
   layoutPilotSettings.shiftEnabled = layoutPilotReadDefault("shiftEnabled", true)
   layoutPilotSettings.optionEnabled = layoutPilotReadDefault("optionEnabled", true)
   return true
@@ -176,14 +195,22 @@ local function layoutPilotFocusedContext(phraseMode)
   }
 end
 
-local function layoutPilotSameTarget(context)
+local function layoutPilotSameFocus(context)
   local front = hs.application.frontmostApplication()
   if context.bundleID and (not front or front:bundleID() ~= context.bundleID) then return false end
   if context.focused then
     local current = hs.axuielement.systemWideElement():attributeValue("AXFocusedUIElement")
     if current ~= context.focused then return false end
   end
-  if context.value and context.focused:attributeValue("AXValue") ~= context.value then return false end
+  return true
+end
+
+local function layoutPilotSameTarget(context)
+  if not layoutPilotSameFocus(context) then return false end
+  if context.value then
+    local ok, current = pcall(function() return context.focused:attributeValue("AXValue") end)
+    if not ok or current ~= context.value then return false end
+  end
   return true
 end
 
@@ -195,8 +222,11 @@ end
 
 local function layoutPilotPlaySuccessSound()
   if not layoutPilotSettings.soundEnabled then return end
-  local sound = hs.sound.getByName("Tink")
-  if sound then sound:play() end
+  local sound = hs.sound.getByName(layoutPilotSettings.soundName)
+  if sound then
+    pcall(function() sound:volume(0.82) end)
+    sound:play()
+  end
 end
 
 local function layoutPilotFinish(success, detail, targetID, verified)
@@ -217,6 +247,54 @@ local function layoutPilotPostMarkedKey(modifiers, key, isDown)
   if event then event:post() end
 end
 
+local function layoutPilotDeletionDelay(deleteCount)
+  return math.min(1.06, math.max(0.04, (deleteCount or 0) * 0.002 + 0.035))
+end
+
+local function layoutPilotFallbackDecision(originalValue, currentValue, deletedValue, expectedValue, manualSelection)
+  if manualSelection then return "paste" end
+  if expectedValue and currentValue == expectedValue then return "done" end
+  if originalValue and deletedValue and currentValue == deletedValue then return "paste" end
+  if originalValue and currentValue == originalValue then return "abort-delete" end
+  if originalValue then return "abort-changed" end
+  return "paste"
+end
+
+local function layoutPilotPostBackspaces(deleteCount, completion)
+  if deleteCount <= 0 then completion(); return end
+  local posted = 0
+  local timer = nil
+  local function postNext()
+    posted = posted + 1
+    layoutPilotPostMarkedKey({}, 51, true)
+    layoutPilotPostMarkedKey({}, 51, false)
+    if posted >= deleteCount then
+      if timer then timer:stop() end
+      hs.timer.doAfter(0.035, completion)
+    end
+  end
+  postNext()
+  if posted < deleteCount then timer = hs.timer.doEvery(0.002, postNext) end
+end
+
+local function layoutPilotRestoreOriginal(context)
+  if not context.value or not context.focused then return false end
+  local settable = false
+  pcall(function() settable = context.focused:isAttributeSettable("AXValue") == true end)
+  if not settable then return false end
+  pcall(function() context.focused:setAttributeValue("AXValue", context.value) end)
+  local ok, readback = pcall(function() return context.focused:attributeValue("AXValue") end)
+  if ok and readback == context.value and context.range then
+    pcall(function()
+      context.focused:setAttributeValue("AXSelectedTextRange", {
+        location = context.range.location + context.range.length,
+        length = 0,
+      })
+    end)
+  end
+  return ok and readback == context.value
+end
+
 local function layoutPilotFallbackApply(context, replacement, targetID, expectedValue)
   if not layoutPilotSameTarget(context) then
     layoutPilotFinish(false, "stale-target")
@@ -230,32 +308,91 @@ local function layoutPilotFallbackApply(context, replacement, targetID, expected
   end
 
   local snapshot = hs.pasteboard.readAllData()
-  layoutPilotSyntheticUntil = hs.timer.secondsSinceEpoch() + 0.75
-  for _ = 1, deleteCount do
-    layoutPilotPostMarkedKey({}, "delete", true)
-    layoutPilotPostMarkedKey({}, "delete", false)
+  local snapshotWasEmpty = snapshot == nil
+  local deletedValue = nil
+  if context.value and context.range then
+    deletedValue = layoutPilotReplaceRange(context.value, context.range, "")
   end
+  layoutPilotSyntheticUntil = hs.timer.secondsSinceEpoch() + layoutPilotDeletionDelay(deleteCount) + 0.75
 
-  hs.timer.doAfter(0.015, function()
+  local function pasteReplacement()
+    if not layoutPilotSameFocus(context) then
+      layoutPilotFinish(false, "stale-target-after-delete")
+      return
+    end
+
+    if context.manualSelection then
+      local selected = layoutPilotSelectedText(context.focused)
+      if selected ~= context.candidate then
+        layoutPilotFinish(false, "selection-changed")
+        return
+      end
+    end
+
     hs.pasteboard.setContents(replacement)
     local pasteboardChange = hs.pasteboard.changeCount()
     layoutPilotPostMarkedKey({"cmd"}, "v", true)
     layoutPilotPostMarkedKey({"cmd"}, "v", false)
 
-    hs.timer.doAfter(0.12, function()
-      local verified = false
+    hs.timer.doAfter(0.16, function()
       if expectedValue and context.focused then
         local ok, current = pcall(function() return context.focused:attributeValue("AXValue") end)
-        verified = ok and current == expectedValue
+        if ok and current == expectedValue then
+          layoutPilotFinish(true, "success-events-verified", targetID, true)
+        else
+          layoutPilotFinish(false, "paste-not-verified")
+        end
+      else
+        layoutPilotFinish(true, "success-events-unverified", targetID, false)
       end
-      layoutPilotFinish(true, verified and "success-events-verified" or "success-events", targetID, verified)
     end)
 
     hs.timer.doAfter(0.45, function()
-      if hs.pasteboard.changeCount() == pasteboardChange and snapshot then
-        hs.pasteboard.writeAllData(snapshot)
+      if hs.pasteboard.changeCount() == pasteboardChange then
+        if snapshotWasEmpty then
+          hs.pasteboard.clearContents()
+        elseif snapshot then
+          hs.pasteboard.writeAllData(snapshot)
+        end
       end
     end)
+  end
+
+  local function waitForDeletion(deadline)
+    if not context.value or not deletedValue then
+      pasteReplacement()
+      return
+    end
+    if not layoutPilotSameFocus(context) then
+      layoutPilotFinish(false, "stale-target-after-delete")
+      return
+    end
+    local ok, currentValue = pcall(function() return context.focused:attributeValue("AXValue") end)
+    if not ok then
+      layoutPilotFinish(false, "delete-readback-failed")
+      return
+    end
+    local decision = layoutPilotFallbackDecision(
+      context.value,
+      currentValue,
+      deletedValue,
+      expectedValue,
+      false
+    )
+    if decision == "done" then
+      layoutPilotFinish(true, "success-ax-delayed", targetID, true)
+    elseif decision == "paste" then
+      pasteReplacement()
+    elseif hs.timer.secondsSinceEpoch() < deadline then
+      hs.timer.doAfter(0.018, function() waitForDeletion(deadline) end)
+    else
+      local restored = currentValue == context.value or layoutPilotRestoreOriginal(context)
+      layoutPilotFinish(false, restored and "delete-timeout-restored" or "delete-timeout")
+    end
+  end
+
+  layoutPilotPostBackspaces(deleteCount, function()
+    waitForDeletion(hs.timer.secondsSinceEpoch() + 0.30)
   end)
 end
 
@@ -274,13 +411,28 @@ local function layoutPilotApplyConversion(context, payload)
     local settable = false
     pcall(function() settable = context.focused:isAttributeSettable("AXValue") == true end)
     if settable then
-      pcall(function() context.focused:setAttributeValue("AXValue", expectedValue) end)
-      local ok, readback = pcall(function() return context.focused:attributeValue("AXValue") end)
-      if ok and readback == expectedValue then
-        pcall(function()
-          context.focused:setAttributeValue("AXSelectedTextRange", {location = expectedCaret, length = 0})
-        end)
-        layoutPilotFinish(true, "success-ax-verified", payload.targetID, true)
+      local didSet = pcall(function() context.focused:setAttributeValue("AXValue", expectedValue) end)
+      if didSet then
+        local function verifyAXWrite(attempt)
+          if not layoutPilotSameFocus(context) then
+            layoutPilotFinish(false, "stale-target-after-ax")
+            return
+          end
+          local ok, readback = pcall(function() return context.focused:attributeValue("AXValue") end)
+          if ok and readback == expectedValue then
+            pcall(function()
+              context.focused:setAttributeValue("AXSelectedTextRange", {location = expectedCaret, length = 0})
+            end)
+            layoutPilotFinish(true, "success-ax-verified", payload.targetID, true)
+          elseif ok and readback == context.value and attempt < 3 then
+            hs.timer.doAfter(0.045, function() verifyAXWrite(attempt + 1) end)
+          elseif ok and readback == context.value then
+            layoutPilotFallbackApply(context, payload.text, payload.targetID, expectedValue)
+          else
+            layoutPilotFinish(false, "ax-write-ambiguous")
+          end
+        end
+        hs.timer.doAfter(0.025, function() verifyAXWrite(1) end)
         return
       end
     end
@@ -305,7 +457,7 @@ local function layoutPilotConvert(context)
       return
     end
     layoutPilotApplyConversion(context, payload)
-  end, {flag, context.candidate})
+  end, {flag, context.candidate, "--capitalization", layoutPilotSettings.capitalizationMode})
 
   if not layoutPilotTask or not layoutPilotTask:start() then
     layoutPilotTask = nil
@@ -480,6 +632,20 @@ function layoutPilotQABufferCandidate(value, phraseMode)
   return candidate
 end
 
-hs.settings.set("layout_pilot_bridge_ver", "2.0.0")
+function layoutPilotQADeletionDelay(deleteCount)
+  return layoutPilotDeletionDelay(deleteCount)
+end
+
+function layoutPilotQAFallbackDecision(originalValue, currentValue, deletedValue, expectedValue, manualSelection)
+  return layoutPilotFallbackDecision(originalValue, currentValue, deletedValue, expectedValue, manualSelection)
+end
+
+function layoutPilotQASettings()
+  return layoutPilotSettings.soundName
+    .. "|" .. layoutPilotSettings.capitalizationMode
+    .. "|" .. tostring(layoutPilotSettings.soundEnabled)
+end
+
+hs.settings.set("layout_pilot_bridge_ver", "2.1.0")
 hs.settings.set("layout_pilot_last_status", hs.settings.get("layout_pilot_last_status") or "ready")
 -- layout-pilot:end
