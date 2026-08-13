@@ -3,106 +3,144 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>language relay – fix the alphabet. keep the thought.</title>
-  <meta name="description" content="a local macos layout repair tool for people and agents. one gesture fixes the last word or phrase and switches the active layout.">
-  <meta name="theme-color" content="#f4f2ec">
-  <meta property="og:title" content="language relay – fix the alphabet. keep the thought.">
-  <meta property="og:description" content="local wrong-layout repair, clear controls and a deterministic json interface for macos.">
-  <meta property="og:image" content="https://apowall.github.io/language-relay/language-relay-social.png">
+  <title>language relay – wrong layout, fixed locally</title>
+  <meta name="description" content="turn ghbdtn into привет with one gesture. a local macos layout repair tool with precise controls and a deterministic json cli for agents.">
+  <meta name="theme-color" content="#ffffff">
+  <meta property="og:title" content="language relay – wrong layout, fixed locally">
+  <meta property="og:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
+  <meta property="og:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=2">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="language relay converts ghbdtn into привет locally on macos">
   <meta property="og:type" content="website">
+  <meta property="og:url" content="https://apowall.github.io/language-relay/">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="language relay – wrong layout, fixed locally">
+  <meta name="twitter:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
+  <meta name="twitter:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=2">
+  <link rel="canonical" href="https://apowall.github.io/language-relay/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="site.webmanifest">
   <style>
     :root {
-      --paper:#f4f2ec; --ink:#222019; --muted:#6f6b62;
-      --line:#d5d1c6; --wash:#eae7df; --signal:#c8ff18;
+      --paper:#fff; --ink:#080808; --muted:#696969; --line:#d9d9d4;
+      --wash:#f1f1ed; --wash-2:#e7e7e1; --signal:#caff18;
       --mono:"JetBrains Mono","SFMono-Regular",ui-monospace,Menlo,monospace;
       --ease:cubic-bezier(.2,.8,.2,1);
     }
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; background:var(--paper); color:var(--ink); font-family:var(--mono); }
     body { margin:0; overflow-x:hidden; }
-    button,a { color:inherit; font:inherit; }
+    button,a,textarea { color:inherit; font:inherit; }
     button { cursor:pointer; }
     a { text-decoration:none; }
     img { display:block; max-width:100%; }
-    .shell { width:min(1180px,calc(100% - 48px)); margin:0 auto; }
-
-    .nav { height:72px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
-    .wordmark { display:flex; align-items:center; gap:12px; font-size:17px; font-weight:700; letter-spacing:-.025em; }
-    .relay-mark { width:46px; height:24px; display:grid; grid-template-columns:18px 10px 18px; align-items:center; flex:0 0 auto; }
-    .relay-mark i,.relay-mark em { width:18px; height:22px; display:grid; place-items:center; border:1px solid var(--ink); font-size:10px; font-style:normal; font-weight:700; line-height:1; }
+    .shell { width:min(1220px,calc(100% - 48px)); margin:0 auto; }
+    .nav { height:76px; display:flex; align-items:center; justify-content:space-between; border-bottom:1px solid var(--line); }
+    .wordmark { display:flex; align-items:center; gap:13px; font-size:18px; font-weight:750; letter-spacing:-.035em; }
+    .relay-mark { width:52px; height:26px; display:grid; grid-template-columns:1fr 1fr; border:1px solid var(--ink); position:relative; flex:0 0 auto; overflow:hidden; }
+    .relay-mark i,.relay-mark em { display:grid; place-items:center; font-size:10px; font-style:normal; font-weight:800; line-height:1; transition:background 140ms var(--ease),color 140ms var(--ease),transform 140ms var(--ease); }
     .relay-mark i { background:var(--ink); color:var(--paper); }
-    .relay-mark b { width:10px; height:1px; background:var(--ink); position:relative; }
-    .relay-mark b::before,.relay-mark b::after { content:""; position:absolute; width:4px; height:4px; top:-2px; border-top:1px solid var(--ink); border-right:1px solid var(--ink); }
-    .relay-mark b::before { left:0; transform:rotate(-135deg); }
-    .relay-mark b::after { right:0; transform:rotate(45deg); }
-    .nav-actions { display:flex; align-items:center; gap:16px; font-size:12px; font-weight:650; }
+    .relay-mark em { background:var(--paper); color:var(--ink); }
+    .relay-mark b { position:absolute; left:50%; bottom:4px; width:5px; height:3px; background:var(--signal); transform:translateX(-50%); }
+    html[data-relaying="true"] .relay-mark i { background:var(--paper); color:var(--ink); transform:translateY(-2px); }
+    html[data-relaying="true"] .relay-mark em { background:var(--ink); color:var(--paper); transform:translateY(2px); }
+    .nav-actions { display:flex; align-items:center; gap:16px; font-size:12px; font-weight:700; }
     .family { color:var(--muted); }
-    .micro-button { min-height:34px; border:1px solid var(--ink); background:transparent; padding:0 12px; font-size:12px; font-weight:700; transition:background 150ms var(--ease),color 150ms var(--ease); }
-    .micro-button:hover,.micro-button:focus-visible { background:var(--ink); color:var(--paper); outline:none; }
-    .text-link { border-bottom:1px solid var(--ink); padding:7px 0 5px; }
+    .micro-button,.text-link { min-height:36px; border:1px solid var(--ink); background:var(--paper); padding:0 13px; display:inline-flex; align-items:center; justify-content:center; font-size:12px; font-weight:750; transition:background 140ms var(--ease),color 140ms var(--ease); }
+    .micro-button:hover,.micro-button:focus-visible,.text-link:hover,.text-link:focus-visible { background:var(--ink); color:var(--paper); outline:none; }
 
-    .hero { min-height:690px; display:grid; grid-template-columns:minmax(0,640px) minmax(360px,1fr); gap:72px; align-items:center; padding:72px 0 84px; }
-    .eyebrow,.section-label { font-size:12px; font-weight:700; letter-spacing:.04em; color:var(--muted); }
-    h1 { max-width:760px; margin:22px 0 28px; font-size:clamp(58px,7vw,96px); line-height:.91; letter-spacing:-.073em; font-weight:700; }
-    .lead { max-width:650px; margin:0 0 26px; font-size:20px; line-height:1.55; letter-spacing:-.025em; }
-    .small-line { min-height:20px; margin:0 0 30px; color:var(--muted); font-size:13px; line-height:1.55; }
+    .hero { min-height:720px; display:grid; grid-template-columns:minmax(0,1.04fr) minmax(420px,.96fr); gap:70px; align-items:center; padding:72px 0 88px; }
+    .eyebrow,.section-label { font-size:12px; font-weight:750; letter-spacing:.04em; color:var(--muted); }
+    h1 { max-width:760px; margin:22px 0 28px; font-size:clamp(60px,7.2vw,102px); line-height:.9; letter-spacing:-.078em; font-weight:760; }
+    .lead { max-width:680px; margin:0 0 24px; font-size:21px; line-height:1.55; letter-spacing:-.03em; }
+    .small-line { min-height:20px; margin:0 0 30px; color:var(--muted); font-size:13px; line-height:1.6; }
     .actions { display:flex; flex-wrap:wrap; gap:8px; }
-    .button { min-height:46px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--ink); padding:0 18px; font-size:13px; font-weight:700; transition:transform 150ms var(--ease),background 150ms var(--ease),color 150ms var(--ease); }
+    .button { min-height:48px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--ink); padding:0 19px; font-size:13px; font-weight:750; transition:background 140ms var(--ease),color 140ms var(--ease),transform 140ms var(--ease); }
     .button:hover,.button:focus-visible { transform:translateY(-2px); outline:none; }
     .button.primary { background:var(--ink); color:var(--paper); }
-    .button.primary:hover { background:#000; }
-    .install-rail { margin-top:14px; display:grid; grid-template-columns:1fr 46px; border:1px solid var(--ink); max-width:590px; background:var(--ink); color:var(--paper); }
-    .install-rail code { min-width:0; padding:14px 16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
-    .copy { border:0; border-left:1px solid #5b584f; background:transparent; color:var(--paper); font-size:16px; }
+    .button.primary:hover { background:#222; }
+    .install-rail { margin-top:14px; display:grid; grid-template-columns:1fr 48px; border:1px solid var(--ink); max-width:620px; background:var(--ink); color:var(--paper); }
+    .install-rail code { min-width:0; padding:15px 16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
+    .copy { border:0; border-left:1px solid #555; background:transparent; color:var(--paper); font-size:13px; font-weight:800; }
     .copy:hover,.copy:focus-visible { background:var(--signal); color:var(--ink); outline:none; }
 
-    .proof { border:1px solid var(--ink); background:var(--paper); padding:24px; min-height:450px; display:flex; flex-direction:column; justify-content:space-between; position:relative; }
-    .proof::after { content:""; position:absolute; width:10px; height:10px; right:19px; top:19px; background:var(--signal); }
-    .proof-head { display:flex; justify-content:space-between; color:var(--muted); font-size:11px; }
-    .proof-stage { border-top:1px solid var(--line); border-bottom:1px solid var(--line); padding:38px 0; }
-    .typed { font-size:clamp(27px,3.3vw,43px); letter-spacing:-.045em; line-height:1.12; word-break:break-word; }
-    .typed.wrong { color:var(--muted); text-decoration:line-through; text-decoration-thickness:1px; }
-    .relay-line { height:56px; display:flex; align-items:center; gap:11px; color:var(--muted); font-size:12px; }
-    .relay-line::before { content:""; width:42px; height:1px; background:var(--ink); }
-    .relay-line i { width:8px; height:8px; background:var(--signal); }
-    .proof-button { width:100%; height:48px; border:1px solid var(--ink); background:var(--ink); color:var(--paper); font-size:13px; font-weight:700; }
-    .proof-button:hover,.proof-button:focus-visible { background:var(--signal); color:var(--ink); outline:none; }
+    .demo { border:1px solid var(--ink); background:var(--ink); color:var(--paper); min-height:510px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
+    .demo::after { content:""; position:absolute; width:9px; height:9px; right:17px; top:17px; background:var(--signal); }
+    .demo-head { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:0 38px 0 16px; border-bottom:1px solid #3a3a36; color:#aaa; font-size:11px; }
+    .demo-body { padding:20px; display:flex; flex:1; flex-direction:column; gap:14px; }
+    .terminal-prompt { color:#a5a5a0; font-size:12px; }
+    .terminal-prompt strong { color:var(--signal); font-weight:800; }
+    .demo-input { width:100%; min-height:150px; resize:none; border:1px solid #55554f; border-radius:0; background:#111; color:var(--paper); padding:18px; font-size:clamp(25px,3vw,38px); line-height:1.25; letter-spacing:-.045em; caret-color:var(--signal); outline:none; }
+    .demo-input:focus { border-color:var(--signal); box-shadow:inset 4px 0 0 var(--signal); }
+    .demo-controls { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#55554f; border:1px solid #55554f; }
+    .demo-controls button { min-height:38px; border:0; background:#191919; color:#b6b6b0; font-size:11px; font-weight:750; }
+    .demo-controls button[aria-pressed="true"] { background:var(--paper); color:var(--ink); }
+    .demo-action { display:grid; grid-template-columns:1fr auto; border:1px solid var(--paper); min-height:50px; }
+    .relay-button { border:0; background:var(--paper); color:var(--ink); font-size:13px; font-weight:800; text-align:left; padding:0 16px; }
+    .relay-button:hover,.relay-button:focus-visible { background:var(--signal); outline:none; }
+    .key-pair { display:flex; align-items:center; padding:0 11px; gap:4px; border-left:1px solid var(--paper); }
+    .key { min-width:29px; height:27px; display:grid; place-items:center; border:1px solid #70706a; color:#cacac4; font-size:10px; transition:background 100ms,color 100ms,transform 100ms; }
+    .demo.is-keying .key { background:var(--signal); color:var(--ink); transform:translateY(2px); }
+    .receipt { min-height:36px; border-top:1px solid #3a3a36; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:auto; padding-top:13px; color:#9b9b95; font-size:11px; }
+    .receipt strong { color:var(--signal); font-weight:800; }
+    .demo-note { margin:0; color:#8f8f89; font-size:10px; line-height:1.5; }
 
-    section { border-top:1px solid var(--line); padding:84px 0; }
-    h2 { max-width:880px; margin:16px 0 38px; font-size:clamp(40px,5vw,64px); line-height:.98; letter-spacing:-.057em; }
+    .trust { display:grid; grid-template-columns:repeat(5,1fr); border:1px solid var(--line); background:var(--line); gap:1px; margin-bottom:88px; }
+    .trust span { min-height:66px; display:grid; place-items:center; background:var(--paper); font-size:12px; font-weight:750; text-align:center; padding:10px; }
+    .trust span:first-child { background:var(--signal); }
+    section { border-top:1px solid var(--line); padding:88px 0; }
+    h2 { max-width:940px; margin:17px 0 40px; font-size:clamp(42px,5.2vw,68px); line-height:.98; letter-spacing:-.063em; }
     .steps { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); background:var(--line); gap:1px; }
-    .step { min-height:210px; padding:24px; background:var(--paper); display:flex; flex-direction:column; justify-content:space-between; }
+    .step { min-height:230px; padding:25px; background:var(--paper); display:flex; flex-direction:column; justify-content:space-between; }
     .step-index { color:var(--muted); font-size:12px; }
-    .step strong { font-size:23px; letter-spacing:-.04em; }
-    .step p { margin:0; color:var(--muted); font-size:15px; line-height:1.55; }
+    .step strong { font-size:24px; letter-spacing:-.045em; }
+    .step p { margin:0; color:var(--muted); font-size:15px; line-height:1.58; }
 
-    .control-grid { display:grid; grid-template-columns:.86fr 1.14fr; gap:70px; align-items:center; }
-    .control-copy p,.agent-copy { margin:0; color:var(--muted); font-size:16px; line-height:1.62; }
-    .control-points { margin:24px 0 0; padding:0; list-style:none; border-top:1px solid var(--line); }
-    .control-points li { display:flex; justify-content:space-between; gap:18px; padding:13px 0; border-bottom:1px solid var(--line); font-size:13px; }
-    .control-points span:last-child { color:var(--muted); text-align:right; }
-    .panel-frame { border:1px solid var(--ink); padding:18px; background:var(--wash); }
+    .control-grid { display:grid; grid-template-columns:.82fr 1.18fr; gap:72px; align-items:start; }
+    .control-copy p,.agent-copy,.privacy-copy { margin:0; color:var(--muted); font-size:17px; line-height:1.68; }
+    .settings-console { border:1px solid var(--ink); background:var(--wash); padding:18px; display:grid; gap:10px; }
+    .settings-head { display:flex; justify-content:space-between; align-items:center; padding-bottom:12px; border-bottom:1px solid var(--line); font-size:11px; color:var(--muted); }
+    .setting { display:grid; grid-template-columns:118px 1fr; gap:12px; align-items:center; }
+    .setting-label { font-size:11px; color:var(--muted); }
+    .choice-row { display:grid; grid-auto-flow:column; grid-auto-columns:1fr; border:1px solid var(--line); background:var(--line); gap:1px; }
+    .choice { min-height:46px; border:0; background:var(--paper); padding:8px 9px; display:grid; align-content:center; gap:2px; text-align:left; }
+    .choice:hover,.choice:focus-visible { background:var(--wash-2); outline:1px solid var(--ink); outline-offset:-1px; }
+    .choice[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
+    .choice strong { font-size:13px; }
+    .choice small { color:var(--muted); font-size:9px; line-height:1.3; }
+    .choice[aria-pressed="true"] small { color:#bdbdb6; }
+    .panel-frame { border:1px solid var(--ink); padding:14px; background:var(--wash); margin-top:18px; }
     .panel-frame img { width:100%; height:auto; border:1px solid var(--line); }
-    .panel-caption { display:flex; justify-content:space-between; margin-top:12px; color:var(--muted); font-size:11px; }
+    .panel-caption { display:flex; justify-content:space-between; margin-top:10px; color:var(--muted); font-size:10px; }
 
-    .agent-grid { display:grid; grid-template-columns:minmax(0,.82fr) minmax(0,1.18fr); gap:72px; align-items:end; }
+    .agent-grid { display:grid; grid-template-columns:minmax(0,.86fr) minmax(0,1.14fr); gap:72px; align-items:end; }
     .agent-grid > * { min-width:0; }
+    .agent-points { display:grid; grid-template-columns:repeat(2,1fr); border:1px solid var(--line); background:var(--line); gap:1px; margin-top:28px; }
+    .agent-point { background:var(--paper); padding:16px; min-height:110px; }
+    .agent-point b { display:block; font-size:12px; margin-bottom:9px; }
+    .agent-point span { color:var(--muted); font-size:11px; line-height:1.5; }
     .terminal { min-width:0; max-width:100%; background:var(--ink); color:var(--paper); border:1px solid var(--ink); }
-    .terminal-head { min-height:42px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 15px; border-bottom:1px solid #4a473f; color:#aaa69d; font-size:11px; }
-    pre { margin:0; padding:22px; overflow:auto; font-size:12px; line-height:1.75; }
+    .terminal-head { min-height:43px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 15px; border-bottom:1px solid #444; color:#aaa; font-size:11px; }
+    pre { margin:0; padding:22px; overflow:auto; font-size:12px; line-height:1.8; }
     .signal { color:var(--signal); }
 
+    .privacy-grid { display:grid; grid-template-columns:.72fr 1.28fr; gap:72px; align-items:start; }
+    .privacy-ledger { display:grid; grid-template-columns:repeat(2,1fr); border:1px solid var(--line); background:var(--line); gap:1px; }
+    .privacy-item { min-height:125px; background:var(--paper); padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
+    .privacy-item strong { font-size:17px; }
+    .privacy-item span { color:var(--muted); font-size:11px; }
+    .privacy-item.is-signal { background:var(--signal); }
+    .privacy-item.is-signal span { color:var(--ink); }
+    .pair-note { grid-column:1 / -1; margin:14px 0 0; color:var(--muted); font-size:11px; line-height:1.55; }
+
     .sound-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:1px; border:1px solid var(--line); background:var(--line); }
-    .sound-pad { min-height:112px; border:0; background:var(--paper); padding:16px; text-align:left; display:grid; grid-template-rows:auto 1fr auto; transition:background 150ms var(--ease),color 150ms var(--ease); }
+    .sound-pad { min-height:114px; border:0; background:var(--paper); padding:16px; text-align:left; display:grid; grid-template-rows:auto 1fr auto; transition:background 140ms var(--ease),color 140ms var(--ease); }
     .sound-pad:hover,.sound-pad:focus-visible,.sound-pad.is-playing { background:var(--ink); color:var(--paper); outline:none; }
-    .sound-pad small { color:var(--muted); font-size:11px; }
-    .sound-pad:hover small,.sound-pad.is-playing small { color:var(--paper); opacity:.62; }
+    .sound-pad small { color:var(--muted); font-size:10px; }
+    .sound-pad:hover small,.sound-pad.is-playing small { color:#aaa; }
     .wave { width:100%; height:24px; display:flex; align-items:center; gap:3px; }
     .wave i { display:block; width:2px; background:currentColor; opacity:.8; }
     .wave i:nth-child(1),.wave i:nth-child(7){height:5px}.wave i:nth-child(2),.wave i:nth-child(6){height:11px}.wave i:nth-child(3),.wave i:nth-child(5){height:18px}.wave i:nth-child(4){height:22px}.wave i:nth-child(8){height:8px}.wave i:nth-child(9){height:14px}
@@ -112,40 +150,52 @@
     .install-section h2 { margin-left:auto; margin-right:auto; }
     .install-section .install-rail { margin:30px auto 0; text-align:left; }
     .meta { margin-top:22px; color:var(--muted); font-size:12px; }
-    footer { border-top:1px solid var(--line); min-height:104px; display:flex; align-items:center; justify-content:space-between; gap:24px; color:var(--muted); font-size:12px; }
-    .maker { color:var(--ink); font-weight:700; }
-    .footer-links { display:flex; gap:20px; }
-    [data-lang="ru"] .en-only,[data-lang="en"] .ru-only { display:none; }
+    footer { border-top:1px solid var(--line); min-height:150px; display:flex; align-items:center; justify-content:space-between; gap:30px; color:var(--muted); font-size:11px; }
+    .signature { display:grid; gap:4px; }
+    .signature small { color:var(--muted); font-size:10px; }
+    .signature strong { color:var(--ink); font-size:18px; letter-spacing:-.035em; }
+    .footer-links { display:flex; gap:8px; }
+    .footer-links a { border:1px solid var(--line); padding:9px 11px; }
+    .footer-links a:hover,.footer-links a:focus-visible { border-color:var(--ink); background:var(--ink); color:var(--paper); outline:none; }
     html[data-switching="true"] .i18n { animation:relay-glitch 220ms steps(2,end); }
     html[data-switching="true"] .relay-mark b { animation:relay-pulse 220ms steps(2,end); }
     @keyframes relay-glitch { 0%{transform:translateX(0);filter:none} 25%{transform:translateX(6px)} 50%{transform:translateX(-5px);clip-path:inset(34% 0 28%)} 75%{transform:translateX(3px);clip-path:inset(8% 0 63%)} 100%{transform:translateX(0);clip-path:none} }
-    @keyframes relay-pulse { 0%,100%{background:var(--ink)} 50%{background:var(--signal);height:6px;transform:translateY(-3px)} }
-    @media (max-width:880px) {
-      .hero,.agent-grid,.control-grid { grid-template-columns:1fr; gap:44px; }
+    @keyframes relay-pulse { 0%,100%{background:var(--signal)} 50%{height:11px;transform:translate(-50%,-6px)} }
+    @media (max-width:940px) {
+      .hero,.agent-grid,.control-grid,.privacy-grid { grid-template-columns:1fr; gap:46px; }
       .hero { padding-top:58px; }
-      .proof { max-width:560px; min-height:390px; }
+      .demo { max-width:660px; min-height:490px; }
       .steps { grid-template-columns:1fr; }
-      .step { min-height:170px; }
+      .step { min-height:180px; }
       .sound-grid { grid-template-columns:repeat(2,1fr); }
-      .panel-frame { max-width:620px; }
+      .trust { grid-template-columns:repeat(3,1fr); }
+      .settings-console { max-width:760px; }
     }
-    @media (max-width:600px) {
-      .shell { width:min(100% - 28px,1180px); }
-      .nav { height:64px; }
+    @media (max-width:620px) {
+      .shell { width:min(100% - 28px,1220px); }
+      .nav { height:66px; }
       .wordmark { font-size:15px; }
       .family,.nav-actions .text-link { display:none; }
       .nav-actions { gap:8px; }
-      h1 { font-size:47px; line-height:.95; overflow-wrap:anywhere; }
-      .lead { font-size:17px; }
-      .hero { min-width:0; padding:52px 0 64px; }
-      .proof { min-width:0; width:100%; padding:19px; }
-      .proof-head span:last-child { display:none; }
+      h1 { font-size:50px; line-height:.94; overflow-wrap:anywhere; }
+      .lead { font-size:18px; }
+      .hero { min-width:0; padding:54px 0 66px; }
+      .demo { min-width:0; width:100%; min-height:520px; }
+      .demo-body { padding:15px; }
+      .demo-input { min-height:170px; font-size:27px; }
+      .demo-head span:last-child { display:none; }
       .install-rail code { font-size:10px; padding-left:12px; }
-      section { padding:64px 0; }
-      h2 { font-size:39px; }
-      .sound-pad { min-height:100px; }
-      .panel-frame { padding:10px; }
-      footer { align-items:flex-start; flex-direction:column; justify-content:center; gap:12px; }
+      .trust { grid-template-columns:1fr 1fr; margin-bottom:66px; }
+      .trust span:last-child { grid-column:1 / -1; }
+      section { padding:68px 0; }
+      h2 { font-size:41px; }
+      .setting { grid-template-columns:1fr; gap:6px; }
+      .settings-console { padding:12px; }
+      .choice-row { grid-auto-flow:row; grid-template-columns:1fr 1fr; }
+      .agent-points,.privacy-ledger { grid-template-columns:1fr; }
+      .sound-pad { min-height:104px; }
+      .panel-frame { padding:8px; }
+      footer { align-items:flex-start; flex-direction:column; justify-content:center; gap:18px; }
     }
     @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   </style>
@@ -153,7 +203,7 @@
 <body>
   <div class="shell">
     <nav class="nav">
-      <a class="wordmark" href="#top" aria-label="language relay home"><span class="relay-mark" aria-hidden="true"><i>a</i><b></b><em>я</em></span><span>language relay</span></a>
+      <a class="wordmark" href="#top" aria-label="language relay home"><span class="relay-mark" aria-hidden="true"><i>a</i><em>я</em><b></b></span><span>language relay</span></a>
       <div class="nav-actions">
         <span class="family">apowall instrument 02</span>
         <button class="micro-button" id="lang-toggle" aria-label="switch website language">en ⇄ ру</button>
@@ -164,78 +214,138 @@
     <main id="top">
       <div class="hero">
         <div>
-          <div class="eyebrow i18n" data-en="macos · local · open source" data-ru="macos · локально · open source">macos · local · open source</div>
-          <h1 class="i18n" data-en="fix the alphabet. keep the thought." data-ru="исправь раскладку. сохрани мысль.">fix the alphabet. keep the thought.</h1>
-          <p class="lead i18n" data-en="typed ghbdtn? one clean gesture turns it into привет, switches the layout and leaves the cursor where it belongs." data-ru="набрал ghbdtn? один чистый жест превращает его в привет, переключает раскладку и оставляет курсор на месте.">typed ghbdtn? one clean gesture turns it into привет, switches the layout and leaves the cursor where it belongs.</p>
-          <p class="small-line i18n" data-en="last word or phrase · double shift or clean option · no selection · no duplicate paste" data-ru="слово или фраза · двойной shift или чистый option · без выделения · без дублей">last word or phrase · double shift or clean option · no selection · no duplicate paste</p>
+          <div class="eyebrow i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · open source">macos utility · local by design · open source</div>
+          <h1 class="i18n" data-en="typed in the wrong layout? keep the thought." data-ru="набрал не в той раскладке? сохрани мысль.">typed in the wrong layout? keep the thought.</h1>
+          <p class="lead i18n" data-en="turn ghbdtn into привет with one clean gesture. language relay repairs the last word or phrase, switches the input source and returns the cursor to work." data-ru="преврати ghbdtn в привет одним чистым жестом. language relay исправляет последнее слово или фразу, меняет раскладку и возвращает курсор к работе.">turn ghbdtn into привет with one clean gesture. language relay repairs the last word or phrase, switches the input source and returns the cursor to work.</p>
+          <p class="small-line i18n" data-en="double shift or clean option · no selection · no duplicate paste · verified write" data-ru="двойной shift или чистый option · без выделения · без дублей · проверенная запись">double shift or clean option · no selection · no duplicate paste · verified write</p>
           <div class="actions">
             <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.1" data-ru="скачать v2.3.1">download v2.3.1</a>
-            <a class="button i18n" href="https://github.com/aPoWall/language-relay" data-en="read the source ↗" data-ru="посмотреть код ↗">read the source ↗</a>
+            <a class="button i18n" href="#live-demo" data-en="try it here ↓" data-ru="попробовать здесь ↓">try it here ↓</a>
           </div>
-          <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">⌘</button></div>
+          <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
         </div>
 
-        <div class="proof" aria-label="interactive layout repair proof">
-          <div class="proof-head"><span>live relay · 01</span><span>u.s. → russian–pc</span></div>
-          <div class="proof-stage">
-            <div class="typed wrong" id="wrong-sample">ghbdtn, vbh</div>
-            <div class="relay-line"><i></i><span class="i18n" data-en="verified local repair" data-ru="локальная проверка">verified local repair</span></div>
-            <div class="typed" id="right-sample">привет, мир</div>
+        <div class="demo" id="live-demo" aria-label="interactive keyboard layout relay demo">
+          <div class="demo-head"><span>live browser demo · same key map</span><span id="demo-direction">u.s. → russian–pc</span></div>
+          <div class="demo-body">
+            <div class="terminal-prompt"><strong>alex@mac</strong> ~ % relay</div>
+            <textarea class="demo-input" id="demo-input" rows="4" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="type text in the wrong keyboard layout">ghbdtn? vbh</textarea>
+            <div class="demo-controls" aria-label="demo correction scope">
+              <button data-scope="phrase" aria-pressed="true">phrase · full tail</button>
+              <button data-scope="word" aria-pressed="false">word · last token</button>
+            </div>
+            <div class="demo-action">
+              <button class="relay-button i18n" id="relay-button" data-en="relay text" data-ru="исправить текст">relay text</button>
+              <div class="key-pair" aria-hidden="true"><span class="key">shift</span><span class="key">shift</span></div>
+            </div>
+            <div class="receipt" aria-live="polite"><span id="demo-receipt">ready · type or press relay</span><strong>local</strong></div>
+            <p class="demo-note i18n" data-en="try any u.s. / russian–pc text. a clean double shift inside the field runs the same demo conversion." data-ru="введи текст в u.s. / russian–pc. чистый двойной shift внутри поля запускает ту же конвертацию.">try any u.s. / russian–pc text. a clean double shift inside the field runs the same demo conversion.</p>
           </div>
-          <button class="proof-button i18n" id="proof-toggle" data-en="relay again · ⇧⇧" data-ru="повторить · ⇧⇧">relay again · ⇧⇧</button>
         </div>
       </div>
 
+      <div class="trust" aria-label="privacy and product properties"><span class="i18n" data-en="local only" data-ru="только локально">local only</span><span class="i18n" data-en="no account" data-ru="без аккаунта">no account</span><span class="i18n" data-en="no ads" data-ru="без рекламы">no ads</span><span class="i18n" data-en="no telemetry" data-ru="без телеметрии">no telemetry</span><span>mit · open source</span></div>
+
       <section>
-        <div class="section-label">01 · the moment</div>
-        <h2 class="i18n" data-en="three quiet steps. the sentence keeps moving." data-ru="три тихих шага. фраза движется дальше.">three quiet steps. the sentence keeps moving.</h2>
+        <div class="section-label">01 · the relay</div>
+        <h2 class="i18n" data-en="one gesture repairs the tail of the thought." data-ru="один жест исправляет хвост мысли.">one gesture repairs the tail of the thought.</h2>
         <div class="steps">
-          <article class="step"><span class="step-index">01 · type</span><strong class="i18n" data-en="write without stopping" data-ru="пиши без остановки">write without stopping</strong><p class="i18n" data-en="finish the word or thought even when the active alphabet is wrong." data-ru="допиши слово или мысль, даже если активна другая раскладка.">finish the word or thought even when the active alphabet is wrong.</p></article>
-          <article class="step"><span class="step-index">02 · relay</span><strong class="i18n" data-en="tap one gesture" data-ru="нажми один жест">tap one gesture</strong><p class="i18n" data-en="double shift or a clean option tap repairs the latest language run." data-ru="двойной shift или чистый option исправляет последний языковой фрагмент.">double shift or a clean option tap repairs the latest language run.</p></article>
-          <article class="step"><span class="step-index">03 · continue</span><strong class="i18n" data-en="stay at the cursor" data-ru="останься у курсора">stay at the cursor</strong><p class="i18n" data-en="the write is verified, the layout changes and no text is selected or duplicated." data-ru="запись проверяется, раскладка меняется, текст не выделяется и не дублируется.">the write is verified, the layout changes and no text is selected or duplicated.</p></article>
+          <article class="step"><span class="step-index">01 · type</span><strong class="i18n" data-en="finish the thought" data-ru="допиши мысль">finish the thought</strong><p class="i18n" data-en="keep writing when the active keyboard source is wrong. the text stays exactly where you typed it." data-ru="продолжай писать, когда активна другая раскладка. текст остаётся ровно там, где ты его набрал.">keep writing when the active keyboard source is wrong. the text stays exactly where you typed it.</p></article>
+          <article class="step"><span class="step-index">02 · relay</span><strong class="i18n" data-en="tap a clean gesture" data-ru="нажми чистый жест">tap a clean gesture</strong><p class="i18n" data-en="double shift or a clean option tap converts the latest language run without opening a window." data-ru="двойной shift или чистый option конвертирует последний языковой фрагмент без открытия окна.">double shift or a clean option tap converts the latest language run without opening a window.</p></article>
+          <article class="step"><span class="step-index">03 · continue</span><strong class="i18n" data-en="stay at the cursor" data-ru="останься у курсора">stay at the cursor</strong><p class="i18n" data-en="the app verifies the write, switches the layout and leaves the insertion point ready for the next word." data-ru="приложение проверяет запись, меняет раскладку и оставляет курсор готовым к следующему слову.">the app verifies the write, switches the layout and leaves the insertion point ready for the next word.</p></article>
         </div>
       </section>
 
       <section class="control-grid">
         <div class="control-copy">
-          <div class="section-label">02 · one small control surface</div>
-          <h2 class="i18n" data-en="see the state. change the behavior." data-ru="видишь состояние. меняешь поведение.">see the state. change the behavior.</h2>
-          <p class="i18n" data-en="the menu bar shows the active alphabet. the panel keeps only the choices that affect repair: scope, case, trigger and feedback." data-ru="меню показывает активный алфавит. в панели остаются только настройки исправления: фрагмент, регистр, жест и звук.">the menu bar shows the active alphabet. the panel keeps only the choices that affect repair: scope, case, trigger and feedback.</p>
-          <ul class="control-points">
-            <li><span>scope</span><span>last phrase · last word</span></li>
-            <li><span>case</span><span>aA · Aa · AA · aa</span></li>
-            <li><span>feedback</span><span>8 signals · 4 levels</span></li>
-            <li><span>privacy</span><span>local · no text log</span></li>
-          </ul>
+          <div class="section-label">02 · precise controls</div>
+          <h2 class="i18n" data-en="small surface. explicit behavior." data-ru="маленькая панель. точное поведение.">small surface. explicit behavior.</h2>
+          <p class="i18n" data-en="the menu bar shows the active alphabet. every setting names the exact part of the correction it changes." data-ru="меню показывает активный алфавит. каждая настройка прямо называет ту часть исправления, которую меняет.">the menu bar shows the active alphabet. every setting names the exact part of the correction it changes.</p>
+          <figure class="panel-frame">
+            <img src="language-relay-panel.png" alt="language relay compact menu bar control panel" width="840" height="1044">
+            <figcaption class="panel-caption"><span>native control surface</span><span>swift · appkit</span></figcaption>
+          </figure>
         </div>
-        <figure class="panel-frame">
-          <img src="language-relay-panel.png" alt="language relay compact menu bar control panel" width="840" height="1044">
-          <figcaption class="panel-caption"><span>background-rendered app preview</span><span>swift · appkit</span></figcaption>
-        </figure>
+        <div class="settings-console" aria-label="interactive settings explainer">
+          <div class="settings-head"><span>language relay / settings</span><span>changes sync to the demo ↑</span></div>
+          <div class="setting">
+            <span class="setting-label">scope</span>
+            <div class="choice-row">
+              <button class="choice" data-scope="phrase" aria-pressed="true"><strong>≋ phrase</strong><small class="i18n" data-en="last language-run tail" data-ru="последний фрагмент фразы">last language-run tail</small></button>
+              <button class="choice" data-scope="word" aria-pressed="false"><strong>_ word</strong><small class="i18n" data-en="one trailing token" data-ru="одно последнее слово">one trailing token</small></button>
+            </div>
+          </div>
+          <div class="setting">
+            <span class="setting-label">capitalization</span>
+            <div class="choice-row">
+              <button class="choice" data-case="preserve" aria-pressed="true"><strong>aA</strong><small>preserve · keep case</small></button>
+              <button class="choice" data-case="sentence" aria-pressed="false"><strong>Aa</strong><small>sentence · first upper</small></button>
+              <button class="choice" data-case="uppercase" aria-pressed="false"><strong>AA</strong><small>uppercase · all upper</small></button>
+              <button class="choice" data-case="lowercase" aria-pressed="false"><strong>aa</strong><small>lowercase · all lower</small></button>
+            </div>
+          </div>
+          <div class="setting">
+            <span class="setting-label">triggers</span>
+            <div class="choice-row">
+              <button class="choice" aria-pressed="true"><strong>⇧ ⇧</strong><small>double shift · clean taps</small></button>
+              <button class="choice" aria-pressed="true"><strong>⌥</strong><small>option · clean tap</small></button>
+            </div>
+          </div>
+          <div class="setting">
+            <span class="setting-label">feedback</span>
+            <div class="choice-row">
+              <button class="choice" aria-pressed="true"><strong>8 cues</strong><small>75–200 ms</small></button>
+              <button class="choice" aria-pressed="true"><strong>4 levels</strong><small>mute · low · mid · high</small></button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section class="agent-grid">
         <div>
-          <div class="section-label">03 · agent interface</div>
-          <h2 class="i18n" data-en="the same relay works from json." data-ru="тот же relay работает через json.">the same relay works from json.</h2>
-          <p class="agent-copy i18n" data-en="stable commands expose conversion, readiness and capabilities. receipts never contain the text you typed." data-ru="стабильные команды отдают конвертацию, готовность и capabilities. введённый текст не попадает в диагностические receipts.">stable commands expose conversion, readiness and capabilities. receipts never contain the text you typed.</p>
+          <div class="section-label">03 · built for agents</div>
+          <h2 class="i18n" data-en="a keyboard tool with a machine-readable contract." data-ru="клавиатурный инструмент с машиночитаемым контрактом.">a keyboard tool with a machine-readable contract.</h2>
+          <p class="agent-copy i18n" data-en="agents get deterministic conversion, readiness checks, stable capabilities and useful exit status. conversion returns the requested text; diagnostic receipts contain no typed content." data-ru="агенты получают детерминированную конвертацию, проверку готовности, стабильные capabilities и полезные exit status. команда конвертации возвращает запрошенный текст; диагностические receipts не содержат введённый текст.">agents get deterministic conversion, readiness checks, stable capabilities and useful exit status. conversion returns the requested text; diagnostic receipts contain no typed content.</p>
+          <div class="agent-points">
+            <div class="agent-point"><b>deterministic</b><span>the same key map produces the same output on every run.</span></div>
+            <div class="agent-point"><b>inspectable</b><span>doctor and capabilities report readiness before automation starts.</span></div>
+            <div class="agent-point"><b>composable</b><span>json fits shell scripts, launch agents and local agent workflows.</span></div>
+            <div class="agent-point"><b>private</b><span>conversion happens on the mac. diagnostics retain no typed text.</span></div>
+          </div>
         </div>
         <div class="terminal">
-          <div class="terminal-head"><span>language-relay · json schema 1</span><span class="signal">■ local</span></div>
+          <div class="terminal-head"><span>language-relay · schema 1</span><span class="signal">■ ready</span></div>
           <pre><code><span class="signal">$</span> language-relay --convert-json ghbdtn
 {"sourceID":"…US","targetID":"…RussianWin","text":"привет"}
 
 <span class="signal">$</span> language-relay --doctor-json
-{"accessibilityTrusted":true,"carambaRunning":false,"ready":true}
+{"accessibilityTrusted":true,"ready":true}
 
 <span class="signal">$</span> language-relay --capabilities-json
 {"scopes":["word","phrase"],"localOnly":true}</code></pre>
         </div>
       </section>
 
+      <section class="privacy-grid">
+        <div>
+          <div class="section-label">04 · local by design</div>
+          <h2 class="i18n" data-en="your text stays on your mac." data-ru="твой текст остаётся на mac.">your text stays on your mac.</h2>
+          <p class="privacy-copy i18n" data-en="language relay runs as a small native menu bar app. it needs accessibility access to repair the focused field. there is no account, advertising surface, analytics sdk or cloud processing path." data-ru="language relay работает как маленькое нативное приложение в меню. accessibility нужен для исправления активного поля. здесь нет аккаунта, рекламной поверхности, analytics sdk и облачной обработки.">language relay runs as a small native menu bar app. it needs accessibility access to repair the focused field. there is no account, advertising surface, analytics sdk or cloud processing path.</p>
+        </div>
+        <div class="privacy-ledger">
+          <div class="privacy-item is-signal"><strong>on your mac</strong><span>conversion + settings</span></div>
+          <div class="privacy-item"><strong>0 accounts</strong><span>install and start writing</span></div>
+          <div class="privacy-item"><strong>0 ads</strong><span>no promotional runtime surface</span></div>
+          <div class="privacy-item"><strong>0 telemetry</strong><span>no analytics sdk or text log</span></div>
+          <div class="privacy-item"><strong>open source</strong><span>inspect the app and bridge</span></div>
+          <div class="privacy-item"><strong>u.s. ⇄ ru–pc</strong><span>current deterministic pair</span></div>
+          <p class="pair-note i18n" data-en="current release: u.s. ⇄ russian–pc. the engine uses explicit verified layout pairs, so every future language pair can ship with its own deterministic map and tests." data-ru="текущая версия: u.s. ⇄ russian–pc. движок использует явные проверенные пары раскладок, поэтому каждая следующая языковая пара получит собственную детерминированную карту и тесты.">current release: u.s. ⇄ russian–pc. the engine uses explicit verified layout pairs, so every future language pair can ship with its own deterministic map and tests.</p>
+        </div>
+      </section>
+
       <section>
-        <div class="section-label">04 · micro feedback</div>
-        <h2 class="i18n" data-en="eight signals. each ends before the next thought." data-ru="восемь сигналов. каждый короче следующей мысли.">eight signals. each ends before the next thought.</h2>
+        <div class="section-label">05 · micro feedback</div>
+        <h2 class="i18n" data-en="eight short signals. one clear receipt." data-ru="восемь коротких сигналов. один ясный результат.">eight short signals. one clear receipt.</h2>
         <div class="sound-grid" id="sound-grid">
           <button class="sound-pad" data-sound="pulse"><small>01 · 110ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>pulse</strong></button>
           <button class="sound-pad" data-sound="relay"><small>02 · 140ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>relay</strong></button>
@@ -249,14 +359,17 @@
       </section>
 
       <section class="install-section">
-        <div class="section-label">05 · install</div>
-        <h2 class="i18n" data-en="one command. zero cloud." data-ru="одна команда. ноль облака.">one command. zero cloud.</h2>
-        <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">⌘</button></div>
-        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc</div>
+        <div class="section-label">06 · install</div>
+        <h2 class="i18n" data-en="one command. ready for the next word." data-ru="одна команда. готово к следующему слову.">one command. ready for the next word.</h2>
+        <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
+        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.1</div>
       </section>
     </main>
 
-    <footer><span class="maker">made by alexander povaliaev · lisbon · 2026</span><span class="footer-links"><a href="https://github.com/aPoWall/language-relay">github</a><a href="https://github.com/aPoWall/language-relay/blob/main/SECURITY.md">privacy</a><a href="https://caramba-switcher.com/mac">caramba</a></span></footer>
+    <footer>
+      <div class="signature"><small>designed + built in lisbon by</small><strong>alexander povaliaev</strong><small>apowall instruments · 2026</small></div>
+      <div class="footer-links"><a href="https://github.com/aPoWall">author ↗</a><a href="https://github.com/aPoWall/language-relay">source ↗</a><a href="https://github.com/aPoWall/language-relay/blob/main/SECURITY.md">privacy ↗</a></div>
+    </footer>
   </div>
 
   <script>
@@ -279,20 +392,93 @@
     document.getElementById('lang-toggle').addEventListener('click', () => applyLanguage(lang === 'en' ? 'ru' : 'en'));
 
     document.querySelectorAll('.copy').forEach(button => button.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(button.dataset.copy);
+      try { await navigator.clipboard.writeText(button.dataset.copy); } catch (_) {}
       const before = button.textContent;
       button.textContent = 'ok';
       setTimeout(() => button.textContent = before, 900);
     }));
 
-    const wrong = document.getElementById('wrong-sample');
-    const right = document.getElementById('right-sample');
-    let reversed = false;
-    document.getElementById('proof-toggle').addEventListener('click', () => {
-      reversed = !reversed;
-      wrong.textContent = reversed ? 'руддщ, цщкдв' : 'ghbdtn, vbh';
-      right.textContent = reversed ? 'hello, world' : 'привет, мир';
-      if (!reduceMotion) right.animate([{opacity:0,transform:'translateX(-8px)'},{opacity:1,transform:'translateX(0)'}],{duration:190,easing:'cubic-bezier(.2,.8,.2,1)'});
+    const enKeys = "`1234567890-=qwertyuiop[]\\asdfghjkl;'zxcvbnm,./~!@#$%^&*()_+QWERTYUIOP{}|ASDFGHJKL:\"ZXCVBNM<>?";
+    const ruKeys = "ё1234567890-=йцукенгшщзхъ\\фывапролджэячсмитьбю.Ё!\"№;%:?*()_+ЙЦУКЕНГШЩЗХЪ/ФЫВАПРОЛДЖЭЯЧСМИТЬБЮ,";
+    const demo = document.getElementById('live-demo');
+    const demoInput = document.getElementById('demo-input');
+    const demoReceipt = document.getElementById('demo-receipt');
+    const demoDirection = document.getElementById('demo-direction');
+    let demoScope = 'phrase';
+    let demoCase = 'preserve';
+
+    const detectDirection = value => {
+      const latin = (value.match(/[a-z]/gi) || []).length;
+      const cyrillic = (value.match(/[а-яё]/gi) || []).length;
+      return cyrillic > latin ? 'ru-en' : 'en-ru';
+    };
+    const convertKeys = (value, direction) => {
+      const from = direction === 'en-ru' ? enKeys : ruKeys;
+      const to = direction === 'en-ru' ? ruKeys : enKeys;
+      return Array.from(value, char => {
+        const index = from.indexOf(char);
+        return index < 0 ? char : to[index];
+      }).join('');
+    };
+    const applyCase = (value, mode, direction) => {
+      const locale = direction === 'en-ru' ? 'ru-RU' : 'en-US';
+      if (mode === 'uppercase') return value.toLocaleUpperCase(locale);
+      if (mode === 'lowercase') return value.toLocaleLowerCase(locale);
+      if (mode === 'sentence') {
+        const lower = value.toLocaleLowerCase(locale);
+        return lower.replace(/\p{L}/u, letter => letter.toLocaleUpperCase(locale));
+      }
+      return value;
+    };
+    const candidateRange = (value, scope) => {
+      if (scope === 'word') {
+        const match = value.match(/\S+\s*$/u);
+        return match ? [match.index, value.length] : [0, value.length];
+      }
+      const lineStart = value.lastIndexOf('\n') + 1;
+      return [lineStart, value.length];
+    };
+    const syncPressed = (selector, value, key) => document.querySelectorAll(selector).forEach(button => button.setAttribute('aria-pressed', String(button.dataset[key] === value)));
+    document.querySelectorAll('[data-scope]').forEach(button => button.addEventListener('click', () => {
+      demoScope = button.dataset.scope;
+      syncPressed('[data-scope]', demoScope, 'scope');
+    }));
+    document.querySelectorAll('[data-case]').forEach(button => button.addEventListener('click', () => {
+      demoCase = button.dataset.case;
+      syncPressed('[data-case]', demoCase, 'case');
+      demoInput.focus({preventScroll:true});
+    }));
+    const relayDemo = () => {
+      const value = demoInput.value || 'ghbdtn? vbh';
+      const [start, end] = candidateRange(value, demoScope);
+      const candidate = value.slice(start, end);
+      const direction = detectDirection(candidate);
+      const converted = applyCase(convertKeys(candidate, direction), demoCase, direction);
+      demoInput.value = value.slice(0, start) + converted + value.slice(end);
+      demoDirection.textContent = direction === 'en-ru' ? 'u.s. → russian–pc' : 'russian–pc → u.s.';
+      demoReceipt.textContent = `verified · ${Array.from(candidate).length} symbols · ${demoScope} · ${demoCase}`;
+      root.dataset.relaying = 'true';
+      demo.classList.add('is-keying');
+      if (!reduceMotion) demoInput.animate([{opacity:.2,transform:'translateX(7px)'},{opacity:1,transform:'translateX(0)'}],{duration:180,easing:'cubic-bezier(.2,.8,.2,1)'});
+      setTimeout(() => { delete root.dataset.relaying; demo.classList.remove('is-keying'); }, 230);
+      demoInput.focus({preventScroll:true});
+      demoInput.setSelectionRange(demoInput.value.length,demoInput.value.length);
+    };
+    document.getElementById('relay-button').addEventListener('click', relayDemo);
+    let shiftClean = false;
+    let lastShiftTap = 0;
+    demoInput.addEventListener('keydown', event => {
+      if (event.key === 'Shift' && !event.repeat) shiftClean = true;
+      else if (event.shiftKey) shiftClean = false;
+    });
+    demoInput.addEventListener('keyup', event => {
+      if (event.key !== 'Shift') return;
+      const now = performance.now();
+      if (shiftClean && now - lastShiftTap < 420) {
+        lastShiftTap = 0;
+        relayDemo();
+      } else if (shiftClean) lastShiftTap = now;
+      shiftClean = false;
     });
 
     const player = new Audio();

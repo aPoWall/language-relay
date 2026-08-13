@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased – website
+
+- replaced the scripted repair proof with a real bidirectional U.S. ⇄ Russian–PC browser relay;
+- added clean Double Shift, phrase/word scope, and four capitalization modes to the live demo;
+- rewrote the product story around one concrete `ghbdtn → привет` moment, local privacy, and the agent contract;
+- redesigned the developer mark, favicon, social card, and author signature as one compact identity;
+- removed comparison-led positioning from the public product surface.
+
 ## 2.3.1 – 2026-08-13
 
 - simplified the menu-bar glyph to two language cells and one compact relay;

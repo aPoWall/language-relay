@@ -1,9 +1,9 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="12" fill="#f4f2ec"/>
-  <rect x="7" y="16" width="20" height="32" fill="#222019"/>
-  <rect x="37" y="16" width="20" height="32" fill="none" stroke="#222019" stroke-width="2"/>
-  <path d="M29 26H35M29 26L32 23M29 26L32 29M35 38H29M35 38L32 35M35 38L32 41" fill="none" stroke="#222019" stroke-width="2"/>
-  <rect x="30" y="29" width="4" height="6" fill="#c8ff18"/>
-  <text x="17" y="37" fill="#f4f2ec" font-family="ui-monospace, monospace" font-size="15" font-weight="700" text-anchor="middle">a</text>
-  <text x="47" y="37" fill="#222019" font-family="ui-monospace, monospace" font-size="14" font-weight="700" text-anchor="middle">я</text>
+  <rect width="64" height="64" fill="#ffffff"/>
+  <rect x="7" y="15" width="50" height="34" fill="#ffffff" stroke="#080808" stroke-width="2"/>
+  <rect x="7" y="15" width="25" height="34" fill="#080808"/>
+  <path d="M32 15V49" stroke="#080808" stroke-width="2"/>
+  <rect x="29" y="40" width="6" height="5" fill="#caff18"/>
+  <text x="19.5" y="37" fill="#ffffff" font-family="ui-monospace, monospace" font-size="16" font-weight="700" text-anchor="middle">a</text>
+  <text x="44.5" y="37" fill="#080808" font-family="ui-monospace, monospace" font-size="15" font-weight="700" text-anchor="middle">я</text>
 </svg>

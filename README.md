@@ -6,7 +6,7 @@
 
 Current pair: `U.S.` ⇄ `Russian – PC`. Conversion, settings, and the transient typing buffer stay on the Mac. There is no telemetry, account, typed-text log, database, or runtime network request.
 
-[Website](https://apowall.github.io/language-relay/) · [Latest release](https://github.com/aPoWall/language-relay/releases/latest)
+[Interactive website](https://apowall.github.io/language-relay/) · [Latest release](https://github.com/aPoWall/language-relay/releases/latest)
 
 ## What ships
 
@@ -79,11 +79,11 @@ Direct native surface:
 
 The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename.
 
-## Caramba and Karabiner
+## Gesture ownership and Karabiner
 
 Karabiner transforms hardware events before macOS posts its virtual-keyboard output, so Language Relay can coexist with Caps / Hyper rules when those rules do not emit a clean standalone Option or Double Shift.
 
-[Caramba Switcher for macOS](https://caramba-switcher.com/mac) owns the same Double Shift, Option, and Single Shift gestures. When its bundle is running, Language Relay automatically stops acting on Shift / Option and keeps menu, Caps / Hyper, and CLI access. Choose one gesture owner. Caramba remains the stronger automatic language model with typo repair, ё rules, exceptions, per-app disabling, custom sounds, and plain paste.
+If another layout utility owns Double Shift or Option, keep one gesture owner active. Language Relay suspends its repair gestures when it detects a known owner and keeps menu, Caps / Hyper, and CLI access.
 
 ## Other languages
 

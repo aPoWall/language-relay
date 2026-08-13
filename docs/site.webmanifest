@@ -1,11 +1,11 @@
 {
   "name": "language relay",
   "short_name": "relay",
-  "description": "local wrong-layout repair for macos",
+  "description": "turn ghbdtn into привет with one gesture – local layout repair for macos",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#f4f2ec",
-  "theme_color": "#f4f2ec",
+  "background_color": "#ffffff",
+  "theme_color": "#ffffff",
   "icons": [
     { "src": "apple-touch-icon.png", "sizes": "180x180", "type": "image/png" },
     { "src": "favicon-32.png", "sizes": "32x32", "type": "image/png" }
