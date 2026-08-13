@@ -16,6 +16,7 @@ Current pair: `U.S.` ⇄ `Russian – PC`. Conversion, settings, and the transie
 - Caps / Hyper switching can remain in Karabiner-Elements;
 - Accessibility replacement is read back before success is reported;
 - guarded web/Electron fallback avoids duplicated text and restores the clipboard;
+- Orca and terminal inputs use a repeatable buffered path that never writes an Accessibility selection;
 - preserve, sentence, uppercase, and lowercase modes;
 - eight short feedback cues and four volume levels;
 - menu-bar state, local diagnostics, and JSON CLI.

@@ -724,39 +724,27 @@ private final class CaseChoiceButton: NSButton {
 
 private enum LayoutPilotStatusGlyph {
     static func make(russianActive: Bool) -> NSImage {
-        let size = NSSize(width: 64, height: 18)
+        let size = NSSize(width: 54, height: 18)
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.black.setStroke()
             NSColor.black.setFill()
 
-            drawCell(NSRect(x: 1, y: 1, width: 18, height: 16), text: "A", active: !russianActive)
-            drawCell(NSRect(x: 43, y: 1, width: 20, height: 16), text: "РУ", active: russianActive)
+            drawCell(NSRect(x: 1, y: 1, width: 18, height: 16), text: "a", active: !russianActive)
+            drawCell(NSRect(x: 35, y: 1, width: 18, height: 16), text: "ру", active: russianActive)
 
-            let upper = NSBezierPath()
-            upper.move(to: NSPoint(x: 21, y: 11.5))
-            upper.line(to: NSPoint(x: 39, y: 11.5))
-            upper.line(to: NSPoint(x: 35, y: 15))
-            upper.move(to: NSPoint(x: 39, y: 11.5))
-            upper.line(to: NSPoint(x: 35, y: 8))
-            upper.lineWidth = 1
-            upper.stroke()
-
-            let lower = NSBezierPath()
-            lower.move(to: NSPoint(x: 41, y: 6.5))
-            lower.line(to: NSPoint(x: 23, y: 6.5))
-            lower.line(to: NSPoint(x: 27, y: 10))
-            lower.move(to: NSPoint(x: 23, y: 6.5))
-            lower.line(to: NSPoint(x: 27, y: 3))
-            lower.lineWidth = 1
-            lower.stroke()
-
-            let node = NSBezierPath()
-            node.move(to: NSPoint(x: 32, y: 11))
-            node.line(to: NSPoint(x: 35, y: 9))
-            node.line(to: NSPoint(x: 32, y: 7))
-            node.line(to: NSPoint(x: 29, y: 9))
-            node.close()
-            node.fill()
+            let relay = NSBezierPath()
+            relay.move(to: NSPoint(x: 21, y: 9))
+            relay.line(to: NSPoint(x: 33, y: 9))
+            relay.move(to: NSPoint(x: 21, y: 9))
+            relay.line(to: NSPoint(x: 24.5, y: 12.5))
+            relay.move(to: NSPoint(x: 21, y: 9))
+            relay.line(to: NSPoint(x: 24.5, y: 5.5))
+            relay.move(to: NSPoint(x: 33, y: 9))
+            relay.line(to: NSPoint(x: 29.5, y: 12.5))
+            relay.move(to: NSPoint(x: 33, y: 9))
+            relay.line(to: NSPoint(x: 29.5, y: 5.5))
+            relay.lineWidth = 1
+            relay.stroke()
             return true
         }
         image.isTemplate = true
@@ -776,7 +764,7 @@ private enum LayoutPilotStatusGlyph {
         let paragraph = NSMutableParagraphStyle()
         paragraph.alignment = .center
         let attributes: [NSAttributedString.Key: Any] = [
-            .font: NSFont.monospacedSystemFont(ofSize: text == "A" ? 9.5 : 7.4, weight: .semibold),
+            .font: NSFont.monospacedSystemFont(ofSize: text == "a" ? 9.5 : 7.4, weight: .semibold),
             .foregroundColor: NSColor.black,
             .paragraphStyle: paragraph,
             .kern: 0.1,
@@ -905,8 +893,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: 64)
-        statusItem.autosaveName = "dev.alex.layout-pilot.status-item.v2"
+        statusItem = NSStatusBar.system.statusItem(withLength: 54)
+        statusItem.autosaveName = "dev.alex.layout-pilot.status-item.v3"
         statusItem.menu = nil
         statusItem.isVisible = true
         guard let button = statusItem.button else { return }
@@ -1015,18 +1003,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         ])
 
         root.addArrangedSubview(label("language relay", size: 20, weight: .semibold, color: UI.ink, height: 27))
-        root.addArrangedSubview(label("apowall instrument 02 · local layout bridge · v2.3", size: 8.8, weight: .semibold, color: UI.muted, height: 13))
+        root.addArrangedSubview(label("apowall instrument 02 · local layout bridge · v2.3.1", size: 9.2, weight: .semibold, color: UI.muted, height: 13))
         root.addArrangedSubview(hairLine(width: LayoutPilotPanelMetrics.contentWidth))
 
-        root.addArrangedSubview(sectionHeader("01 · input source · current state + one switch", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(sectionHeader("01 · input · active layout", width: LayoutPilotPanelMetrics.contentWidth))
         let layoutRow = NSStackView()
         layoutRow.orientation = .horizontal
         layoutRow.alignment = .centerY
         layoutRow.spacing = 6
         let current = InputSources.currentID()
-        let currentLabel = current == AppIdentity.russianPCID ? "РУ · russian – pc" : "A · u.s."
-        let state = stateReadout("current · \(currentLabel)", width: 264, height: 42)
-        let toggle = squareButton("⇄ switch", action: #selector(toggleLayout), width: 118, height: 42)
+        let currentLabel = current == AppIdentity.russianPCID
+            ? "a ⇄ [ру] · russian – pc active"
+            : "[a] ⇄ ру · u.s. active"
+        let state = stateReadout(currentLabel, width: 340, height: 42)
+        let toggle = squareButton("⇄", action: #selector(toggleLayout), width: 42, height: 42)
+        toggle.toolTip = "switch input source"
         layoutRow.addArrangedSubview(state)
         layoutRow.addArrangedSubview(toggle)
         root.addArrangedSubview(layoutRow)
@@ -1265,7 +1256,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         )
             && panel.window == nil
             && !panel.subviews.isEmpty
-            && glyph.size == NSSize(width: 64, height: 18)
+            && glyph.size == NSSize(width: 54, height: 18)
             && glyph.isTemplate
     }
 
@@ -1471,7 +1462,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; panel=420x522; glyph=64x18; window=none")
+            print("PASS: background UI self-test; panel=420x522; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {
@@ -1510,7 +1501,7 @@ private struct LayoutPilotMain {
             writeJSONObject([
                 "schemaVersion": 1,
                 "app": AppIdentity.name,
-                "version": "2.3.0",
+                "version": "2.3.1",
                 "inputSourceID": current,
                 "accessibilityTrusted": AXIsProcessTrusted(),
                 "carambaRunning": caramba,
@@ -1522,7 +1513,7 @@ private struct LayoutPilotMain {
             writeJSONObject([
                 "schemaVersion": 1,
                 "app": AppIdentity.name,
-                "version": "2.3.0",
+                "version": "2.3.1",
                 "pair": [AppIdentity.usID, AppIdentity.russianPCID],
                 "scopes": ["word", "phrase"],
                 "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],

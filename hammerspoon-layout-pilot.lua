@@ -1,5 +1,5 @@
 -- layout-pilot:start
--- Language Relay bridge v2.3
+-- Language Relay bridge v2.3.1
 --
 -- Double Shift or a clean Option tap fixes selected text / the last phrase
 -- typed in the wrong layout. The bridge never creates a selection. It first
@@ -36,6 +36,16 @@ local layoutPilotSettings = {
   capitalizationMode = "preserve",
   shiftEnabled = true,
   optionEnabled = true,
+}
+
+local layoutPilotTerminalBundles = {
+  ["com.apple.Terminal"] = true,
+  ["com.googlecode.iterm2"] = true,
+  ["dev.warp.Warp-Stable"] = true,
+  ["com.mitchellh.ghostty"] = true,
+  ["net.kovidgoyal.kitty"] = true,
+  ["org.alacritty"] = true,
+  ["com.github.wez.wezterm"] = true,
 }
 
 local function layoutPilotReadDefault(key, fallback)
@@ -170,6 +180,42 @@ local function layoutPilotSelectedText(focused)
   return nil
 end
 
+local function layoutPilotIsTerminalInput(focused, bundleID, roleOverride, descriptionOverride)
+  local role = roleOverride
+  local description = descriptionOverride
+  if focused and role == nil then
+    pcall(function() role = focused:attributeValue("AXRole") end)
+  end
+  if focused and description == nil then
+    pcall(function() description = focused:attributeValue("AXDescription") end)
+  end
+  if role ~= "AXTextField" and role ~= "AXTextArea" then return false end
+  if type(description) == "string" and description:lower():find("terminal input", 1, true) then
+    return true
+  end
+  return layoutPilotTerminalBundles[bundleID] == true
+end
+
+local function layoutPilotTerminalSuffixRange(value, candidate)
+  if type(value) ~= "string" or type(candidate) ~= "string" or candidate == "" then return nil end
+  if #candidate > #value or value:sub(#value - #candidate + 1) ~= candidate then return nil end
+  local valueUnits = layoutPilotUTF16Length(value)
+  local candidateUnits = layoutPilotUTF16Length(candidate)
+  return {location = valueUnits - candidateUnits, length = candidateUnits}
+end
+
+local function layoutPilotTerminalSelectionNeedsCollapse(selectedRange)
+  return type(selectedRange) == "table" and (selectedRange.length or 0) > 0
+end
+
+local function layoutPilotTerminalCandidate(buffered, selected)
+  if type(selected) == "string" and selected:match("%S")
+      and (type(buffered) ~= "string" or selected ~= buffered) then
+    return selected, true
+  end
+  return buffered, false
+end
+
 local function layoutPilotFocusedContext(phraseMode)
   local front = hs.application.frontmostApplication()
   local bundleID = front and front:bundleID() or nil
@@ -177,11 +223,20 @@ local function layoutPilotFocusedContext(phraseMode)
   local value = focused and focused:attributeValue("AXValue") or nil
   local caret = focused and focused:attributeValue("AXSelectedTextRange") or nil
   local selected = layoutPilotSelectedText(focused)
+  local terminalInput = layoutPilotIsTerminalInput(focused, bundleID)
   local range = nil
   local candidate = nil
   local manualSelection = false
 
-  if selected then
+  if terminalInput then
+    local buffered = layoutPilotBufferCandidate(phraseMode)
+    candidate, manualSelection = layoutPilotTerminalCandidate(buffered, selected)
+    if manualSelection and type(caret) == "table" and type(caret.location) == "number" then
+      range = {location = caret.location, length = caret.length or 0}
+    else
+      range = layoutPilotTerminalSuffixRange(value, candidate)
+    end
+  elseif selected then
     candidate = selected
     manualSelection = true
     if type(caret) == "table" and type(caret.location) == "number" and (caret.length or 0) > 0 then
@@ -207,6 +262,7 @@ local function layoutPilotFocusedContext(phraseMode)
     candidate = candidate,
     manualSelection = manualSelection,
     phraseMode = phraseMode and not manualSelection,
+    terminalInput = terminalInput,
   }
 end
 
@@ -411,9 +467,26 @@ local function layoutPilotFallbackApply(context, replacement, targetID, expected
     end
   end
 
-  layoutPilotPostBackspaces(deleteCount, function()
-    waitForDeletion(hs.timer.secondsSinceEpoch() + 0.30)
-  end)
+  local function beginDeletion()
+    layoutPilotPostBackspaces(deleteCount, function()
+      waitForDeletion(hs.timer.secondsSinceEpoch() + 0.30)
+    end)
+  end
+
+  if context.terminalInput and not context.manualSelection and context.focused then
+    local selectedRange = nil
+    pcall(function() selectedRange = context.focused:attributeValue("AXSelectedTextRange") end)
+    if layoutPilotTerminalSelectionNeedsCollapse(selectedRange) then
+      -- Orca and several terminal renderers select the complete input after an
+      -- AXValue write. Collapse that stale selection with a normal cursor key;
+      -- never set AXSelectedTextRange on terminal controls.
+      layoutPilotPostMarkedKey({}, 124, true)
+      layoutPilotPostMarkedKey({}, 124, false)
+      hs.timer.doAfter(0.035, beginDeletion)
+      return
+    end
+  end
+  beginDeletion()
 end
 
 local function layoutPilotApplyConversion(context, payload)
@@ -427,7 +500,7 @@ local function layoutPilotApplyConversion(context, payload)
     expectedValue, expectedCaret = layoutPilotReplaceRange(context.value, context.range, payload.text)
   end
 
-  if expectedValue and context.focused then
+  if expectedValue and context.focused and not context.terminalInput then
     local settable = false
     pcall(function() settable = context.focused:isAttributeSettable("AXValue") == true end)
     if settable then
@@ -670,6 +743,36 @@ function layoutPilotQABufferCandidate(value, phraseMode)
   return candidate
 end
 
+function layoutPilotQATerminalContext(bundleID, description, role)
+  return layoutPilotIsTerminalInput(nil, bundleID, role, description)
+end
+
+function layoutPilotQATerminalRange(value, candidate)
+  local range = layoutPilotTerminalSuffixRange(value, candidate)
+  if not range then return "nil" end
+  return tostring(range.location) .. "|" .. tostring(range.length)
+end
+
+function layoutPilotQATerminalSelection(length)
+  return layoutPilotTerminalSelectionNeedsCollapse({location = 0, length = length})
+end
+
+function layoutPilotQATerminalCandidate(buffered, selected)
+  local candidate, manual = layoutPilotTerminalCandidate(buffered ~= "" and buffered or nil, selected ~= "" and selected or nil)
+  return tostring(candidate) .. "|" .. tostring(manual)
+end
+
+function layoutPilotQATerminalRepeat(first, second)
+  local previousBuffer, previousApp = layoutPilotBuffer, layoutPilotBufferApp
+  layoutPilotBuffer = first
+  local firstCandidate = layoutPilotBufferCandidate(true)
+  layoutPilotClearBuffer()
+  layoutPilotBuffer = second
+  local secondCandidate = layoutPilotBufferCandidate(true)
+  layoutPilotBuffer, layoutPilotBufferApp = previousBuffer, previousApp
+  return tostring(firstCandidate) .. "|" .. tostring(secondCandidate)
+end
+
 function layoutPilotQADeletionDelay(deleteCount)
   return layoutPilotDeletionDelay(deleteCount)
 end
@@ -689,6 +792,6 @@ function layoutPilotQACompatibility()
   return layoutPilotCarambaRunning() and "caramba" or "language-relay"
 end
 
-hs.settings.set("layout_pilot_bridge_ver", "2.3.0")
+hs.settings.set("layout_pilot_bridge_ver", "2.3.1")
 hs.settings.set("layout_pilot_last_status", hs.settings.get("layout_pilot_last_status") or "ready")
 -- layout-pilot:end

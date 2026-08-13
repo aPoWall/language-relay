@@ -1,6 +1,6 @@
 {
   "name": "language-relay",
-  "version": "2.3.0",
+  "version": "2.3.1",
   "description": "Local macOS keyboard layout bridge for people and agents",
   "license": "MIT",
   "private": false,

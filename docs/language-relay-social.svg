@@ -1,11 +1,30 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
   <rect width="1200" height="630" fill="#f4f2ec"/>
-  <path d="M916 132 1100 316 916 500 732 316Z" fill="#222019"/>
-  <path d="M654 407H840L992 225H1148M654 225H840L992 407H1148" fill="none" stroke="#f4f2ec" stroke-width="34"/>
-  <path d="m916 286 30 30-30 30-30-30Z" fill="#c8ff18"/>
-  <text x="72" y="102" fill="#716d64" font-family="Courier" font-size="20" font-weight="700" letter-spacing="3">APOWALL INSTRUMENTS / 02</text>
-  <text x="72" y="246" fill="#222019" font-family="Courier" font-size="78" font-weight="700" letter-spacing="-5">language relay</text>
-  <text x="72" y="338" fill="#222019" font-family="Courier" font-size="42" font-weight="700">wrong alphabet.</text>
-  <text x="72" y="394" fill="#222019" font-family="Courier" font-size="42" font-weight="700">one tap.</text>
-  <text x="72" y="542" fill="#716d64" font-family="Courier" font-size="20">macOS · local · open source · agent-ready</text>
+  <path d="M72 126H1128M72 532H1128" stroke="#d5d1c6"/>
+
+  <g transform="translate(72 56)">
+    <rect width="42" height="50" fill="#222019"/>
+    <rect x="66" width="42" height="50" fill="none" stroke="#222019" stroke-width="2"/>
+    <path d="M45 25H63M45 25L51 19M45 25L51 31M63 25L57 19M63 25L57 31" fill="none" stroke="#222019" stroke-width="2"/>
+    <rect x="50" y="21" width="8" height="8" fill="#c8ff18"/>
+    <text x="21" y="34" fill="#f4f2ec" font-family="JetBrains Mono, monospace" font-size="20" font-weight="700" text-anchor="middle">a</text>
+    <text x="87" y="34" fill="#222019" font-family="JetBrains Mono, monospace" font-size="19" font-weight="700" text-anchor="middle">я</text>
+    <text x="132" y="34" fill="#222019" font-family="JetBrains Mono, monospace" font-size="25" font-weight="700">language relay</text>
+  </g>
+
+  <text x="72" y="250" fill="#222019" font-family="JetBrains Mono, monospace" font-size="66" font-weight="700" letter-spacing="-4">fix the alphabet.</text>
+  <text x="72" y="326" fill="#222019" font-family="JetBrains Mono, monospace" font-size="66" font-weight="700" letter-spacing="-4">keep the thought.</text>
+  <text x="76" y="390" fill="#6f6b62" font-family="JetBrains Mono, monospace" font-size="20">one gesture repairs the last word or phrase.</text>
+
+  <g transform="translate(814 170)">
+    <rect width="122" height="178" fill="#222019"/>
+    <rect x="178" width="122" height="178" fill="none" stroke="#222019" stroke-width="6"/>
+    <path d="M132 68H168M132 68L144 56M132 68L144 80M168 110H132M168 110L156 98M168 110L156 122" fill="none" stroke="#222019" stroke-width="6"/>
+    <rect x="140" y="81" width="20" height="20" fill="#c8ff18"/>
+    <text x="61" y="116" fill="#f4f2ec" font-family="JetBrains Mono, monospace" font-size="76" font-weight="700" text-anchor="middle">a</text>
+    <text x="239" y="116" fill="#222019" font-family="JetBrains Mono, monospace" font-size="70" font-weight="700" text-anchor="middle">я</text>
+  </g>
+
+  <text x="72" y="578" fill="#6f6b62" font-family="JetBrains Mono, monospace" font-size="17">macos · local · open source · agent-ready</text>
+  <text x="1128" y="578" fill="#222019" font-family="JetBrains Mono, monospace" font-size="17" font-weight="700" text-anchor="end">made by alexander povaliaev</text>
 </svg>

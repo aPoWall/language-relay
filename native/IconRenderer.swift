@@ -63,50 +63,45 @@ private struct LayoutPilotIconRenderer {
         paper.setFill()
         NSBezierPath(roundedRect: NSRect(x: 48, y: 48, width: 928, height: 928), xRadius: 192, yRadius: 192).fill()
 
-        // One relay core, readable from 16 px through 1024 px. The two
-        // negative-space rails cross inside the diamond: source becomes target.
+        // Two states and one relay. The filled source, outlined target, and
+        // compact bidirectional bridge remain legible at favicon size.
+        let left = NSRect(x: 142, y: 314, width: 302, height: 396)
+        let right = NSRect(x: 580, y: 314, width: 302, height: 396)
         ink.setFill()
-        let core = NSBezierPath()
-        core.move(to: NSPoint(x: 512, y: 232))
-        core.line(to: NSPoint(x: 792, y: 512))
-        core.line(to: NSPoint(x: 512, y: 792))
-        core.line(to: NSPoint(x: 232, y: 512))
-        core.close()
-        core.fill()
+        NSBezierPath(rect: left).fill()
+        ink.setStroke()
+        let target = NSBezierPath(rect: right)
+        target.lineWidth = 24
+        target.stroke()
 
-        let railWidth: CGFloat = 54
-        let upperRail = NSBezierPath()
-        upperRail.move(to: NSPoint(x: 144, y: 650))
-        upperRail.line(to: NSPoint(x: 394, y: 650))
-        upperRail.line(to: NSPoint(x: 630, y: 374))
-        upperRail.line(to: NSPoint(x: 880, y: 374))
-        upperRail.lineWidth = railWidth
-        upperRail.lineCapStyle = .butt
+        let upper = NSBezierPath()
+        upper.move(to: NSPoint(x: 466, y: 568))
+        upper.line(to: NSPoint(x: 558, y: 568))
+        upper.move(to: NSPoint(x: 534, y: 592))
+        upper.line(to: NSPoint(x: 558, y: 568))
+        upper.line(to: NSPoint(x: 534, y: 544))
+        upper.lineWidth = 18
+        upper.lineCapStyle = .square
+        upper.lineJoinStyle = .miter
+        upper.stroke()
 
-        let lowerRail = NSBezierPath()
-        lowerRail.move(to: NSPoint(x: 144, y: 374))
-        lowerRail.line(to: NSPoint(x: 394, y: 374))
-        lowerRail.line(to: NSPoint(x: 630, y: 650))
-        lowerRail.line(to: NSPoint(x: 880, y: 650))
-        lowerRail.lineWidth = railWidth
-        lowerRail.lineCapStyle = .butt
-
-        paper.setStroke()
-        upperRail.stroke()
-        lowerRail.stroke()
+        let lower = NSBezierPath()
+        lower.move(to: NSPoint(x: 558, y: 456))
+        lower.line(to: NSPoint(x: 466, y: 456))
+        lower.move(to: NSPoint(x: 490, y: 432))
+        lower.line(to: NSPoint(x: 466, y: 456))
+        lower.line(to: NSPoint(x: 490, y: 480))
+        lower.lineWidth = 18
+        lower.lineCapStyle = .square
+        lower.lineJoinStyle = .miter
+        lower.stroke()
 
         signal.setFill()
-        let node = NSBezierPath()
-        node.move(to: NSPoint(x: 512, y: 466))
-        node.line(to: NSPoint(x: 558, y: 512))
-        node.line(to: NSPoint(x: 512, y: 558))
-        node.line(to: NSPoint(x: 466, y: 512))
-        node.close()
-        node.fill()
+        NSBezierPath(rect: NSRect(x: 486, y: 486, width: 52, height: 52)).fill()
 
-        if pixels >= 128 {
-            draw("A", in: NSRect(x: 154, y: 690, width: 150, height: 96), color: ink, size: 72)
-            draw("Я", in: NSRect(x: 720, y: 234, width: 150, height: 96), color: ink, size: 68)
+        if pixels >= 64 {
+            draw("a", in: left, color: paper, size: 142)
+            draw("я", in: right, color: ink, size: 132)
         }
 
         context.flushGraphics()
@@ -126,7 +121,7 @@ private struct LayoutPilotIconRenderer {
                 .font: mono(size: size, weight: .semibold),
                 .foregroundColor: color,
                 .paragraphStyle: paragraph,
-                .kern: text == "A" ? 0 : -4,
+                .kern: text == "a" ? 0 : -4,
             ]
         )
         let measured = value.size()

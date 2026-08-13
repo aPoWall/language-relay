@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.1 – 2026-08-13
+
+- simplified the menu-bar glyph to two language cells and one compact relay;
+- collapsed the input module into a readable active-state rail plus a square switch;
+- redrew the application icon, favicon, and social card as one a ⇄ я identity;
+- increased landing-page type sizes and rewrote the story around the concrete repair moment;
+- added a background-rendered product preview and a full maker credit;
+- added a repeatable terminal-input path that avoids AX selection writes and collapses stale terminal selections before repair.
+
 ## 2.3.0 – 2026-08-13
 
 - renamed the product and public surface to **Language Relay**;
