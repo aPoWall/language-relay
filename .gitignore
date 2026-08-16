@@ -8,6 +8,11 @@
 _sessions/
 session-logs/
 *.jsonl
+*.ndjson
+data/leads*
+data/participants*
+data/contacts*
+data/crm*
 *.sqlite
 *.sqlite3
 *.db

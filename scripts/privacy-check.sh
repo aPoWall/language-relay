@@ -8,8 +8,9 @@ fail=0
 private_paths="$(find . -path './.git' -prune -o -path './node_modules' -prune -o \
   \( -path '*/.claude/*' -o -path '*/.codex/*' -o -path '*/.cursor/*' \
      -o -path '*/_sessions/*' -o -path '*/session-logs/*' -o -path '*/file-history/*' \
-     -o -iname '*.jsonl' -o -iname '*.sqlite' -o -iname '*.sqlite3' \
+     -o -iname '*.jsonl' -o -iname '*.ndjson' -o -iname '*.sqlite' -o -iname '*.sqlite3' \
      -o -iname '*.db' -o -iname '*.pem' -o -iname '*.key' \
+     -o -iregex '.*/\(leads\|participants\|contacts\|crm\)[^/]*\.\(csv\|json\|jsonl\|ndjson\)' \
      -o -name 'HANDOFF.md' -o -name 'CONTEXT-HANDOFF.md' \
      -o -name 'SESSION-*-HANDOFF.md' -o -name '*.backup-*' \) -print | sed 's#^./##')"
 if [[ -n "$private_paths" ]]; then
