@@ -2,6 +2,8 @@
 
 ## Unreleased – website
 
+- added an idempotent `language-relay setup` checklist that enables the required input sources, installs the Hammerspoon load line, guides Accessibility approval, and reports missing prerequisites;
+- upgraded `language-relay doctor` to schema version 2 with bridge, input-source, LaunchAgent, background-process, and actionable blocker diagnostics;
 - replaced the scripted repair proof with a real bidirectional U.S. ⇄ Russian–PC browser relay;
 - added clean Double Shift, phrase/word scope, and four capitalization modes to the live demo;
 - turned the hero demo into a compact editor with synchronized case, scope, cue, example, Double Shift, and clean Option controls;

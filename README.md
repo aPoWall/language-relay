@@ -37,13 +37,25 @@ cd language-relay
 make install
 ```
 
-Add this once to `~/.hammerspoon/init.lua`, then reload Hammerspoon:
+Installation runs setup and prints a checklist for Hammerspoon, the bridge, input sources, Accessibility, and the background app. It exits non-zero until every prerequisite is complete. Re-run it safely at any time:
+
+```bash
+language-relay setup
+```
+
+`setup` enables `U.S.` and `Russian – PC` when they are available, appends the bridge load line without changing your existing Hammerspoon configuration, and opens Accessibility settings when permission is missing. It never removes or reorders your input sources. If Hammerspoon is missing, install it with:
+
+```bash
+brew install --cask hammerspoon
+```
+
+As a manual fallback, add this once to `~/.hammerspoon/init.lua`, then reload Hammerspoon:
 
 ```lua
 dofile(os.getenv("HOME") .. "/.config/language-relay/hammerspoon.lua")
 ```
 
-Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission, and both supported input sources enabled.
+Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission, and both supported input sources enabled. Grant Accessibility to both Language Relay and Hammerspoon when macOS prompts you.
 
 ## Controls
 
@@ -63,6 +75,7 @@ The native binary and the npm shim return stable JSON without logging input text
 
 ```bash
 language-relay convert ghbdtn
+language-relay setup
 language-relay status
 language-relay doctor
 language-relay capabilities
@@ -73,6 +86,7 @@ Direct native surface:
 
 ```bash
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --convert-json ghbdtn
+"$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --setup
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --doctor-json
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --capabilities-json
 ```

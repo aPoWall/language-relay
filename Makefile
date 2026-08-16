@@ -18,7 +18,7 @@ AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
 BRIDGE_DIR := $(HOME)/.config/language-relay
 USER_ID := $(shell /usr/bin/id -u)
 
-.PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test install clean
+.PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test setup install clean
 
 all: build
 
@@ -62,6 +62,12 @@ background-test integration-test: test
 live-integration-test: test live-harness shift-emitter
 	tests/integration.sh
 
+setup: build
+	mkdir -p "$(BRIDGE_DIR)"
+	cp hammerspoon-layout-pilot.lua "$(BRIDGE_DIR)/hammerspoon.lua"
+	touch "$(BRIDGE_DIR)/hammerspoon-bridge"
+	"$(APP_DIR)/Contents/MacOS/$(BIN_NAME)" --setup
+
 $(BUILD_DIR)/LiveTextFieldHarness.app: tests/LiveTextFieldHarness.swift tests/LiveTextFieldHarness.plist
 	rm -rf "$@"
 	mkdir -p "$@/Contents/MacOS"
@@ -89,6 +95,8 @@ install: test
 	: > "$(HOME)/Library/Logs/layout-pilot/layout-pilot.err.log"
 	/bin/launchctl bootstrap gui/$(USER_ID) "$(AGENT_DEST)"
 	/bin/launchctl enable gui/$(USER_ID)/$(AGENT_LABEL)
+	/bin/launchctl kickstart -k gui/$(USER_ID)/$(AGENT_LABEL)
+	"$(INSTALL_DIR)/Contents/MacOS/$(BIN_NAME)" --setup
 
 clean:
 	rm -rf "$(BUILD_DIR)"

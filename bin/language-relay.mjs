@@ -19,6 +19,7 @@ const run = (executable, argv, cwd = process.cwd()) => {
 };
 
 if (command === 'install') run('/usr/bin/make', ['install'], root);
+if (command === 'setup') run(binary, ['--setup']);
 if (command === 'doctor') run(binary, ['--doctor-json']);
 if (command === 'status') run(binary, ['--status-json']);
 if (command === 'capabilities') run(binary, ['--capabilities-json']);
@@ -35,6 +36,7 @@ console.log(`language relay 2.3
 
 commands:
   install                    build and install in ~/Applications
+  setup                      configure local prerequisites and print a checklist
   convert <text>             convert text and return JSON
   switch                     switch U.S. ⇄ Russian–PC
   status                     current input source as JSON

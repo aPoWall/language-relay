@@ -6,8 +6,18 @@ import Foundation
 private enum AppIdentity {
     static let name = "Language Relay"
     static let bundleID = "dev.alex.layout-pilot"
+    static let launchAgentLabel = "dev.alex.layout-pilot"
     static let usID = "com.apple.keylayout.US"
     static let russianPCID = "com.apple.keylayout.RussianWin"
+    static let hammerspoonBundleID = "org.hammerspoon.Hammerspoon"
+    static let bridgeLoadLine = "dofile(os.getenv(\"HOME\") .. \"/.config/language-relay/hammerspoon.lua\")"
+    static let homeDirectory = FileManager.default.homeDirectoryForCurrentUser
+    static let bridgePath = homeDirectory
+        .appendingPathComponent(".config/language-relay/hammerspoon.lua")
+        .path
+    static let hammerspoonInitPath = homeDirectory
+        .appendingPathComponent(".hammerspoon/init.lua")
+        .path
     static let hammerspoonBridgeMarker = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/language-relay/hammerspoon-bridge")
         .path
@@ -88,10 +98,23 @@ private enum InputSources {
         return unsafeBitCast(pointer, to: CFString.self) as String
     }
 
-    static func source(withID id: String) -> TISInputSource? {
+    static func source(withID id: String, includeAllInstalled: Bool = false) -> TISInputSource? {
         let filter = [kTISPropertyInputSourceID as String: id] as CFDictionary
-        guard let list = TISCreateInputSourceList(filter, true)?.takeRetainedValue() else { return nil }
+        guard let list = TISCreateInputSourceList(filter, includeAllInstalled)?.takeRetainedValue() else {
+            return nil
+        }
         return (list as NSArray).firstObject as! TISInputSource?
+    }
+
+    static func isEnabled(_ id: String) -> Bool {
+        source(withID: id) != nil
+    }
+
+    @discardableResult
+    static func enable(_ id: String) -> Bool {
+        if isEnabled(id) { return true }
+        guard let source = source(withID: id, includeAllInstalled: true) else { return false }
+        return TISEnableInputSource(source) == noErr
     }
 
     static func currentID() -> String? {
@@ -176,6 +199,253 @@ private enum InputSources {
         let value = String(utf16CodeUnits: buffer, count: Int(actualLength))
         guard value.count == 1, let character = value.first, !character.isWhitespace else { return nil }
         return character
+    }
+}
+
+private enum BridgeConfiguration {
+    static func containsLoadLine(_ contents: String) -> Bool {
+        contents.split(whereSeparator: \.isNewline).contains {
+            $0.trimmingCharacters(in: .whitespacesAndNewlines) == AppIdentity.bridgeLoadLine
+        }
+    }
+
+    static var isInstalled: Bool {
+        FileManager.default.fileExists(atPath: AppIdentity.bridgePath)
+    }
+
+    static var isLoaded: Bool {
+        guard let contents = try? String(contentsOfFile: AppIdentity.hammerspoonInitPath, encoding: .utf8) else {
+            return false
+        }
+        return containsLoadLine(contents)
+    }
+
+    @discardableResult
+    static func addLoadLineIfNeeded() -> Bool {
+        if isLoaded { return true }
+
+        let fileManager = FileManager.default
+        let initURL = URL(fileURLWithPath: AppIdentity.hammerspoonInitPath)
+        let directory = initURL.deletingLastPathComponent()
+        do {
+            try fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
+            if !fileManager.fileExists(atPath: initURL.path) {
+                guard fileManager.createFile(atPath: initURL.path, contents: nil) else { return false }
+            }
+
+            let existing = (try? String(contentsOf: initURL, encoding: .utf8)) ?? ""
+            let separator = existing.isEmpty || existing.hasSuffix("\n") ? "" : "\n"
+            let handle = try FileHandle(forWritingTo: initURL)
+            defer { try? handle.close() }
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data("\(separator)\(AppIdentity.bridgeLoadLine)\n".utf8))
+            return true
+        } catch {
+            return false
+        }
+    }
+}
+
+private struct DoctorBlocker {
+    let code: String
+    let message: String
+    let fix: String
+
+    var jsonObject: [String: String] {
+        ["code": code, "message": message, "fix": fix]
+    }
+}
+
+private struct InstallationHealth {
+    let hammerspoonInstalled: Bool
+    let bridgeInstalled: Bool
+    let bridgeLoaded: Bool
+    let usInputSourceEnabled: Bool
+    let russianPCInputSourceEnabled: Bool
+    let accessibilityTrusted: Bool
+    let agentLoaded: Bool
+    let appRunning: Bool
+    let carambaRunning: Bool
+    let currentInputSourceID: String
+
+    static func collect() -> InstallationHealth {
+        InstallationHealth(
+            hammerspoonInstalled: NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: AppIdentity.hammerspoonBundleID
+            ) != nil,
+            bridgeInstalled: BridgeConfiguration.isInstalled,
+            bridgeLoaded: BridgeConfiguration.isLoaded,
+            usInputSourceEnabled: InputSources.isEnabled(AppIdentity.usID),
+            russianPCInputSourceEnabled: InputSources.isEnabled(AppIdentity.russianPCID),
+            accessibilityTrusted: AXIsProcessTrusted(),
+            agentLoaded: launchAgentIsLoaded(),
+            appRunning: backgroundAppIsRunning(),
+            carambaRunning: !NSRunningApplication.runningApplications(
+                withBundleIdentifier: "tech.caramba.switcher"
+            ).isEmpty,
+            currentInputSourceID: InputSources.currentID() ?? "unknown"
+        )
+    }
+
+    var blockers: [DoctorBlocker] {
+        var result: [DoctorBlocker] = []
+        if !hammerspoonInstalled {
+            result.append(DoctorBlocker(
+                code: "hammerspoon-not-installed",
+                message: "Hammerspoon is not installed.",
+                fix: "Install it with: brew install --cask hammerspoon"
+            ))
+        }
+        if !bridgeInstalled {
+            result.append(DoctorBlocker(
+                code: "bridge-not-installed",
+                message: "The Language Relay Hammerspoon bridge is missing.",
+                fix: "Run: language-relay install"
+            ))
+        }
+        if !bridgeLoaded {
+            result.append(DoctorBlocker(
+                code: "bridge-not-loaded",
+                message: "Hammerspoon is not loading the Language Relay bridge.",
+                fix: "Run: language-relay setup, then reload Hammerspoon."
+            ))
+        }
+        if !usInputSourceEnabled {
+            result.append(DoctorBlocker(
+                code: "input-source-us-not-enabled",
+                message: "The U.S. input source is not enabled.",
+                fix: "Run: language-relay setup"
+            ))
+        }
+        if !russianPCInputSourceEnabled {
+            result.append(DoctorBlocker(
+                code: "input-source-russian-pc-not-enabled",
+                message: "The Russian – PC input source is not enabled.",
+                fix: "Run: language-relay setup"
+            ))
+        }
+        if !accessibilityTrusted {
+            result.append(DoctorBlocker(
+                code: "accessibility-not-granted",
+                message: "Accessibility permission is not granted to Language Relay.",
+                fix: "Run: language-relay setup, then grant Accessibility to Language Relay and Hammerspoon."
+            ))
+        }
+        if !agentLoaded {
+            result.append(DoctorBlocker(
+                code: "launch-agent-not-loaded",
+                message: "The Language Relay LaunchAgent is not loaded.",
+                fix: "Run: language-relay install"
+            ))
+        }
+        if !appRunning {
+            result.append(DoctorBlocker(
+                code: "app-not-running",
+                message: "The Language Relay background app is not running.",
+                fix: "Run: launchctl kickstart -k gui/\(getuid())/\(AppIdentity.launchAgentLabel)"
+            ))
+        }
+        return result
+    }
+
+    var doctorPayload: [String: Any] {
+        [
+            "schemaVersion": 2,
+            "app": AppIdentity.name,
+            "version": "2.3.1",
+            "inputSourceID": currentInputSourceID,
+            "accessibilityTrusted": accessibilityTrusted,
+            "carambaRunning": carambaRunning,
+            "ready": blockers.isEmpty,
+            "hammerspoonInstalled": hammerspoonInstalled,
+            "bridgeInstalled": bridgeInstalled,
+            "bridgeLoaded": bridgeLoaded,
+            "inputSourcesEnabled": [
+                "us": usInputSourceEnabled,
+                "russianPC": russianPCInputSourceEnabled,
+            ],
+            "agentLoaded": agentLoaded,
+            "appRunning": appRunning,
+            "blockers": blockers.map(\.jsonObject),
+        ]
+    }
+
+    private static func launchAgentIsLoaded() -> Bool {
+        run("/bin/launchctl", arguments: ["print", "gui/\(getuid())/\(AppIdentity.launchAgentLabel)"])?.status == 0
+    }
+
+    private static func backgroundAppIsRunning() -> Bool {
+        let mine = NSRunningApplication.current.processIdentifier
+        return NSRunningApplication.runningApplications(withBundleIdentifier: AppIdentity.bundleID)
+            .contains { $0.processIdentifier != mine && !$0.isTerminated }
+    }
+
+    private static func run(_ executable: String, arguments: [String]) -> (status: Int32, output: String)? {
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        do {
+            try process.run()
+            // Drain the pipe before waiting: a child that fills the 64 KB buffer
+            // blocks on write while waitUntilExit blocks on it.
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            process.waitUntilExit()
+            return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
+        } catch {
+            return nil
+        }
+    }
+}
+
+private enum Setup {
+    static func run() -> Int32 {
+        _ = InputSources.enable(AppIdentity.usID)
+        _ = InputSources.enable(AppIdentity.russianPCID)
+        _ = BridgeConfiguration.addLoadLineIfNeeded()
+
+        if !AXIsProcessTrusted() {
+            let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
+            AXIsProcessTrustedWithOptions([promptKey: true] as CFDictionary)
+            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
+                NSWorkspace.shared.open(url)
+            }
+        }
+
+        var health = InstallationHealth.collect()
+        if health.agentLoaded && !health.appRunning {
+            for _ in 0..<20 where !health.appRunning {
+                Thread.sleep(forTimeInterval: 0.05)
+                health = InstallationHealth.collect()
+            }
+        }
+        printChecklist(health)
+        return health.blockers.isEmpty ? 0 : 1
+    }
+
+    private static func printChecklist(_ health: InstallationHealth) {
+        let blockers = Dictionary(uniqueKeysWithValues: health.blockers.map { ($0.code, $0) })
+        let checks: [(Bool, String, String)] = [
+            (health.hammerspoonInstalled, "Hammerspoon is installed", "hammerspoon-not-installed"),
+            (health.bridgeInstalled, "Language Relay bridge is installed", "bridge-not-installed"),
+            (health.bridgeLoaded, "Hammerspoon loads the Language Relay bridge", "bridge-not-loaded"),
+            (health.usInputSourceEnabled, "U.S. input source is enabled", "input-source-us-not-enabled"),
+            (health.russianPCInputSourceEnabled, "Russian – PC input source is enabled", "input-source-russian-pc-not-enabled"),
+            (health.accessibilityTrusted, "Accessibility permission is granted", "accessibility-not-granted"),
+            (health.agentLoaded, "Language Relay LaunchAgent is loaded", "launch-agent-not-loaded"),
+            (health.appRunning, "Language Relay background app is running", "app-not-running"),
+        ]
+
+        for (complete, description, code) in checks {
+            if complete {
+                print("✓ \(description)")
+            } else if let blocker = blockers[code] {
+                print("✗ \(blocker.message)")
+                print("  fix: \(blocker.fix)")
+            }
+        }
     }
 }
 
@@ -1428,11 +1698,27 @@ private enum SelfTest {
             failures.append("round trip unavailable")
         }
 
+        if !BridgeConfiguration.containsLoadLine("-- personal configuration\n\(AppIdentity.bridgeLoadLine)\n") {
+            failures.append("bridge load line was not recognized")
+        }
+        if BridgeConfiguration.containsLoadLine("-- \(AppIdentity.bridgeLoadLine)\n") {
+            failures.append("commented bridge load line was accepted")
+        }
+
+        // Health collection shells out; a child that outgrows the pipe buffer must
+        // not be able to stall doctor or setup.
+        let healthStart = Date()
+        _ = InstallationHealth.collect()
+        let healthSeconds = Date().timeIntervalSince(healthStart)
+        if healthSeconds > 5 {
+            failures.append("health collection took \(String(format: "%.1f", healthSeconds))s")
+        }
+
         guard failures.isEmpty else {
             for failure in failures { fputs("FAIL: \(failure)\n", stderr) }
             return 1
         }
-        print("PASS: 13 layout conversion tests; \(core.us.name) ↔ \(core.russianPC.name)")
+        print("PASS: 16 local conversion and setup tests; \(core.us.name) ↔ \(core.russianPC.name)")
         return 0
     }
 }
@@ -1441,12 +1727,54 @@ private enum SelfTest {
 private struct LayoutPilotMain {
     @MainActor
     static func main() {
+        let arguments = CommandLine.arguments
+        if arguments.contains("--doctor-json") {
+            writeJSONObject(InstallationHealth.collect().doctorPayload)
+            exit(0)
+        }
+        if arguments.contains("--setup") {
+            exit(Setup.run())
+        }
+        if arguments.contains("--status") {
+            print("input=\(InputSources.currentID() ?? "unknown")")
+            print("accessibility=\(AXIsProcessTrusted())")
+            exit(0)
+        }
+        if arguments.contains("--status-json") {
+            let current = InputSources.currentID() ?? "unknown"
+            let caramba = !NSRunningApplication.runningApplications(
+                withBundleIdentifier: "tech.caramba.switcher"
+            ).isEmpty
+            writeJSONObject([
+                "schemaVersion": 1,
+                "app": AppIdentity.name,
+                "version": "2.3.1",
+                "inputSourceID": current,
+                "accessibilityTrusted": AXIsProcessTrusted(),
+                "carambaRunning": caramba,
+                "ready": current == AppIdentity.usID || current == AppIdentity.russianPCID,
+            ])
+            exit(0)
+        }
+        if arguments.contains("--capabilities-json") {
+            writeJSONObject([
+                "schemaVersion": 1,
+                "app": AppIdentity.name,
+                "version": "2.3.1",
+                "pair": [AppIdentity.usID, AppIdentity.russianPCID],
+                "scopes": ["word", "phrase"],
+                "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
+                "commands": ["convert", "convert-phrase", "switch", "status", "doctor", "setup"],
+                "localOnly": true,
+                "textLogging": false,
+            ])
+            exit(0)
+        }
         guard let core = LayoutConversionCore() else {
             fputs("Language Relay: U.S. and Russian – PC input sources are required.\n", stderr)
             exit(2)
         }
 
-        let arguments = CommandLine.arguments
         let capitalization: CapitalizationMode = {
             guard let index = arguments.firstIndex(of: "--capitalization"),
                   arguments.indices.contains(index + 1)
@@ -1486,41 +1814,6 @@ private struct LayoutPilotMain {
                 capitalization: capitalization
             ) else { exit(3) }
             writeJSON(conversion)
-            exit(0)
-        }
-        if arguments.contains("--status") {
-            print("input=\(InputSources.currentID() ?? "unknown")")
-            print("accessibility=\(AXIsProcessTrusted())")
-            exit(0)
-        }
-        if arguments.contains("--status-json") || arguments.contains("--doctor-json") {
-            let current = InputSources.currentID() ?? "unknown"
-            let caramba = !NSRunningApplication.runningApplications(
-                withBundleIdentifier: "tech.caramba.switcher"
-            ).isEmpty
-            writeJSONObject([
-                "schemaVersion": 1,
-                "app": AppIdentity.name,
-                "version": "2.3.1",
-                "inputSourceID": current,
-                "accessibilityTrusted": AXIsProcessTrusted(),
-                "carambaRunning": caramba,
-                "ready": current == AppIdentity.usID || current == AppIdentity.russianPCID,
-            ])
-            exit(0)
-        }
-        if arguments.contains("--capabilities-json") {
-            writeJSONObject([
-                "schemaVersion": 1,
-                "app": AppIdentity.name,
-                "version": "2.3.1",
-                "pair": [AppIdentity.usID, AppIdentity.russianPCID],
-                "scopes": ["word", "phrase"],
-                "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
-                "commands": ["convert", "convert-phrase", "switch", "status", "doctor"],
-                "localOnly": true,
-                "textLogging": false,
-            ])
             exit(0)
         }
         if arguments.contains("--switch") {
