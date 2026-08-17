@@ -202,6 +202,58 @@ private enum InputSources {
     }
 }
 
+private enum HammerspoonCLI {
+    static let path = "/opt/homebrew/bin/hs"
+
+    private final class OutputBox: @unchecked Sendable {
+        var data = Data()
+    }
+
+    static var isAvailable: Bool {
+        FileManager.default.isExecutableFile(atPath: path)
+    }
+
+    /// Evaluates Lua in the running Hammerspoon, returning nil when it does not
+    /// answer in time. Hammerspoon can be absent, still starting, or running
+    /// without `hs.ipc`, and in each case the CLI never returns on its own.
+    static func evaluate(_ lua: String, timeout: TimeInterval = 2) -> String? {
+        guard isAvailable else { return nil }
+
+        let process = Process()
+        let output = Pipe()
+        process.executableURL = URL(fileURLWithPath: path)
+        process.arguments = ["-c", lua]
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        guard (try? process.run()) != nil else { return nil }
+
+        let box = OutputBox()
+        let finished = DispatchSemaphore(value: 0)
+        DispatchQueue.global().async {
+            box.data = output.fileHandleForReading.readDataToEndOfFile()
+            finished.signal()
+        }
+
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            return nil
+        }
+        process.waitUntilExit()
+        let value = String(data: box.data, encoding: .utf8)?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return value?.isEmpty == false ? value : nil
+    }
+
+    /// nil means the state could not be established, which is not the same as denied.
+    static var accessibilityTrusted: Bool? {
+        switch evaluate("return tostring(hs.accessibilityState())") {
+        case "true": return true
+        case "false": return false
+        default: return nil
+        }
+    }
+}
+
 private enum BridgeConfiguration {
     static func containsLoadLine(_ contents: String) -> Bool {
         contents.split(whereSeparator: \.isNewline).contains {
@@ -263,13 +315,16 @@ private struct InstallationHealth {
     let usInputSourceEnabled: Bool
     let russianPCInputSourceEnabled: Bool
     let accessibilityTrusted: Bool
+    let bridgeActive: Bool
+    let hammerspoonAccessibilityTrusted: Bool?
     let agentLoaded: Bool
     let appRunning: Bool
     let carambaRunning: Bool
     let currentInputSourceID: String
 
     static func collect() -> InstallationHealth {
-        InstallationHealth(
+        let bridgeActive = FileManager.default.fileExists(atPath: AppIdentity.hammerspoonBridgeMarker)
+        return InstallationHealth(
             hammerspoonInstalled: NSWorkspace.shared.urlForApplication(
                 withBundleIdentifier: AppIdentity.hammerspoonBundleID
             ) != nil,
@@ -278,6 +333,8 @@ private struct InstallationHealth {
             usInputSourceEnabled: InputSources.isEnabled(AppIdentity.usID),
             russianPCInputSourceEnabled: InputSources.isEnabled(AppIdentity.russianPCID),
             accessibilityTrusted: AXIsProcessTrusted(),
+            bridgeActive: bridgeActive,
+            hammerspoonAccessibilityTrusted: bridgeActive ? HammerspoonCLI.accessibilityTrusted : nil,
             agentLoaded: launchAgentIsLoaded(),
             appRunning: backgroundAppIsRunning(),
             carambaRunning: !NSRunningApplication.runningApplications(
@@ -324,11 +381,23 @@ private struct InstallationHealth {
                 fix: "Run: language-relay setup"
             ))
         }
-        if !accessibilityTrusted {
+        // While the bridge owns the gestures, Hammerspoon is the process that needs
+        // Accessibility. Language Relay never asks for it in that mode, so it never
+        // appears in the Accessibility list and demanding it there sends people looking
+        // for a row that cannot exist.
+        if bridgeActive {
+            if hammerspoonAccessibilityTrusted == false {
+                result.append(DoctorBlocker(
+                    code: "accessibility-not-granted-hammerspoon",
+                    message: "Hammerspoon does not have Accessibility permission, so the gesture tap cannot start.",
+                    fix: "Enable Hammerspoon in System Settings > Privacy & Security > Accessibility. Language Relay is not listed there while the bridge owns the gestures."
+                ))
+            }
+        } else if !accessibilityTrusted {
             result.append(DoctorBlocker(
                 code: "accessibility-not-granted",
                 message: "Accessibility permission is not granted to Language Relay.",
-                fix: "Run: language-relay setup, then grant Accessibility to Language Relay and Hammerspoon."
+                fix: "Run: language-relay setup, then grant Accessibility to Language Relay."
             ))
         }
         if !agentLoaded {
@@ -358,7 +427,9 @@ private struct InstallationHealth {
             "carambaRunning": carambaRunning,
             "ready": blockers.isEmpty,
             "hammerspoonInstalled": hammerspoonInstalled,
+            "hammerspoonAccessibilityTrusted": hammerspoonAccessibilityTrusted.map { $0 as Any } ?? NSNull(),
             "bridgeInstalled": bridgeInstalled,
+            "bridgeActive": bridgeActive,
             "bridgeLoaded": bridgeLoaded,
             "inputSourcesEnabled": [
                 "us": usInputSourceEnabled,
@@ -406,12 +477,15 @@ private enum Setup {
         _ = InputSources.enable(AppIdentity.russianPCID)
         _ = BridgeConfiguration.addLoadLineIfNeeded()
 
-        if !AXIsProcessTrusted() {
+        let bridgeActive = FileManager.default.fileExists(atPath: AppIdentity.hammerspoonBridgeMarker)
+        if bridgeActive {
+            // Prompting here would register this process, not Hammerspoon, so only
+            // open the pane and let the checklist name the row to enable.
+            if HammerspoonCLI.accessibilityTrusted != true { openAccessibilitySettings() }
+        } else if !AXIsProcessTrusted() {
             let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
             AXIsProcessTrustedWithOptions([promptKey: true] as CFDictionary)
-            if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
-                NSWorkspace.shared.open(url)
-            }
+            openAccessibilitySettings()
         }
 
         var health = InstallationHealth.collect()
@@ -427,16 +501,24 @@ private enum Setup {
 
     private static func printChecklist(_ health: InstallationHealth) {
         let blockers = Dictionary(uniqueKeysWithValues: health.blockers.map { ($0.code, $0) })
-        let checks: [(Bool, String, String)] = [
+        var checks: [(Bool, String, String)] = [
             (health.hammerspoonInstalled, "Hammerspoon is installed", "hammerspoon-not-installed"),
             (health.bridgeInstalled, "Language Relay bridge is installed", "bridge-not-installed"),
             (health.bridgeLoaded, "Hammerspoon loads the Language Relay bridge", "bridge-not-loaded"),
             (health.usInputSourceEnabled, "U.S. input source is enabled", "input-source-us-not-enabled"),
             (health.russianPCInputSourceEnabled, "Russian – PC input source is enabled", "input-source-russian-pc-not-enabled"),
-            (health.accessibilityTrusted, "Accessibility permission is granted", "accessibility-not-granted"),
-            (health.agentLoaded, "Language Relay LaunchAgent is loaded", "launch-agent-not-loaded"),
-            (health.appRunning, "Language Relay background app is running", "app-not-running"),
         ]
+        if health.bridgeActive {
+            checks.append((
+                health.hammerspoonAccessibilityTrusted == true,
+                "Hammerspoon has Accessibility permission",
+                "accessibility-not-granted-hammerspoon"
+            ))
+        } else {
+            checks.append((health.accessibilityTrusted, "Accessibility permission is granted", "accessibility-not-granted"))
+        }
+        checks.append((health.agentLoaded, "Language Relay LaunchAgent is loaded", "launch-agent-not-loaded"))
+        checks.append((health.appRunning, "Language Relay background app is running", "app-not-running"))
 
         for (complete, description, code) in checks {
             if complete {
@@ -444,8 +526,18 @@ private enum Setup {
             } else if let blocker = blockers[code] {
                 print("✗ \(blocker.message)")
                 print("  fix: \(blocker.fix)")
+            } else {
+                print("? \(description) could not be verified")
+                print("  fix: Start Hammerspoon, then run: language-relay setup")
             }
         }
+    }
+
+    private static func openAccessibilitySettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") else {
+            return
+        }
+        NSWorkspace.shared.open(url)
     }
 }
 
@@ -1495,24 +1587,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func bridgeStatus() -> String {
-        guard usesHammerspoonBridge, FileManager.default.isExecutableFile(atPath: "/opt/homebrew/bin/hs") else {
-            return "native ready"
-        }
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/hs")
-        process.arguments = ["-c", "return tostring(hs.settings.get('layout_pilot_last_status') or 'ready')"]
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-            process.waitUntilExit()
-            let data = output.fileHandleForReading.readDataToEndOfFile()
-            let value = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
-            return value?.isEmpty == false ? value! : "ready"
-        } catch {
-            return "bridge unavailable"
-        }
+        guard usesHammerspoonBridge, HammerspoonCLI.isAvailable else { return "native ready" }
+        return HammerspoonCLI.evaluate(
+            "return tostring(hs.settings.get('layout_pilot_last_status') or 'ready')"
+        ) ?? "bridge unavailable"
     }
 
     func runBackgroundUISelfTest() -> Bool {
