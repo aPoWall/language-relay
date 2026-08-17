@@ -2,6 +2,8 @@
 
 ## Unreleased – website
 
+- added a live presentation setting for menu bar, Dock, or both, with a safe menu-bar fallback when macOS cannot show the Dock icon;
+
 - replaced the scripted repair proof with a real bidirectional U.S. ⇄ Russian–PC browser relay;
 - added clean Double Shift, phrase/word scope, and four capitalization modes to the live demo;
 - turned the hero demo into a compact editor with synchronized case, scope, cue, example, Double Shift, and clean Option controls;

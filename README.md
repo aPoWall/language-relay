@@ -54,6 +54,7 @@ Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.ham
 | Triggers | Double Shift · clean Option |
 | Feedback | Pulse · Relay · Scan · Flux · Prism · Tick · Fold · Nova |
 | Level | Mute 00 · Low 25 · Mid 55 · High 82 |
+| Presentation | Menu Bar · Dock · Both |
 
 Given `hELLO`, the case modes produce `hELLO`, `Hello`, `HELLO`, and `hello`.
 
