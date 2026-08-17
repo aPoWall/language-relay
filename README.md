@@ -4,7 +4,7 @@
 
 **Language Relay** is a local macOS layout bridge for people and agents. It repairs text typed in the wrong layout, switches the active source, and exposes deterministic JSON commands. It belongs to **aPoWall Instruments** – focused productivity tools by Alex Povaliaev.
 
-Current pair: `U.S.` ⇄ `Russian – PC`. Conversion, settings, and the transient typing buffer stay on the Mac. There is no telemetry, account, typed-text log, database, or runtime network request.
+Default pair: `U.S.` ⇄ `Russian – PC`. Pick a different pair from any of your currently enabled keyboard input sources in the panel's `02 · layout pair` picker — `Russian` and `Russian – PC` show up as distinct entries. Conversion, settings, and the transient typing buffer stay on the Mac. There is no telemetry, account, typed-text log, database, or runtime network request.
 
 [Interactive website](https://apowall.github.io/language-relay/) · [Latest release](https://github.com/aPoWall/language-relay/releases/latest)
 
@@ -43,7 +43,7 @@ Add this once to `~/.hammerspoon/init.lua`, then reload Hammerspoon:
 dofile(os.getenv("HOME") .. "/.config/language-relay/hammerspoon.lua")
 ```
 
-Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission, and both supported input sources enabled.
+Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission, and both layout-pair input sources enabled (`U.S.` and `Russian – PC` by default; `language-relay setup` enables whichever pair is configured).
 
 ## Controls
 
@@ -62,12 +62,15 @@ Given `hELLO`, the case modes produce `hELLO`, `Hello`, `HELLO`, and `hello`.
 The native binary and the npm shim return stable JSON without logging input text:
 
 ```bash
+language-relay setup
 language-relay convert ghbdtn
 language-relay status
 language-relay doctor
 language-relay capabilities
 language-relay switch
 ```
+
+`language-relay setup` enables the configured pair (default or picked in the panel) as active macOS input sources; `doctor` reports the configured pair and a `blocker` explaining why it fell back to the default pair, if it did.
 
 Direct native surface:
 
@@ -87,7 +90,7 @@ If another layout utility owns Double Shift or Option, keep one gesture owner ac
 
 ## Other languages
 
-Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine can be generalized to deterministic keyboard-layout pairs such as Latin/Cyrillic, Latin/Greek, or Latin/Hebrew. Same-script pairs are harder to detect, while IME, dead-key, and compose layouts need a separate architecture. The site does not claim universal language support yet.
+The layout pair is configurable: pick any two of your currently enabled keyboard input sources from the panel picker, stored as `sourceLayoutID` / `targetLayoutID` under `dev.alex.layout-pilot`. The Carbon mapping engine works with any deterministic keyboard-layout pair — Latin/Cyrillic, Latin/Greek, Latin/Hebrew, Apple's standard `Russian` instead of `Russian – PC`, and so on — because it builds its stroke tables from whatever `TISInputSource` you pick, not from a fixed identifier. Same-script pairs are harder to detect automatically, while IME, dead-key, and compose layouts need a separate architecture and are out of scope.
 
 ## Build and QA
 
