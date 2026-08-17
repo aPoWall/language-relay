@@ -18,6 +18,14 @@ local layoutPilotSoundDirectory = layoutPilotHome .. "/Applications/Language Rel
 local layoutPilotMarker = 1280329266 -- "LPV2"
 local layoutPilotBusy = false
 local layoutPilotTask = nil
+-- Localized name for the in-flight conversion's target layout, taken from
+-- the JSON payload the app already sends (`targetName`, alongside
+-- `targetID`) rather than a hard-coded identifier→name mapping. Only one
+-- fix is ever in flight at a time (`layoutPilotBusy` guards re-entry), so a
+-- single slot set right after decode and consumed by layoutPilotFinish is
+-- safe. Follows whatever pair is configured, including a same-app-version
+-- upgrade that changes the pair without a Hammerspoon reload.
+local layoutPilotLastTargetName = nil
 local layoutPilotBuffer = ""
 local layoutPilotBufferApp = nil
 local layoutPilotSyntheticUntil = 0
@@ -286,7 +294,14 @@ local function layoutPilotSameTarget(context)
 end
 
 local function layoutPilotSetTargetLayout(targetID)
-  local target = targetID == "com.apple.keylayout.RussianWin" and "Russian – PC" or "U.S."
+  local target = layoutPilotLastTargetName
+  if type(target) ~= "string" or target == "" then
+    -- No name arrived with this cycle's payload (older app build, or the
+    -- app process was replaced mid-flight); do not guess a name for an
+    -- unknown pair, just skip the input-source switch.
+    hs.settings.set("layout_pilot_last_layout", "skip|unknown-target-name|" .. tostring(targetID))
+    return
+  end
   local changed = hs.keycodes.setLayout(target)
   hs.settings.set("layout_pilot_last_layout", target .. "|set=" .. tostring(changed))
 end
@@ -312,6 +327,7 @@ local function layoutPilotFinish(success, detail, targetID, verified)
     layoutPilotClearBuffer()
     if verified then layoutPilotPlaySuccessSound() end
   end
+  layoutPilotLastTargetName = nil
   layoutPilotBusy = false
 end
 
@@ -549,6 +565,7 @@ local function layoutPilotConvert(context)
       layoutPilotFinish(false, "json-failed")
       return
     end
+    layoutPilotLastTargetName = type(payload.targetName) == "string" and payload.targetName or nil
     layoutPilotApplyConversion(context, payload)
   end, {flag, context.candidate, "--capitalization", layoutPilotSettings.capitalizationMode})
 

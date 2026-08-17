@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased – configurable layout pair
+
+- the `U.S. ⇄ Russian – PC` pair is now configurable: pick any two currently enabled keyboard input sources from a new `02 · layout pair` panel picker, so people who type on Apple's standard `Russian` (or any other deterministic pair) no longer need to add a second Russian layout they didn't want;
+- `sourceLayoutID` / `targetLayoutID` are stored as strings under `dev.alex.layout-pilot`; absent values keep today's `U.S. ⇄ Russian – PC` pair, so existing installs are unchanged;
+- an unresolvable stored pair (missing, not enabled, or no Unicode key layout data) falls back to the default pair and surfaces a `blocker` from `--doctor-json` instead of exiting;
+- `--doctor-json` reports the configured `sourceLayoutID` / `targetLayoutID` and `inputSourcesEnabled`; `--capabilities-json` reports `pairConfigurable: true`;
+- added `language-relay setup`, which enables the configured pair (not always `U.S. ⇄ Russian – PC`) as active macOS input sources;
+- the Hammerspoon bridge now resolves the target layout's name from the conversion payload the app already sends, instead of a hard-coded `Russian – PC` mapping, so it follows the configured pair too.
+
 ## Unreleased – website
 
 - replaced the scripted repair proof with a real bidirectional U.S. ⇄ Russian–PC browser relay;
