@@ -1622,8 +1622,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 }
 
 private enum SelfTest {
-    static func run(core: LayoutConversionCore) -> Int32 {
+    static func run(core configuredCore: LayoutConversionCore) -> Int32 {
         var failures: [String] = []
+
+        // The fixed expectations below encode punctuation positions, which differ
+        // between layouts: `&` maps to `?` in Russian – PC and to `.` in Apple's
+        // standard Russian. Assert them against the default pair rather than the
+        // one the person configured, so `make test` does not depend on settings.
+        let core = LayoutConversionCore(
+            sourceID: AppIdentity.defaultSourceID,
+            targetID: AppIdentity.defaultTargetID
+        ) ?? configuredCore
 
         func expect(_ input: String, _ expected: String) {
             let actual = core.convertAll(input)?.text
