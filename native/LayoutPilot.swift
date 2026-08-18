@@ -82,6 +82,29 @@ private enum FeedbackLevel: String {
     }
 }
 
+private enum Presentation: String, CaseIterable {
+    case menuBar
+    case dock
+    case both
+
+    var showsMenuBar: Bool {
+        self != .dock
+    }
+
+    var showsDock: Bool {
+        self != .menuBar
+    }
+
+    static func load(from defaults: UserDefaults) -> Presentation {
+        guard let value = defaults.string(forKey: "presentation") else { return .menuBar }
+        return Presentation(rawValue: value) ?? .menuBar
+    }
+
+    func store(in defaults: UserDefaults) {
+        defaults.set(rawValue, forKey: "presentation")
+    }
+}
+
 private enum InputSources {
     static func stringProperty(_ source: TISInputSource, _ key: CFString) -> String? {
         guard let pointer = TISGetInputSourceProperty(source, key) else { return nil }
@@ -525,7 +548,7 @@ private final class DoubleShiftMonitor {
 
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 420
-    static let height: CGFloat = 522
+    static let height: CGFloat = 568
     static let contentWidth: CGFloat = 388
 }
 
@@ -791,9 +814,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var monitor: DoubleShiftMonitor!
     private var refreshTimer: Timer?
     private var popover: NSPopover?
+    private var panelWindow: NSPanel?
     private var lastPopoverCloseAt = Date.distantPast
     private var previewSound: NSSound?
     private var lastObservedInputID: String?
+    private var presentationNotice: String?
 
     private var mode: FixMode {
         get { FixMode(rawValue: defaults.string(forKey: "fixMode") ?? "phrase") ?? .phrase }
@@ -829,6 +854,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         set { defaults.set(newValue.rawValue, forKey: "capitalizationMode") }
     }
 
+    private var presentation: Presentation {
+        get { Presentation.load(from: defaults) }
+        set { newValue.store(in: defaults) }
+    }
+
     private var shiftEnabled: Bool {
         get { defaults.object(forKey: "shiftEnabled") as? Bool ?? true }
         set { defaults.set(newValue, forKey: "shiftEnabled") }
@@ -850,9 +880,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.enforceSingleInstance()
         }
-        NSApp.setActivationPolicy(.accessory)
         UI.setMode(.light)
         setupStatusItem()
+        _ = applyPresentation(presentation)
 
         monitor = DoubleShiftMonitor { [weak self] in self?.performFix() }
         if !usesHammerspoonBridge { monitor.start() }
@@ -877,6 +907,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         lastPopoverCloseAt = Date()
     }
 
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
+        guard presentation.showsDock else { return false }
+        if !flag { showPanelFromDock() }
+        return true
+    }
+
     private func enforceSingleInstance() {
         let mine = NSRunningApplication.current
         let others = NSRunningApplication.runningApplications(withBundleIdentifier: AppIdentity.bundleID)
@@ -896,7 +932,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         statusItem = NSStatusBar.system.statusItem(withLength: 54)
         statusItem.autosaveName = "dev.alex.layout-pilot.status-item.v3"
         statusItem.menu = nil
-        statusItem.isVisible = true
+        statusItem.isVisible = false
         guard let button = statusItem.button else { return }
         button.target = self
         button.action = #selector(statusItemAction(_:))
@@ -953,6 +989,67 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         }
     }
 
+    private func showPanelFromDock() {
+        let panel: NSPanel
+        if let panelWindow {
+            panel = panelWindow
+        } else {
+            let contentRect = NSRect(
+                x: 0,
+                y: 0,
+                width: LayoutPilotPanelMetrics.width,
+                height: LayoutPilotPanelMetrics.height
+            )
+            let next = NSPanel(
+                contentRect: contentRect,
+                styleMask: [.titled, .closable, .utilityWindow],
+                backing: .buffered,
+                defer: false
+            )
+            next.title = AppIdentity.name
+            next.isReleasedWhenClosed = false
+            panelWindow = next
+            panel = next
+        }
+        panel.contentView = makePanelContent()
+        panel.center()
+        NSApp.activate(ignoringOtherApps: true)
+        panel.makeKeyAndOrderFront(nil)
+    }
+
+    private func closePanel() {
+        popover?.performClose(nil)
+        panelWindow?.close()
+    }
+
+    @discardableResult
+    private func applyPresentation(_ requested: Presentation) -> Bool {
+        switch requested {
+        case .menuBar:
+            statusItem.isVisible = true
+            guard NSApp.setActivationPolicy(.accessory) else {
+                presentation = NSApp.activationPolicy() == .regular ? .both : .menuBar
+                presentationNotice = "dock icon could not be hidden"
+                return false
+            }
+            presentation = .menuBar
+            presentationNotice = nil
+            return true
+        case .dock, .both:
+            guard NSApp.setActivationPolicy(.regular), NSApp.activationPolicy() == .regular else {
+                statusItem.isVisible = true
+                _ = NSApp.setActivationPolicy(.accessory)
+                presentation = .menuBar
+                presentationNotice = "dock unavailable · menu bar restored"
+                return false
+            }
+            statusItem.isVisible = requested.showsMenuBar
+            presentation = requested
+            presentationNotice = nil
+            return true
+        }
+    }
+
     private func buildPopover() {
         let controller = NSViewController()
         controller.view = makePanelContent()
@@ -972,8 +1069,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func rebuildPopoverContent() {
-        guard popover?.isShown == true else { return }
-        popover?.contentViewController?.view = makePanelContent()
+        if popover?.isShown == true {
+            popover?.contentViewController?.view = makePanelContent()
+        }
+        if panelWindow?.isVisible == true {
+            panelWindow?.contentView = makePanelContent()
+        }
     }
 
     private func makePanelContent() -> NSView {
@@ -983,7 +1084,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             width: LayoutPilotPanelMetrics.width,
             height: LayoutPilotPanelMetrics.height
         ))
-        content.closeAction = { [weak self] in self?.popover?.performClose(nil) }
+        content.closeAction = { [weak self] in self?.closePanel() }
         content.wantsLayer = true
         content.layer?.backgroundColor = UI.bg.cgColor
         content.layer?.borderColor = UI.hair.cgColor
@@ -1141,6 +1242,23 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         levelRow.addArrangedSubview(balanced)
         levelRow.addArrangedSubview(full)
         root.addArrangedSubview(levelRow)
+
+        let presentationTitle = presentationNotice.map { "06 · presentation · \($0)" }
+            ?? "06 · presentation · controls location"
+        root.addArrangedSubview(sectionHeader(presentationTitle, width: LayoutPilotPanelMetrics.contentWidth))
+        let presentationRow = NSStackView()
+        presentationRow.orientation = .horizontal
+        presentationRow.spacing = 6
+        let menuBar = squareButton("menu bar", action: #selector(setPresentationMenuBar), width: 125.33, height: 30)
+        menuBar.isActive = presentation == .menuBar
+        let dock = squareButton("dock", action: #selector(setPresentationDock), width: 125.33, height: 30)
+        dock.isActive = presentation == .dock
+        let both = squareButton("both", action: #selector(setPresentationBoth), width: 125.33, height: 30)
+        both.isActive = presentation == .both
+        presentationRow.addArrangedSubview(menuBar)
+        presentationRow.addArrangedSubview(dock)
+        presentationRow.addArrangedSubview(both)
+        root.addArrangedSubview(presentationRow)
 
         let diagnostic = NSView()
         diagnostic.translatesAutoresizingMaskIntoConstraints = false
@@ -1345,10 +1463,24 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     @objc private func setLevelQuiet() { selectLevel(.quiet) }
     @objc private func setLevelBalanced() { selectLevel(.balanced) }
     @objc private func setLevelFull() { selectLevel(.full) }
+    @objc private func setPresentationMenuBar() { setPresentation(.menuBar) }
+    @objc private func setPresentationDock() { setPresentation(.dock) }
+    @objc private func setPresentationBoth() { setPresentation(.both) }
     private func setCapitalization(_ value: CapitalizationMode) {
         capitalization = value
         reloadBridgeSettings()
         rebuildPopoverContent()
+    }
+
+    private func setPresentation(_ value: Presentation) {
+        let applied = applyPresentation(value)
+        rebuildPopoverContent()
+        if applied, value == .dock {
+            popover?.performClose(nil)
+            showPanelFromDock()
+        } else if applied, value == .menuBar {
+            panelWindow?.close()
+        }
     }
 
     private func selectSound(_ sound: FeedbackSound) {
@@ -1420,6 +1552,29 @@ private enum SelfTest {
             failures.append("phrase -> \(phrase ?? "nil")")
         }
 
+        let presentationSuite = "\(AppIdentity.bundleID).self-test.\(UUID().uuidString)"
+        guard let presentationDefaults = UserDefaults(suiteName: presentationSuite) else {
+            failures.append("presentation defaults unavailable")
+            return finish(failures)
+        }
+        defer { presentationDefaults.removePersistentDomain(forName: presentationSuite) }
+
+        if Presentation.load(from: presentationDefaults) != .menuBar {
+            failures.append("presentation default -> \(Presentation.load(from: presentationDefaults).rawValue)")
+        }
+        for expectedPresentation in Presentation.allCases {
+            expectedPresentation.store(in: presentationDefaults)
+            let stored = presentationDefaults.string(forKey: "presentation")
+            let loaded = Presentation.load(from: presentationDefaults)
+            if stored != expectedPresentation.rawValue || loaded != expectedPresentation {
+                failures.append("presentation round trip -> \(stored ?? "nil") / \(loaded.rawValue)")
+            }
+        }
+        presentationDefaults.set("unexpected", forKey: "presentation")
+        if Presentation.load(from: presentationDefaults) != .menuBar {
+            failures.append("presentation unknown value did not fall back")
+        }
+
         let roundTripSeed = "Hello, World!"
         if let russian = core.convertAll(roundTripSeed)?.text,
            let roundTrip = core.convertAll(russian)?.text {
@@ -1428,11 +1583,15 @@ private enum SelfTest {
             failures.append("round trip unavailable")
         }
 
+        return finish(failures)
+    }
+
+    private static func finish(_ failures: [String]) -> Int32 {
         guard failures.isEmpty else {
             for failure in failures { fputs("FAIL: \(failure)\n", stderr) }
             return 1
         }
-        print("PASS: 13 layout conversion tests; \(core.us.name) ↔ \(core.russianPC.name)")
+        print("PASS: 18 layout and presentation tests")
         return 0
     }
 }
@@ -1462,7 +1621,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; panel=420x522; glyph=54x18; window=none")
+            print("PASS: background UI self-test; panel=420x568; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {
@@ -1498,6 +1657,7 @@ private struct LayoutPilotMain {
             let caramba = !NSRunningApplication.runningApplications(
                 withBundleIdentifier: "tech.caramba.switcher"
             ).isEmpty
+            let presentation = Presentation.load(from: UserDefaults.standard)
             writeJSONObject([
                 "schemaVersion": 1,
                 "app": AppIdentity.name,
@@ -1505,6 +1665,7 @@ private struct LayoutPilotMain {
                 "inputSourceID": current,
                 "accessibilityTrusted": AXIsProcessTrusted(),
                 "carambaRunning": caramba,
+                "presentation": presentation.rawValue,
                 "ready": current == AppIdentity.usID || current == AppIdentity.russianPCID,
             ])
             exit(0)
@@ -1517,6 +1678,7 @@ private struct LayoutPilotMain {
                 "pair": [AppIdentity.usID, AppIdentity.russianPCID],
                 "scopes": ["word", "phrase"],
                 "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
+                "presentation": Presentation.allCases.map(\.rawValue),
                 "commands": ["convert", "convert-phrase", "switch", "status", "doctor"],
                 "localOnly": true,
                 "textLogging": false,
