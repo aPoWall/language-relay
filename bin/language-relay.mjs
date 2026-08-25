@@ -32,7 +32,7 @@ if (command === 'convert') {
 }
 if (command === 'switch') run(binary, ['--switch']);
 
-console.log(`language relay 2.3
+console.log(`language relay 2.3.2
 
 commands:
   install                    build and install in ~/Applications

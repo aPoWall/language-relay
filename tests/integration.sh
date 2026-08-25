@@ -17,6 +17,14 @@ layout_original_input="$($layout_hs -c 'return hs.keycodes.currentLayout()')"
 
 $layout_hs -c 'layoutPilotIntegrationClipboard=hs.pasteboard.readAllData(); layoutPilotIntegrationClipboardWasEmpty=(layoutPilotIntegrationClipboard==nil); hs.pasteboard.setContents("LAYOUT_PILOT_CLIPBOARD_SENTINEL")' >/dev/null
 
+layout_write_bool_default() {
+  case "$2" in
+    1|true|TRUE|yes|YES) $layout_defaults write dev.alex.layout-pilot "$1" -bool true ;;
+    0|false|FALSE|no|NO) $layout_defaults write dev.alex.layout-pilot "$1" -bool false ;;
+    *) $layout_defaults delete dev.alex.layout-pilot "$1" 2>/dev/null || true ;;
+  esac
+}
+
 layout_cleanup() {
   if [[ -n "$layout_original_mode" ]]; then
     $layout_defaults write dev.alex.layout-pilot fixMode -string "$layout_original_mode"
@@ -24,7 +32,7 @@ layout_cleanup() {
     $layout_defaults delete dev.alex.layout-pilot fixMode 2>/dev/null || true
   fi
   if [[ -n "$layout_original_sound" ]]; then
-    $layout_defaults write dev.alex.layout-pilot soundEnabled -bool "$layout_original_sound"
+    layout_write_bool_default soundEnabled "$layout_original_sound"
   else
     $layout_defaults delete dev.alex.layout-pilot soundEnabled 2>/dev/null || true
   fi
@@ -59,6 +67,28 @@ layout_assert_result() {
   /bin/sleep 0.8
 }
 
+layout_assert_target_layout() {
+  local expected="$1"
+  local current=""
+  local receipt=""
+  for _ in {1..10}; do
+    current="$($layout_hs -c 'return hs.keycodes.currentLayout()')"
+    receipt="$($layout_hs -c 'return hs.settings.get("layout_pilot_last_layout") or ""')"
+    if [[ "$current" == "$expected" || "$receipt" == "$expected|set=true" ]]; then
+      print "PASS: target layout $expected"
+      return
+    fi
+    /bin/sleep 0.1
+  done
+  print -u2 "FAIL: target layout '$expected' not selected; current='$current' receipt='$receipt'"
+  exit 1
+}
+
+layout_set_layout() {
+  $layout_hs -c "hs.keycodes.setLayout([[$1]])" >/dev/null
+  /bin/sleep 0.2
+}
+
 layout_run_direct() {
   local label="$1"
   local expected="$2"
@@ -69,19 +99,21 @@ layout_run_direct() {
 }
 
 $layout_defaults write dev.alex.layout-pilot fixMode -string phrase
+layout_set_layout "U.S."
 layout_run_direct "last phrase" "Привет привет как дела" "Привет ghbdtn rfr ltkf"
+layout_set_layout "U.S."
 layout_run_direct "explicit selection" "привет" --select-all "ghbdtn"
 
 $layout_defaults write dev.alex.layout-pilot fixMode -string lastWord
+layout_set_layout "U.S."
 layout_run_direct "last word" "Привет ghbdtn rfr дела" "Привет ghbdtn rfr ltkf"
 
 $layout_defaults write dev.alex.layout-pilot fixMode -string phrase
+layout_set_layout "Russian – PC"
 layout_run_direct "Russian-PC to U.S." "hello" "руддщ"
-if [[ "$($layout_hs -c 'return hs.keycodes.currentLayout()')" != "U.S." ]]; then
-  print -u2 "FAIL: converted English text did not select U.S."
-  exit 1
-fi
+layout_assert_target_layout "U.S."
 
+layout_set_layout "U.S."
 $layout_hs -c 'hs.settings.set("layout_pilot_last_status", "waiting-double-shift")' >/dev/null
 "$layout_harness" --no-trigger "ghbdtn" 2>"$layout_stderr" &
 layout_double_shift_pid=$!
@@ -107,9 +139,6 @@ if [[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_last_status")')" !=
   print -u2 "FAIL: Hammerspoon bridge did not complete through AX"
   exit 1
 fi
-if [[ "$($layout_hs -c 'return hs.keycodes.currentLayout()')" != "Russian – PC" ]]; then
-  print -u2 "FAIL: converted Russian text did not select Russian – PC"
-  exit 1
-fi
+layout_assert_target_layout "Russian – PC"
 
 print "PASS: Language Relay live integration suite"

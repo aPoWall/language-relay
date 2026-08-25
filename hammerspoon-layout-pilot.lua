@@ -1,5 +1,5 @@
 -- layout-pilot:start
--- Language Relay bridge v2.3.1
+-- Language Relay bridge v2.3.2
 --
 -- Double Shift or a clean Option tap fixes selected text / the last phrase
 -- typed in the wrong layout. The bridge never creates a selection. It first
@@ -424,7 +424,8 @@ local function layoutPilotFallbackApply(context, replacement, targetID, expected
     end)
 
     hs.timer.doAfter(0.45, function()
-      if hs.pasteboard.changeCount() == pasteboardChange then
+      local clipboard = hs.pasteboard.getContents()
+      if hs.pasteboard.changeCount() == pasteboardChange or clipboard == replacement then
         if snapshotWasEmpty then
           hs.pasteboard.clearContents()
         elseif snapshot then
@@ -567,6 +568,7 @@ end
 
 function layoutPilotFix(trigger)
   if layoutPilotBusy or hs.eventtap.isSecureInputEnabled() then return false end
+  layoutPilotReloadSettings()
   layoutPilotBusy = true
   hs.settings.set("layout_pilot_last_status", "started-" .. tostring(trigger or "manual"))
 
@@ -697,6 +699,7 @@ layoutPilotInputTap = hs.eventtap.new(
     local fireShift = layoutPilotHandleModifier("shift", flags.shift == true, onlyShift, 2, now)
     local fireOption = layoutPilotHandleModifier("option", flags.alt == true, onlyOption, 1, now)
 
+    if fireShift or fireOption then layoutPilotReloadSettings() end
     if fireShift and layoutPilotSettings.shiftEnabled then
       hs.timer.doAfter(0.035, function() layoutPilotFix("shift") end)
     elseif fireOption and layoutPilotSettings.optionEnabled then
@@ -792,6 +795,6 @@ function layoutPilotQACompatibility()
   return layoutPilotCarambaRunning() and "caramba" or "language-relay"
 end
 
-hs.settings.set("layout_pilot_bridge_ver", "2.3.1")
+hs.settings.set("layout_pilot_bridge_ver", "2.3.2")
 hs.settings.set("layout_pilot_last_status", hs.settings.get("layout_pilot_last_status") or "ready")
 -- layout-pilot:end

@@ -1,10 +1,12 @@
 import AppKit
 import ApplicationServices
 import Carbon
+import Darwin
 import Foundation
 
 private enum AppIdentity {
     static let name = "Language Relay"
+    static let version = "2.3.2"
     static let bundleID = "dev.alex.layout-pilot"
     static let launchAgentLabel = "dev.alex.layout-pilot"
     static let usID = "com.apple.keylayout.US"
@@ -21,6 +23,183 @@ private enum AppIdentity {
     static let hammerspoonBridgeMarker = FileManager.default.homeDirectoryForCurrentUser
         .appendingPathComponent(".config/language-relay/hammerspoon-bridge")
         .path
+}
+
+private struct BoundedProcessResult {
+    let output: String
+    let status: Int32
+    let timedOut: Bool
+}
+
+private enum BoundedProcess {
+    private final class OutputBox: @unchecked Sendable {
+        var data = Data()
+    }
+
+    static func run(
+        _ executable: String,
+        arguments: [String],
+        timeout: TimeInterval = 0.35
+    ) -> BoundedProcessResult? {
+        let process = Process()
+        let output = Pipe()
+        let finished = DispatchSemaphore(value: 0)
+        let outputRead = DispatchSemaphore(value: 0)
+        let outputBox = OutputBox()
+        process.executableURL = URL(fileURLWithPath: executable)
+        process.arguments = arguments
+        process.standardOutput = output
+        process.standardError = FileHandle.nullDevice
+        process.terminationHandler = { _ in finished.signal() }
+
+        do {
+            try process.run()
+        } catch {
+            return nil
+        }
+
+        DispatchQueue.global(qos: .utility).async {
+            outputBox.data = output.fileHandleForReading.readDataToEndOfFile()
+            outputRead.signal()
+        }
+
+        if finished.wait(timeout: .now() + timeout) == .timedOut {
+            process.terminate()
+            if finished.wait(timeout: .now() + 0.10) == .timedOut {
+                Darwin.kill(process.processIdentifier, SIGKILL)
+                _ = finished.wait(timeout: .now() + 0.10)
+            }
+            _ = outputRead.wait(timeout: .now() + 0.20)
+            return BoundedProcessResult(
+                output: String(data: outputBox.data, encoding: .utf8) ?? "",
+                status: process.terminationStatus,
+                timedOut: true
+            )
+        }
+
+        _ = outputRead.wait(timeout: .now() + 0.20)
+        return BoundedProcessResult(
+            output: String(data: outputBox.data, encoding: .utf8) ?? "",
+            status: process.terminationStatus,
+            timedOut: false
+        )
+    }
+}
+
+private struct HammerspoonHealth {
+    let ipcAvailable: Bool
+    let executableFound: Bool
+    let accessibilityTrusted: Bool?
+    let inputTapEnabled: Bool
+    let bridgeVersion: String?
+    let lastStatus: String?
+    let timedOut: Bool
+
+    var bridgeActive: Bool {
+        ipcAvailable && inputTapEnabled && bridgeVersion == AppIdentity.version
+    }
+}
+
+private enum HammerspoonIPC {
+    private static let candidateExecutables = ["/opt/homebrew/bin/hs", "/usr/local/bin/hs"]
+
+    static var executable: String? {
+        candidateExecutables.first { FileManager.default.isExecutableFile(atPath: $0) }
+    }
+
+    static var isAvailable: Bool {
+        executable != nil
+    }
+
+    static func run(_ command: String, timeout: TimeInterval = 0.35) -> BoundedProcessResult? {
+        guard let executable else { return nil }
+        return BoundedProcess.run(executable, arguments: ["-c", command], timeout: timeout)
+    }
+
+    static func evaluate(_ command: String, timeout: TimeInterval = 0.35) -> String? {
+        guard let result = run(command, timeout: timeout),
+              !result.timedOut,
+              result.status == 0
+        else { return nil }
+        let value = result.output.trimmingCharacters(in: .whitespacesAndNewlines)
+        return value.isEmpty ? nil : value
+    }
+
+    static func health(timeout: TimeInterval = 0.35) -> HammerspoonHealth {
+        guard executable != nil else {
+            return HammerspoonHealth(
+                ipcAvailable: false,
+                executableFound: false,
+                accessibilityTrusted: nil,
+                inputTapEnabled: false,
+                bridgeVersion: nil,
+                lastStatus: nil,
+                timedOut: false
+            )
+        }
+        let command = """
+        local accessibility = tostring(hs.accessibilityState())
+        local inputTap = tostring(layoutPilotInputTap and layoutPilotInputTap:isEnabled() or false)
+        local bridgeVersion = tostring(hs.settings.get('layout_pilot_bridge_ver') or '')
+        local lastStatus = tostring(hs.settings.get('layout_pilot_last_status') or 'ready')
+        return table.concat({accessibility, inputTap, bridgeVersion, lastStatus}, '|')
+        """
+        guard let result = run(command, timeout: timeout) else {
+            return HammerspoonHealth(
+                ipcAvailable: false,
+                executableFound: true,
+                accessibilityTrusted: nil,
+                inputTapEnabled: false,
+                bridgeVersion: nil,
+                lastStatus: nil,
+                timedOut: false
+            )
+        }
+        guard !result.timedOut, result.status == 0 else {
+            return HammerspoonHealth(
+                ipcAvailable: false,
+                executableFound: true,
+                accessibilityTrusted: nil,
+                inputTapEnabled: false,
+                bridgeVersion: nil,
+                lastStatus: nil,
+                timedOut: result.timedOut
+            )
+        }
+        let parts = result.output
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .split(separator: "|", omittingEmptySubsequences: false)
+            .map(String.init)
+        guard parts.count >= 4 else {
+            return HammerspoonHealth(
+                ipcAvailable: false,
+                executableFound: true,
+                accessibilityTrusted: nil,
+                inputTapEnabled: false,
+                bridgeVersion: nil,
+                lastStatus: nil,
+                timedOut: false
+            )
+        }
+        let accessibility: Bool? = {
+            switch parts[0] {
+            case "true": return true
+            case "false": return false
+            default: return nil
+            }
+        }()
+        let bridgeVersion = parts[2].isEmpty ? nil : parts[2]
+        let lastStatus = parts[3].isEmpty ? nil : parts[3]
+        return HammerspoonHealth(
+            ipcAvailable: true,
+            executableFound: true,
+            accessibilityTrusted: accessibility,
+            inputTapEnabled: parts[1] == "true",
+            bridgeVersion: bridgeVersion,
+            lastStatus: lastStatus,
+            timedOut: false
+        )
+    }
 }
 
 private struct KeyStroke: Hashable {
@@ -135,7 +314,7 @@ private enum InputSources {
     }
 
     static func layoutMap(id: String) -> LayoutMap? {
-        guard let source = source(withID: id),
+        guard let source = source(withID: id, includeAllInstalled: true),
               let dataPointer = TISGetInputSourceProperty(source, kTISPropertyUnicodeKeyLayoutData)
         else { return nil }
 
@@ -202,58 +381,6 @@ private enum InputSources {
     }
 }
 
-private enum HammerspoonCLI {
-    static let path = "/opt/homebrew/bin/hs"
-
-    private final class OutputBox: @unchecked Sendable {
-        var data = Data()
-    }
-
-    static var isAvailable: Bool {
-        FileManager.default.isExecutableFile(atPath: path)
-    }
-
-    /// Evaluates Lua in the running Hammerspoon, returning nil when it does not
-    /// answer in time. Hammerspoon can be absent, still starting, or running
-    /// without `hs.ipc`, and in each case the CLI never returns on its own.
-    static func evaluate(_ lua: String, timeout: TimeInterval = 2) -> String? {
-        guard isAvailable else { return nil }
-
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: path)
-        process.arguments = ["-c", lua]
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        guard (try? process.run()) != nil else { return nil }
-
-        let box = OutputBox()
-        let finished = DispatchSemaphore(value: 0)
-        DispatchQueue.global().async {
-            box.data = output.fileHandleForReading.readDataToEndOfFile()
-            finished.signal()
-        }
-
-        if finished.wait(timeout: .now() + timeout) == .timedOut {
-            process.terminate()
-            return nil
-        }
-        process.waitUntilExit()
-        let value = String(data: box.data, encoding: .utf8)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        return value?.isEmpty == false ? value : nil
-    }
-
-    /// nil means the state could not be established, which is not the same as denied.
-    static var accessibilityTrusted: Bool? {
-        switch evaluate("return tostring(hs.accessibilityState())") {
-        case "true": return true
-        case "false": return false
-        default: return nil
-        }
-    }
-}
-
 private enum BridgeConfiguration {
     static func containsLoadLine(_ contents: String) -> Bool {
         contents.split(whereSeparator: \.isNewline).contains {
@@ -312,36 +439,57 @@ private struct InstallationHealth {
     let hammerspoonInstalled: Bool
     let bridgeInstalled: Bool
     let bridgeLoaded: Bool
+    let bridgeConfigured: Bool
     let usInputSourceEnabled: Bool
     let russianPCInputSourceEnabled: Bool
     let accessibilityTrusted: Bool
-    let bridgeActive: Bool
     let hammerspoonAccessibilityTrusted: Bool?
     let agentLoaded: Bool
     let appRunning: Bool
     let carambaRunning: Bool
     let currentInputSourceID: String
+    let bridgeHealth: HammerspoonHealth
 
-    static func collect() -> InstallationHealth {
-        let bridgeActive = FileManager.default.fileExists(atPath: AppIdentity.hammerspoonBridgeMarker)
+    static func collect(bridgeHealth providedBridgeHealth: HammerspoonHealth? = nil) -> InstallationHealth {
+        let bridgeHealth = providedBridgeHealth ?? HammerspoonIPC.health()
         return InstallationHealth(
             hammerspoonInstalled: NSWorkspace.shared.urlForApplication(
                 withBundleIdentifier: AppIdentity.hammerspoonBundleID
-            ) != nil,
+            ) != nil || bridgeHealth.executableFound,
             bridgeInstalled: BridgeConfiguration.isInstalled,
             bridgeLoaded: BridgeConfiguration.isLoaded,
+            bridgeConfigured: FileManager.default.fileExists(atPath: AppIdentity.hammerspoonBridgeMarker),
             usInputSourceEnabled: InputSources.isEnabled(AppIdentity.usID),
             russianPCInputSourceEnabled: InputSources.isEnabled(AppIdentity.russianPCID),
             accessibilityTrusted: AXIsProcessTrusted(),
-            bridgeActive: bridgeActive,
-            hammerspoonAccessibilityTrusted: bridgeActive ? HammerspoonCLI.accessibilityTrusted : nil,
+            hammerspoonAccessibilityTrusted: bridgeHealth.accessibilityTrusted,
             agentLoaded: launchAgentIsLoaded(),
             appRunning: backgroundAppIsRunning(),
             carambaRunning: !NSRunningApplication.runningApplications(
                 withBundleIdentifier: "tech.caramba.switcher"
             ).isEmpty,
-            currentInputSourceID: InputSources.currentID() ?? "unknown"
+            currentInputSourceID: InputSources.currentID() ?? "unknown",
+            bridgeHealth: bridgeHealth
         )
+    }
+
+    var bridgeActive: Bool {
+        bridgeHealth.bridgeActive
+    }
+
+    var accessibilityOwner: String {
+        bridgeInstalled || bridgeLoaded || bridgeConfigured ? "Hammerspoon" : AppIdentity.name
+    }
+
+    var effectiveAccessibilityTrusted: Bool {
+        accessibilityOwner == "Hammerspoon" ? hammerspoonAccessibilityTrusted == true : accessibilityTrusted
+    }
+
+    var bridgeVerificationBlockerCode: String {
+        if bridgeHealth.timedOut { return "hammerspoon-ipc-timeout" }
+        if !bridgeHealth.executableFound || !bridgeHealth.ipcAvailable { return "hammerspoon-ipc-unavailable" }
+        if bridgeHealth.bridgeVersion != AppIdentity.version { return "bridge-version-mismatch" }
+        return "bridge-not-active"
     }
 
     var blockers: [DoctorBlocker] {
@@ -367,6 +515,36 @@ private struct InstallationHealth {
                 fix: "Run: language-relay setup, then reload Hammerspoon."
             ))
         }
+        if bridgeInstalled && bridgeLoaded {
+            if bridgeHealth.timedOut {
+                result.append(DoctorBlocker(
+                    code: "hammerspoon-ipc-timeout",
+                    message: "Hammerspoon did not answer before the safety timeout.",
+                    fix: "Reload Hammerspoon, then run: language-relay setup"
+                ))
+            } else if !bridgeHealth.ipcAvailable {
+                result.append(DoctorBlocker(
+                    code: "hammerspoon-ipc-unavailable",
+                    message: "Hammerspoon bridge execution could not be verified through hs.ipc.",
+                    fix: "Start or reload Hammerspoon. If needed, run hs.ipc.cliInstall() in the Hammerspoon console, then run: language-relay setup"
+                ))
+            } else {
+                if bridgeHealth.bridgeVersion != AppIdentity.version {
+                    result.append(DoctorBlocker(
+                        code: "bridge-version-mismatch",
+                        message: "Hammerspoon is running a stale Language Relay bridge.",
+                        fix: "Run: language-relay setup, then reload Hammerspoon."
+                    ))
+                }
+                if !bridgeHealth.inputTapEnabled {
+                    result.append(DoctorBlocker(
+                        code: "bridge-not-active",
+                        message: "The Hammerspoon bridge loaded, but its gesture tap is not active.",
+                        fix: "Enable Hammerspoon in System Settings > Privacy & Security > Accessibility, then reload Hammerspoon."
+                    ))
+                }
+            }
+        }
         if !usInputSourceEnabled {
             result.append(DoctorBlocker(
                 code: "input-source-us-not-enabled",
@@ -385,12 +563,18 @@ private struct InstallationHealth {
         // Accessibility. Language Relay never asks for it in that mode, so it never
         // appears in the Accessibility list and demanding it there sends people looking
         // for a row that cannot exist.
-        if bridgeActive {
-            if hammerspoonAccessibilityTrusted == false {
+        if accessibilityOwner == "Hammerspoon" {
+            if bridgeHealth.ipcAvailable, hammerspoonAccessibilityTrusted == false {
                 result.append(DoctorBlocker(
                     code: "accessibility-not-granted-hammerspoon",
                     message: "Hammerspoon does not have Accessibility permission, so the gesture tap cannot start.",
                     fix: "Enable Hammerspoon in System Settings > Privacy & Security > Accessibility. Language Relay is not listed there while the bridge owns the gestures."
+                ))
+            } else if bridgeHealth.ipcAvailable, hammerspoonAccessibilityTrusted == nil {
+                result.append(DoctorBlocker(
+                    code: "accessibility-unverified-hammerspoon",
+                    message: "Hammerspoon Accessibility permission could not be verified.",
+                    fix: "Reload Hammerspoon, then run: language-relay setup"
                 ))
             }
         } else if !accessibilityTrusted {
@@ -421,9 +605,9 @@ private struct InstallationHealth {
         [
             "schemaVersion": 2,
             "app": AppIdentity.name,
-            "version": "2.3.1",
+            "version": AppIdentity.version,
             "inputSourceID": currentInputSourceID,
-            "accessibilityTrusted": accessibilityTrusted,
+            "accessibilityTrusted": effectiveAccessibilityTrusted,
             "carambaRunning": carambaRunning,
             "ready": blockers.isEmpty,
             "hammerspoonInstalled": hammerspoonInstalled,
@@ -435,6 +619,38 @@ private struct InstallationHealth {
                 "us": usInputSourceEnabled,
                 "russianPC": russianPCInputSourceEnabled,
             ],
+            "inputSources": [
+                "usAvailable": usInputSourceEnabled,
+                "russianPCAvailable": russianPCInputSourceEnabled,
+                "currentSupported": currentInputSourceID == AppIdentity.usID
+                    || currentInputSourceID == AppIdentity.russianPCID,
+            ],
+            "accessibility": [
+                "owner": accessibilityOwner,
+                "trusted": accessibilityOwner == "Hammerspoon"
+                    ? hammerspoonAccessibilityTrusted.map { $0 as Any } ?? NSNull()
+                    : accessibilityTrusted,
+            ],
+            "bridge": [
+                "configured": bridgeConfigured,
+                "installed": bridgeInstalled,
+                "loaded": bridgeLoaded,
+                "active": bridgeActive,
+                "ipcAvailable": bridgeHealth.ipcAvailable,
+                "ipcTimedOut": bridgeHealth.timedOut,
+                "inputTapEnabled": bridgeHealth.inputTapEnabled,
+                "version": bridgeHealth.bridgeVersion.map { $0 as Any } ?? NSNull(),
+                "lastStatus": bridgeHealth.lastStatus.map { $0 as Any } ?? NSNull(),
+            ],
+            "runtime": [
+                "launchAgentLoaded": agentLoaded,
+                "appRunning": appRunning,
+                "installedBinaryPresent": FileManager.default.isExecutableFile(
+                    atPath: FileManager.default.homeDirectoryForCurrentUser
+                        .appendingPathComponent("Applications/Language Relay.app/Contents/MacOS/LanguageRelay")
+                        .path
+                ),
+            ],
             "agentLoaded": agentLoaded,
             "appRunning": appRunning,
             "blockers": blockers.map(\.jsonObject),
@@ -442,32 +658,18 @@ private struct InstallationHealth {
     }
 
     private static func launchAgentIsLoaded() -> Bool {
-        run("/bin/launchctl", arguments: ["print", "gui/\(getuid())/\(AppIdentity.launchAgentLabel)"])?.status == 0
+        guard let result = BoundedProcess.run(
+            "/bin/launchctl",
+            arguments: ["print", "gui/\(getuid())/\(AppIdentity.launchAgentLabel)"],
+            timeout: 0.35
+        ) else { return false }
+        return !result.timedOut && result.status == 0
     }
 
-    private static func backgroundAppIsRunning() -> Bool {
+    static func backgroundAppIsRunning() -> Bool {
         let mine = NSRunningApplication.current.processIdentifier
         return NSRunningApplication.runningApplications(withBundleIdentifier: AppIdentity.bundleID)
             .contains { $0.processIdentifier != mine && !$0.isTerminated }
-    }
-
-    private static func run(_ executable: String, arguments: [String]) -> (status: Int32, output: String)? {
-        let process = Process()
-        let output = Pipe()
-        process.executableURL = URL(fileURLWithPath: executable)
-        process.arguments = arguments
-        process.standardOutput = output
-        process.standardError = FileHandle.nullDevice
-        do {
-            try process.run()
-            // Drain the pipe before waiting: a child that fills the 64 KB buffer
-            // blocks on write while waitUntilExit blocks on it.
-            let data = output.fileHandleForReading.readDataToEndOfFile()
-            process.waitUntilExit()
-            return (process.terminationStatus, String(data: data, encoding: .utf8) ?? "")
-        } catch {
-            return nil
-        }
     }
 }
 
@@ -477,26 +679,40 @@ private enum Setup {
         _ = InputSources.enable(AppIdentity.russianPCID)
         _ = BridgeConfiguration.addLoadLineIfNeeded()
 
-        let bridgeActive = FileManager.default.fileExists(atPath: AppIdentity.hammerspoonBridgeMarker)
-        if bridgeActive {
+        var bridgeHealth: HammerspoonHealth?
+        if BridgeConfiguration.isLoaded, HammerspoonIPC.isAvailable {
+            _ = HammerspoonIPC.evaluate("hs.reload(); return 'reload-requested'", timeout: 0.25)
+            bridgeHealth = waitForBridgeActivation()
+        }
+
+        var health = InstallationHealth.collect(bridgeHealth: bridgeHealth)
+        if health.accessibilityOwner == "Hammerspoon" {
             // Prompting here would register this process, not Hammerspoon, so only
             // open the pane and let the checklist name the row to enable.
-            if HammerspoonCLI.accessibilityTrusted != true { openAccessibilitySettings() }
+            if health.hammerspoonAccessibilityTrusted != true { openAccessibilitySettings() }
         } else if !AXIsProcessTrusted() {
             let promptKey = kAXTrustedCheckOptionPrompt.takeUnretainedValue() as String
             AXIsProcessTrustedWithOptions([promptKey: true] as CFDictionary)
             openAccessibilitySettings()
         }
 
-        var health = InstallationHealth.collect()
         if health.agentLoaded && !health.appRunning {
-            for _ in 0..<20 where !health.appRunning {
+            for _ in 0..<20 where !InstallationHealth.backgroundAppIsRunning() {
                 Thread.sleep(forTimeInterval: 0.05)
-                health = InstallationHealth.collect()
             }
+            health = InstallationHealth.collect()
         }
         printChecklist(health)
         return health.blockers.isEmpty ? 0 : 1
+    }
+
+    private static func waitForBridgeActivation() -> HammerspoonHealth {
+        var health = HammerspoonIPC.health(timeout: 0.20)
+        for _ in 0..<4 where !health.bridgeActive {
+            Thread.sleep(forTimeInterval: 0.04)
+            health = HammerspoonIPC.health(timeout: 0.20)
+        }
+        return health
     }
 
     private static func printChecklist(_ health: InstallationHealth) {
@@ -508,11 +724,20 @@ private enum Setup {
             (health.usInputSourceEnabled, "U.S. input source is enabled", "input-source-us-not-enabled"),
             (health.russianPCInputSourceEnabled, "Russian – PC input source is enabled", "input-source-russian-pc-not-enabled"),
         ]
-        if health.bridgeActive {
+        if health.bridgeInstalled && health.bridgeLoaded {
+            checks.append((
+                health.bridgeActive,
+                "Hammerspoon bridge execution is verified",
+                health.bridgeVerificationBlockerCode
+            ))
+        }
+        if health.accessibilityOwner == "Hammerspoon" {
             checks.append((
                 health.hammerspoonAccessibilityTrusted == true,
                 "Hammerspoon has Accessibility permission",
-                "accessibility-not-granted-hammerspoon"
+                health.hammerspoonAccessibilityTrusted == nil
+                    ? "accessibility-unverified-hammerspoon"
+                    : "accessibility-not-granted-hammerspoon"
             ))
         } else {
             checks.append((health.accessibilityTrusted, "Accessibility permission is granted", "accessibility-not-granted"))
@@ -887,7 +1112,7 @@ private final class DoubleShiftMonitor {
 
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 420
-    static let height: CGFloat = 522
+    static let height: CGFloat = 408
     static let contentWidth: CGFloat = 388
 }
 
@@ -902,185 +1127,6 @@ private final class LayoutPilotRootView: NSView {
             return
         }
         super.keyDown(with: event)
-    }
-}
-
-private final class ScopeChoiceButton: NSButton {
-    enum Kind { case phrase, word }
-
-    var isActive = false { didSet { applyState() } }
-    private let kind: Kind
-    private let primary: String
-    private let detail: String
-    private var hovering = false { didSet { applyState() } }
-
-    init(
-        kind: Kind,
-        primary: String,
-        detail: String,
-        target: AnyObject?,
-        action: Selector,
-        width: CGFloat
-    ) {
-        self.kind = kind
-        self.primary = primary
-        self.detail = detail
-        super.init(frame: .zero)
-        title = ""
-        self.target = target
-        self.action = action
-        isBordered = false
-        focusRingType = .default
-        wantsLayer = true
-        translatesAutoresizingMaskIntoConstraints = false
-        widthAnchor.constraint(equalToConstant: width).isActive = true
-        heightAnchor.constraint(equalToConstant: 48).isActive = true
-        layer?.borderWidth = 1
-        layer?.cornerRadius = 0
-        setAccessibilityLabel("\(primary), \(detail)")
-        applyState()
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        for area in trackingAreas { removeTrackingArea(area) }
-        addTrackingArea(NSTrackingArea(
-            rect: bounds,
-            options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        ))
-    }
-
-    override func mouseEntered(with event: NSEvent) { hovering = true }
-    override func mouseExited(with event: NSEvent) { hovering = false }
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .pointingHand) }
-
-    private func applyState() {
-        layer?.borderColor = (isActive ? UI.ink : UI.hair).cgColor
-        layer?.backgroundColor = (isActive ? UI.ink : hovering ? UI.hair : UI.fill).cgColor
-        setAccessibilitySelected(isActive)
-        needsDisplay = true
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        let color = isActive ? UI.bg : UI.ink
-        drawGlyph(color: color)
-        NSAttributedString(
-            string: primary,
-            attributes: [
-                .font: UI.mono(11.5, weight: .semibold),
-                .foregroundColor: color,
-                .kern: 0.2,
-            ]
-        ).draw(at: NSPoint(x: 61, y: 8))
-        NSAttributedString(
-            string: detail,
-            attributes: [
-                .font: UI.mono(8.2, weight: .semibold),
-                .foregroundColor: isActive ? UI.bg.withAlphaComponent(0.72) : UI.muted,
-                .kern: 0.2,
-            ]
-        ).draw(at: NSPoint(x: 61, y: 29))
-    }
-
-    private func drawGlyph(color: NSColor) {
-        color.setStroke()
-        color.setFill()
-        let tokens = [NSRect(x: 14, y: 16, width: 9, height: 8),
-                      NSRect(x: 27, y: 16, width: 8, height: 8),
-                      NSRect(x: 39, y: 16, width: 11, height: 8)]
-        for token in tokens {
-            let path = NSBezierPath(rect: token)
-            path.lineWidth = 1.1
-            path.stroke()
-        }
-        let startX: CGFloat = kind == .phrase ? 14 : 39
-        let brace = NSBezierPath()
-        brace.move(to: NSPoint(x: startX, y: 29))
-        brace.line(to: NSPoint(x: startX, y: 33))
-        brace.line(to: NSPoint(x: 50, y: 33))
-        brace.line(to: NSPoint(x: 50, y: 29))
-        brace.lineWidth = 1.2
-        brace.stroke()
-    }
-}
-
-private final class CaseChoiceButton: NSButton {
-    var isActive = false { didSet { applyState() } }
-    private let sample: String
-    private let labelText: String
-    private var hovering = false { didSet { applyState() } }
-
-    init(sample: String, label: String, help: String, target: AnyObject?, action: Selector, width: CGFloat) {
-        self.sample = sample
-        self.labelText = label
-        super.init(frame: .zero)
-        title = ""
-        self.target = target
-        self.action = action
-        isBordered = false
-        focusRingType = .default
-        wantsLayer = true
-        translatesAutoresizingMaskIntoConstraints = false
-        widthAnchor.constraint(equalToConstant: width).isActive = true
-        heightAnchor.constraint(equalToConstant: 54).isActive = true
-        layer?.borderWidth = 1
-        layer?.cornerRadius = 0
-        setAccessibilityLabel("\(label), \(help)")
-        applyState()
-    }
-
-    required init?(coder: NSCoder) { fatalError() }
-
-    override func updateTrackingAreas() {
-        super.updateTrackingAreas()
-        for area in trackingAreas { removeTrackingArea(area) }
-        addTrackingArea(NSTrackingArea(
-            rect: bounds,
-            options: [.activeAlways, .mouseEnteredAndExited, .inVisibleRect],
-            owner: self,
-            userInfo: nil
-        ))
-    }
-
-    override func mouseEntered(with event: NSEvent) { hovering = true }
-    override func mouseExited(with event: NSEvent) { hovering = false }
-    override func resetCursorRects() { addCursorRect(bounds, cursor: .pointingHand) }
-
-    private func applyState() {
-        layer?.borderColor = (isActive ? UI.ink : UI.hair).cgColor
-        layer?.backgroundColor = (isActive ? UI.ink : hovering ? UI.hair : UI.fill).cgColor
-        setAccessibilitySelected(isActive)
-        needsDisplay = true
-    }
-
-    override func draw(_ dirtyRect: NSRect) {
-        super.draw(dirtyRect)
-        let color = isActive ? UI.bg : UI.ink
-        let paragraph = NSMutableParagraphStyle()
-        paragraph.alignment = .center
-        NSAttributedString(
-            string: sample,
-            attributes: [
-                .font: UI.mono(17, weight: .semibold),
-                .foregroundColor: color,
-                .paragraphStyle: paragraph,
-                .kern: 0.4,
-            ]
-        ).draw(in: NSRect(x: 0, y: 5, width: bounds.width, height: 23))
-        NSAttributedString(
-            string: labelText,
-            attributes: [
-                .font: UI.mono(8.2, weight: .semibold),
-                .foregroundColor: isActive ? UI.bg.withAlphaComponent(0.72) : UI.muted,
-                .paragraphStyle: paragraph,
-                .kern: 0.25,
-            ]
-        ).draw(in: NSRect(x: 0, y: 34, width: bounds.width, height: 14))
     }
 }
 
@@ -1156,6 +1202,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var lastPopoverCloseAt = Date.distantPast
     private var previewSound: NSSound?
     private var lastObservedInputID: String?
+    private var setupExpanded = false
 
     private var mode: FixMode {
         get { FixMode(rawValue: defaults.string(forKey: "fixMode") ?? "phrase") ?? .phrase }
@@ -1360,185 +1407,190 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         NSLayoutConstraint.activate([
             root.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
             root.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            root.topAnchor.constraint(equalTo: content.topAnchor, constant: 14),
-            root.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -10),
+            root.topAnchor.constraint(equalTo: content.topAnchor, constant: 10),
+            root.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -8),
         ])
 
-        root.addArrangedSubview(label("language relay", size: 20, weight: .semibold, color: UI.ink, height: 27))
-        root.addArrangedSubview(label("apowall instrument 02 · local layout bridge · v2.3.1", size: 9.2, weight: .semibold, color: UI.muted, height: 13))
+        let header = NSStackView()
+        header.orientation = .horizontal
+        header.alignment = .centerY
+        header.spacing = 8
+        header.translatesAutoresizingMaskIntoConstraints = false
+        header.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
+        header.heightAnchor.constraint(equalToConstant: 43).isActive = true
+        let identity = NSStackView()
+        identity.orientation = .vertical
+        identity.alignment = .leading
+        identity.spacing = 0
+        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: UI.ink, width: 252, height: 23))
+        identity.addArrangedSubview(label("instrument 02 · local bridge · v\(AppIdentity.version)", size: 8.3, weight: .semibold, color: UI.muted, width: 252, height: 12))
+        header.addArrangedSubview(identity)
+        header.addArrangedSubview(flexSpacer())
+        header.addArrangedSubview(stateReadout(panelHealthLabel, width: 118, height: 28, textSize: 8.4))
+        root.addArrangedSubview(header)
         root.addArrangedSubview(hairLine(width: LayoutPilotPanelMetrics.contentWidth))
 
-        root.addArrangedSubview(sectionHeader("01 · input · active layout", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(sectionHeader("active layout", width: LayoutPilotPanelMetrics.contentWidth))
         let layoutRow = NSStackView()
         layoutRow.orientation = .horizontal
         layoutRow.alignment = .centerY
         layoutRow.spacing = 6
         let current = InputSources.currentID()
         let currentLabel = current == AppIdentity.russianPCID
-            ? "a ⇄ [ру] · russian – pc active"
-            : "[a] ⇄ ру · u.s. active"
-        let state = stateReadout(currentLabel, width: 340, height: 42)
-        let toggle = squareButton("⇄", action: #selector(toggleLayout), width: 42, height: 42)
+            ? "a ⇄ [ру] · russian – pc"
+            : "[a] ⇄ ру · u.s."
+        let state = stateReadout(currentLabel, width: 340, height: 36, textSize: 10.4)
+        let toggle = squareButton("⇄", action: #selector(toggleLayout), width: 42, height: 36)
         toggle.toolTip = "switch input source"
+        toggle.setAccessibilityHelp("Switch between U.S. and Russian – PC")
         layoutRow.addArrangedSubview(state)
         layoutRow.addArrangedSubview(toggle)
         root.addArrangedSubview(layoutRow)
 
-        root.addArrangedSubview(sectionHeader("02 · correction scope", width: LayoutPilotPanelMetrics.contentWidth))
-        let modeRow = NSStackView()
-        modeRow.orientation = .horizontal
-        modeRow.spacing = 6
-        let phrase = ScopeChoiceButton(
-            kind: .phrase,
-            primary: "last phrase",
-            detail: "language-run tail",
-            target: self,
-            action: #selector(setPhraseMode),
-            width: 191
-        )
-        phrase.isActive = mode == .phrase
-        let word = ScopeChoiceButton(
-            kind: .word,
-            primary: "last word",
-            detail: "one token",
-            target: self,
-            action: #selector(setLastWordMode),
-            width: 191
-        )
-        word.isActive = mode == .lastWord
-        modeRow.addArrangedSubview(phrase)
-        modeRow.addArrangedSubview(word)
-        root.addArrangedSubview(modeRow)
+        root.addArrangedSubview(sectionHeader("correction scope", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(ShaperSegmentedControl(
+            items: [
+                .init("last phrase", help: "Repair the trailing language run"),
+                .init("last word", help: "Repair one token"),
+            ],
+            selectedIndex: mode == .phrase ? 0 : 1,
+            width: LayoutPilotPanelMetrics.contentWidth
+        ) { [weak self] index in
+            index == 0 ? self?.setPhraseMode() : self?.setLastWordMode()
+        })
 
-        root.addArrangedSubview(sectionHeader("03 · letter case · aA keep · Aa sentence · AA upper · aa lower", width: LayoutPilotPanelMetrics.contentWidth))
-        let capitalizationRow = NSStackView()
-        capitalizationRow.orientation = .horizontal
-        capitalizationRow.spacing = 6
-        let preserve = CaseChoiceButton(
-            sample: "aA", label: "preserve", help: "keep original capitalization",
-            target: self, action: #selector(setCapitalizationPreserve), width: 92.5
-        )
-        preserve.isActive = capitalization == .preserve
-        let sentence = CaseChoiceButton(
-            sample: "Aa", label: "sentence", help: "first letter uppercase",
-            target: self, action: #selector(setCapitalizationSentence), width: 92.5
-        )
-        sentence.isActive = capitalization == .sentence
-        let uppercase = CaseChoiceButton(
-            sample: "AA", label: "uppercase", help: "every letter uppercase",
-            target: self, action: #selector(setCapitalizationUppercase), width: 92.5
-        )
-        uppercase.isActive = capitalization == .uppercase
-        let lowercase = CaseChoiceButton(
-            sample: "aa", label: "lowercase", help: "every letter lowercase",
-            target: self, action: #selector(setCapitalizationLowercase), width: 92.5
-        )
-        lowercase.isActive = capitalization == .lowercase
-        capitalizationRow.addArrangedSubview(preserve)
-        capitalizationRow.addArrangedSubview(sentence)
-        capitalizationRow.addArrangedSubview(uppercase)
-        capitalizationRow.addArrangedSubview(lowercase)
-        root.addArrangedSubview(capitalizationRow)
+        root.addArrangedSubview(sectionHeader("letter case", width: LayoutPilotPanelMetrics.contentWidth))
+        let caseIndex: Int = switch capitalization {
+        case .preserve: 0
+        case .sentence: 1
+        case .uppercase: 2
+        case .lowercase: 3
+        }
+        root.addArrangedSubview(ShaperSegmentedControl(
+            items: [
+                .init("aA preserve", help: "Keep original capitalization", preservesCase: true),
+                .init("Aa sentence", help: "Uppercase the first letter", preservesCase: true),
+                .init("AA upper", help: "Uppercase every letter", preservesCase: true),
+                .init("aa lower", help: "Lowercase every letter", preservesCase: true),
+            ],
+            selectedIndex: caseIndex,
+            width: LayoutPilotPanelMetrics.contentWidth
+        ) { [weak self] index in
+            let values: [CapitalizationMode] = [.preserve, .sentence, .uppercase, .lowercase]
+            self?.setCapitalization(values[index])
+        })
 
-        root.addArrangedSubview(sectionHeader("04 · triggers · standalone modifier taps only", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(sectionHeader("triggers · standalone modifier taps", width: LayoutPilotPanelMetrics.contentWidth))
         let triggerRow = NSStackView()
         triggerRow.orientation = .horizontal
         triggerRow.spacing = 6
-        let shift = squareButton("⇧ ⇧ · double shift", action: #selector(toggleShift), width: 191, height: 34)
+        let shift = squareButton("⇧⇧ · double shift", action: #selector(toggleShift), width: 191, height: 30)
         shift.isActive = shiftEnabled
-        let option = squareButton("⌥ · clean option", action: #selector(toggleOption), width: 191, height: 34)
+        shift.setAccessibilityHelp("Enable or disable Double Shift repair")
+        let option = squareButton("⌥ · clean option", action: #selector(toggleOption), width: 191, height: 30)
         option.isActive = optionEnabled
+        option.setAccessibilityHelp("Enable or disable clean Option repair")
         triggerRow.addArrangedSubview(shift)
         triggerRow.addArrangedSubview(option)
         root.addArrangedSubview(triggerRow)
 
-        root.addArrangedSubview(sectionHeader("05 · feedback · micro-sfx", width: LayoutPilotPanelMetrics.contentWidth))
-        let soundRow = NSStackView()
-        soundRow.orientation = .horizontal
-        soundRow.spacing = 6
-        let pulse = squareButton("01 pulse", action: #selector(setSoundPulse), width: 92.5, height: 30)
-        pulse.isActive = soundEnabled && soundName == "pulse"
-        let relay = squareButton("02 relay", action: #selector(setSoundRelay), width: 92.5, height: 30)
-        relay.isActive = soundEnabled && soundName == "relay"
-        let scan = squareButton("03 scan", action: #selector(setSoundScan), width: 92.5, height: 30)
-        scan.isActive = soundEnabled && soundName == "scan"
-        let flux = squareButton("04 flux", action: #selector(setSoundFlux), width: 92.5, height: 30)
-        flux.isActive = soundEnabled && soundName == "flux"
-        soundRow.addArrangedSubview(pulse)
-        soundRow.addArrangedSubview(relay)
-        soundRow.addArrangedSubview(scan)
-        soundRow.addArrangedSubview(flux)
-        root.addArrangedSubview(soundRow)
+        root.addArrangedSubview(sectionHeader("feedback · cue + level", width: LayoutPilotPanelMetrics.contentWidth))
+        let feedbackRow = NSStackView()
+        feedbackRow.orientation = .horizontal
+        feedbackRow.spacing = 6
+        let cueLabel = soundEnabled ? "cue · \(soundName) · ▾" : "cue · muted · ▾"
+        let cue = squareButton(cueLabel, action: #selector(showSoundMenu(_:)), width: 191, height: 32)
+        cue.isActive = soundEnabled
+        cue.setAccessibilityHelp("Choose one of eight feedback cues")
+        feedbackRow.addArrangedSubview(cue)
+        let levelIndex: Int = switch soundLevel {
+        case .silent: 0
+        case .quiet: 1
+        case .balanced: 2
+        case .full: 3
+        }
+        feedbackRow.addArrangedSubview(ShaperSegmentedControl(
+            items: [
+                .init("00", help: "Mute feedback"),
+                .init("25", help: "Low feedback level"),
+                .init("55", help: "Medium feedback level"),
+                .init("82", help: "High feedback level"),
+            ],
+            selectedIndex: levelIndex,
+            width: 191
+        ) { [weak self] index in
+            let values: [FeedbackLevel] = [.silent, .quiet, .balanced, .full]
+            self?.selectLevel(values[index])
+        })
+        root.addArrangedSubview(feedbackRow)
 
-        let soundRowTwo = NSStackView()
-        soundRowTwo.orientation = .horizontal
-        soundRowTwo.spacing = 6
-        let prism = squareButton("05 prism", action: #selector(setSoundPrism), width: 92.5, height: 30)
-        prism.isActive = soundEnabled && soundName == "prism"
-        let tick = squareButton("06 tick", action: #selector(setSoundTick), width: 92.5, height: 30)
-        tick.isActive = soundEnabled && soundName == "tick"
-        let fold = squareButton("07 fold", action: #selector(setSoundFold), width: 92.5, height: 30)
-        fold.isActive = soundEnabled && soundName == "fold"
-        let nova = squareButton("08 nova", action: #selector(setSoundNova), width: 92.5, height: 30)
-        nova.isActive = soundEnabled && soundName == "nova"
-        soundRowTwo.addArrangedSubview(prism)
-        soundRowTwo.addArrangedSubview(tick)
-        soundRowTwo.addArrangedSubview(fold)
-        soundRowTwo.addArrangedSubview(nova)
-        root.addArrangedSubview(soundRowTwo)
-
-        let levelRow = NSStackView()
-        levelRow.orientation = .horizontal
-        levelRow.spacing = 6
-        let silent = squareButton("mute · 00", action: #selector(setLevelSilent), width: 92.5, height: 26)
-        silent.isActive = soundLevel == .silent
-        let quiet = squareButton("low · 25", action: #selector(setLevelQuiet), width: 92.5, height: 26)
-        quiet.isActive = soundLevel == .quiet
-        let balanced = squareButton("mid · 55", action: #selector(setLevelBalanced), width: 92.5, height: 26)
-        balanced.isActive = soundLevel == .balanced
-        let full = squareButton("high · 82", action: #selector(setLevelFull), width: 92.5, height: 26)
-        full.isActive = soundLevel == .full
-        levelRow.addArrangedSubview(silent)
-        levelRow.addArrangedSubview(quiet)
-        levelRow.addArrangedSubview(balanced)
-        levelRow.addArrangedSubview(full)
-        root.addArrangedSubview(levelRow)
-
-        let diagnostic = NSView()
-        diagnostic.translatesAutoresizingMaskIntoConstraints = false
-        diagnostic.wantsLayer = true
-        diagnostic.layer?.backgroundColor = UI.fill.cgColor
-        diagnostic.layer?.borderColor = UI.hair.cgColor
-        diagnostic.layer?.borderWidth = 1
-        diagnostic.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
-        diagnostic.heightAnchor.constraint(equalToConstant: 31).isActive = true
-        let diagnosticStack = NSStackView()
-        diagnosticStack.orientation = .horizontal
-        diagnosticStack.alignment = .centerY
-        diagnosticStack.spacing = 8
-        diagnosticStack.translatesAutoresizingMaskIntoConstraints = false
-        diagnostic.addSubview(diagnosticStack)
-        NSLayoutConstraint.activate([
-            diagnosticStack.leadingAnchor.constraint(equalTo: diagnostic.leadingAnchor, constant: 10),
-            diagnosticStack.trailingAnchor.constraint(equalTo: diagnostic.trailingAnchor, constant: -10),
-            diagnosticStack.centerYAnchor.constraint(equalTo: diagnostic.centerYAnchor),
-        ])
-        let bridge = carambaRunning
-            ? "compat · caramba"
-            : (usesHammerspoonBridge ? "bridge · online" : "bridge · native")
-        diagnosticStack.addArrangedSubview(label(bridge, size: 8.2, weight: .semibold, color: UI.ink, width: 108, height: 13))
-        let detail = carambaRunning ? "shift / option owned by caramba" : "last · \(bridgeStatus())"
-        diagnosticStack.addArrangedSubview(label(detail, size: 8.0, weight: .semibold, color: UI.muted, width: 242, height: 13))
-        root.addArrangedSubview(diagnostic)
+        root.addArrangedSubview(setupDisclosure())
 
         root.addArrangedSubview(label(
-            "caps · switch layout   ⇧⇧ / clean ⌥ · repair   esc · close",
+            "caps · switch   ⇧⇧ / clean ⌥ · repair   esc · close",
             size: 8.0,
             weight: .semibold,
             color: UI.muted,
             height: 13
         ))
         return content
+    }
+
+    private var panelHealthLabel: String {
+        if carambaRunning { return "paused · owner" }
+        if !fixer.hasAccessibilityPermission { return "setup · required" }
+        return usesHammerspoonBridge ? "bridge · ready" : "native · ready"
+    }
+
+    private func setupDisclosure() -> NSView {
+        let host = NSView()
+        host.translatesAutoresizingMaskIntoConstraints = false
+        host.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
+        host.heightAnchor.constraint(equalToConstant: 48).isActive = true
+
+        if !setupExpanded {
+            let suffix = panelHealthLabel.contains("required") || carambaRunning ? "action · show" : "ready · show"
+            let button = squareButton("setup + blockers · \(suffix)", action: #selector(toggleSetupDisclosure), width: LayoutPilotPanelMetrics.contentWidth, height: 32)
+            button.setAccessibilityHelp("Show setup and blocker details")
+            host.addSubview(button)
+            button.topAnchor.constraint(equalTo: host.topAnchor).isActive = true
+            return host
+        }
+
+        host.wantsLayer = true
+        host.layer?.backgroundColor = UI.fill.cgColor
+        host.layer?.borderColor = UI.hair.cgColor
+        host.layer?.borderWidth = 1
+        let stack = NSStackView()
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 8
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 10),
+            stack.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -8),
+            stack.centerYAnchor.constraint(equalTo: host.centerYAnchor),
+        ])
+
+        let message: String
+        if carambaRunning {
+            message = "blocked · caramba owns repair gestures"
+        } else if !fixer.hasAccessibilityPermission {
+            message = "blocked · accessibility permission required"
+        } else {
+            let bridge = usesHammerspoonBridge ? "hammerspoon bridge" : "native bridge"
+            message = "ready · \(bridge) · last \(bridgeStatus())"
+        }
+        stack.addArrangedSubview(label(message, size: 8.1, weight: .semibold, color: UI.ink, width: 270, height: 14))
+        stack.addArrangedSubview(flexSpacer())
+        if !fixer.hasAccessibilityPermission && !carambaRunning {
+            stack.addArrangedSubview(squareButton("open", action: #selector(openAccessibility), width: 54, height: 28))
+        }
+        let hide = squareButton("hide", action: #selector(toggleSetupDisclosure), width: 54, height: 28)
+        hide.setAccessibilityHelp("Hide setup and blocker details")
+        stack.addArrangedSubview(hide)
+        return host
     }
 
     private func label(
@@ -1567,7 +1619,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         return button
     }
 
-    private func stateReadout(_ title: String, width: CGFloat, height: CGFloat) -> NSView {
+    private func stateReadout(_ title: String, width: CGFloat, height: CGFloat, textSize: CGFloat = 11) -> NSView {
         let view = NSView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.wantsLayer = true
@@ -1576,7 +1628,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         view.layer?.borderWidth = 1
         view.widthAnchor.constraint(equalToConstant: width).isActive = true
         view.heightAnchor.constraint(equalToConstant: height).isActive = true
-        let text = label(title, size: 11, weight: .semibold, color: UI.bg, width: width - 20, height: 18, centered: true)
+        let text = label(title, size: textSize, weight: .semibold, color: UI.bg, width: width - 20, height: 18, centered: true)
         text.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(text)
         NSLayoutConstraint.activate([
@@ -1587,10 +1639,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func bridgeStatus() -> String {
-        guard usesHammerspoonBridge, HammerspoonCLI.isAvailable else { return "native ready" }
-        return HammerspoonCLI.evaluate(
-            "return tostring(hs.settings.get('layout_pilot_last_status') or 'ready')"
-        ) ?? "bridge unavailable"
+        guard usesHammerspoonBridge else {
+            return "native ready"
+        }
+        let health = HammerspoonIPC.health(timeout: 0.20)
+        if health.timedOut { return "bridge timeout" }
+        guard health.ipcAvailable else { return "bridge unavailable" }
+        return health.lastStatus ?? "ready"
     }
 
     func runBackgroundUISelfTest() -> Bool {
@@ -1642,10 +1697,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private func performFix() {
         guard !carambaRunning else { return }
         if usesHammerspoonBridge {
-            let task = Process()
-            task.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/hs")
-            task.arguments = ["-c", "layoutPilotFix()"]
-            try? task.run()
+            _ = HammerspoonIPC.run("return tostring(layoutPilotFix())")
             return
         }
         fixer.fix(mode: mode, capitalization: capitalization) { [weak self] success in
@@ -1657,10 +1709,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private func reloadBridgeSettings() {
         guard usesHammerspoonBridge else { return }
-        let task = Process()
-        task.executableURL = URL(fileURLWithPath: "/opt/homebrew/bin/hs")
-        task.arguments = ["-c", "return tostring(layoutPilotReloadSettings())"]
-        try? task.run()
+        _ = HammerspoonIPC.run("return tostring(layoutPilotReloadSettings())")
     }
 
     @objc private func openPanelFromMenu() {
@@ -1681,6 +1730,34 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     @objc private func setCapitalizationLowercase() { setCapitalization(.lowercase) }
     @objc private func toggleShift() { shiftEnabled.toggle(); reloadBridgeSettings(); rebuildPopoverContent() }
     @objc private func toggleOption() { optionEnabled.toggle(); reloadBridgeSettings(); rebuildPopoverContent() }
+    @objc private func toggleSetupDisclosure() {
+        setupExpanded.toggle()
+        rebuildPopoverContent()
+    }
+    @objc private func showSoundMenu(_ sender: ShaperButton) {
+        let choices: [(FeedbackSound, Selector)] = [
+            (.pulse, #selector(setSoundPulse)),
+            (.relay, #selector(setSoundRelay)),
+            (.scan, #selector(setSoundScan)),
+            (.flux, #selector(setSoundFlux)),
+            (.prism, #selector(setSoundPrism)),
+            (.tick, #selector(setSoundTick)),
+            (.fold, #selector(setSoundFold)),
+            (.nova, #selector(setSoundNova)),
+        ]
+        let menu = NSMenu(title: "feedback cue")
+        for (index, choice) in choices.enumerated() {
+            let item = NSMenuItem(
+                title: String(format: "%02d · %@", index + 1, choice.0.rawValue),
+                action: choice.1,
+                keyEquivalent: ""
+            )
+            item.target = self
+            item.state = soundEnabled && soundName == choice.0.rawValue ? .on : .off
+            menu.addItem(item)
+        }
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
+    }
     @objc private func setSoundPulse() { selectSound(.pulse) }
     @objc private func setSoundRelay() { selectSound(.relay) }
     @objc private func setSoundScan() { selectSound(.scan) }
@@ -1826,7 +1903,7 @@ private struct LayoutPilotMain {
             writeJSONObject([
                 "schemaVersion": 1,
                 "app": AppIdentity.name,
-                "version": "2.3.1",
+                "version": AppIdentity.version,
                 "inputSourceID": current,
                 "accessibilityTrusted": AXIsProcessTrusted(),
                 "carambaRunning": caramba,
@@ -1838,7 +1915,7 @@ private struct LayoutPilotMain {
             writeJSONObject([
                 "schemaVersion": 1,
                 "app": AppIdentity.name,
-                "version": "2.3.1",
+                "version": AppIdentity.version,
                 "pair": [AppIdentity.usID, AppIdentity.russianPCID],
                 "scopes": ["word", "phrase"],
                 "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
@@ -1862,13 +1939,24 @@ private struct LayoutPilotMain {
         if arguments.contains("--self-test") {
             exit(SelfTest.run(core: core))
         }
+        if arguments.contains("--bounded-process-self-test") {
+            let started = Date()
+            let result = BoundedProcess.run("/bin/sleep", arguments: ["1"], timeout: 0.02)
+            let elapsed = Date().timeIntervalSince(started)
+            guard result?.timedOut == true, elapsed < 0.30 else {
+                fputs("FAIL: bounded process timeout\n", stderr)
+                exit(8)
+            }
+            print(String(format: "PASS: bounded process timeout; elapsed=%.3fs", elapsed))
+            exit(0)
+        }
         if arguments.contains("--ui-self-test") {
             let delegate = AppDelegate(core: core)
             guard delegate.runBackgroundUISelfTest() else {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; panel=420x522; glyph=54x18; window=none")
+            print("PASS: background UI self-test; panel=420x408; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {

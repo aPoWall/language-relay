@@ -139,10 +139,19 @@ final class ShaperButton: NSButton {
     var isActive = false { didSet { applyState() } }
     var representedObject: Any?
     private var labelText: String
+    private let forcesLowercase: Bool
     private var hovering = false { didSet { applyState() } }
 
-    init(_ title: String, target: AnyObject?, action: Selector?, width: CGFloat, height: CGFloat = 28) {
-        self.labelText = title.lowercased()
+    init(
+        _ title: String,
+        target: AnyObject?,
+        action: Selector?,
+        width: CGFloat,
+        height: CGFloat = 28,
+        lowercase: Bool = true
+    ) {
+        self.forcesLowercase = lowercase
+        self.labelText = lowercase ? title.lowercased() : title
         super.init(frame: .zero)
         self.title = ""
         self.target = target
@@ -168,7 +177,7 @@ final class ShaperButton: NSButton {
     required init?(coder: NSCoder) { fatalError() }
 
     func setLabel(_ t: String) {
-        labelText = t.lowercased()
+        labelText = forcesLowercase ? t.lowercased() : t
         setAccessibilityLabel(labelText)
         needsDisplay = true
     }
@@ -317,6 +326,85 @@ final class ShaperButton: NSButton {
     }
 }
 
+// MARK: - ShaperSegmentedControl
+
+/// Equal-width exclusive choices built from the canonical Shaper button.
+/// Each segment remains its own keyboard and VoiceOver target while the stack
+/// owns selection and keeps the geometry stable as state changes.
+final class ShaperSegmentedControl: NSStackView {
+    struct Item {
+        let title: String
+        let help: String
+        let preservesCase: Bool
+
+        init(_ title: String, help: String, preservesCase: Bool = false) {
+            self.title = title
+            self.help = help
+            self.preservesCase = preservesCase
+        }
+    }
+
+    var selectedIndex: Int {
+        didSet { updateSelection() }
+    }
+    var onSelection: ((Int) -> Void)?
+
+    private var segmentButtons: [ShaperButton] = []
+
+    init(
+        items: [Item],
+        selectedIndex: Int,
+        width: CGFloat,
+        height: CGFloat = 32,
+        onSelection: ((Int) -> Void)? = nil
+    ) {
+        self.selectedIndex = selectedIndex
+        self.onSelection = onSelection
+        super.init(frame: .zero)
+
+        orientation = .horizontal
+        alignment = .centerY
+        distribution = .fillEqually
+        spacing = -1
+        translatesAutoresizingMaskIntoConstraints = false
+        widthAnchor.constraint(equalToConstant: width).isActive = true
+        heightAnchor.constraint(equalToConstant: height).isActive = true
+
+        let segmentWidth = width / CGFloat(max(items.count, 1))
+        for (index, item) in items.enumerated() {
+            let button = ShaperButton(
+                item.title,
+                target: self,
+                action: #selector(selectSegment(_:)),
+                width: segmentWidth,
+                height: height,
+                lowercase: !item.preservesCase
+            )
+            button.tag = index
+            button.toolTip = item.help
+            button.setAccessibilityHelp(item.help)
+            button.layer?.cornerRadius = 0
+            segmentButtons.append(button)
+            addArrangedSubview(button)
+        }
+        updateSelection()
+    }
+
+    required init(coder: NSCoder) { fatalError() }
+
+    @objc private func selectSegment(_ sender: ShaperButton) {
+        guard sender.tag != selectedIndex else { return }
+        selectedIndex = sender.tag
+        onSelection?(sender.tag)
+    }
+
+    private func updateSelection() {
+        for (index, button) in segmentButtons.enumerated() {
+            button.isActive = index == selectedIndex
+        }
+    }
+}
+
 // MARK: - ClosureSleeve (NSMenuItem target helper)
 
 /// Wraps a Swift closure as an @objc action target for NSMenuItem.
@@ -408,4 +496,3 @@ extension Array {
         }
     }
 }
-

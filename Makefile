@@ -18,7 +18,7 @@ AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
 BRIDGE_DIR := $(HOME)/.config/language-relay
 USER_ID := $(shell /usr/bin/id -u)
 
-.PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test setup install clean
+.PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
 
 all: build
 
@@ -81,22 +81,10 @@ $(BUILD_DIR)/ShiftEmitter: tests/ShiftEmitter.swift
 	codesign --force --sign - --identifier dev.alex.layout-pilot-shift-emitter "$@"
 
 install: test
-	-/bin/launchctl bootout gui/$(USER_ID)/$(AGENT_LABEL) 2>/dev/null
-	mkdir -p "$(HOME)/Applications"
-	rm -rf "$(INSTALL_DIR)"
-	ditto "$(APP_DIR)" "$(INSTALL_DIR)"
-	codesign --verify --deep --strict "$(INSTALL_DIR)"
-	mkdir -p "$(HOME)/Library/LaunchAgents" "$(HOME)/Library/Logs/layout-pilot"
-	sed 's|__HOME__|$(HOME)|g' "$(AGENT_SOURCE)" > "$(AGENT_DEST)"
-	mkdir -p "$(BRIDGE_DIR)"
-	cp hammerspoon-layout-pilot.lua "$(BRIDGE_DIR)/hammerspoon.lua"
-	touch "$(BRIDGE_DIR)/hammerspoon-bridge"
-	: > "$(HOME)/Library/Logs/layout-pilot/layout-pilot.out.log"
-	: > "$(HOME)/Library/Logs/layout-pilot/layout-pilot.err.log"
-	/bin/launchctl bootstrap gui/$(USER_ID) "$(AGENT_DEST)"
-	/bin/launchctl enable gui/$(USER_ID)/$(AGENT_LABEL)
-	/bin/launchctl kickstart -k gui/$(USER_ID)/$(AGENT_LABEL)
-	"$(INSTALL_DIR)/Contents/MacOS/$(BIN_NAME)" --setup
+	./install-runtime.sh install
+
+rollback:
+	./install-runtime.sh rollback
 
 clean:
 	rm -rf "$(BUILD_DIR)"

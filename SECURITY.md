@@ -9,6 +9,8 @@ Language Relay observes local keyboard events through Hammerspoon and may read t
 - writable Accessibility values are read back before success is reported;
 - clipboard fallback restores the previous clipboard when Language Relay still owns it;
 - no runtime network access is implemented.
+- `hs.ipc` calls are bounded to 350 ms; a timed-out child is terminated by exact PID;
+- runtime logs contain diagnostics only and never receive conversion input or buffered text.
 
 ## Reporting
 

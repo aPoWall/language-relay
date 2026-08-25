@@ -55,7 +55,7 @@ As a manual fallback, add this once to `~/.hammerspoon/init.lua`, then reload Ha
 dofile(os.getenv("HOME") .. "/.config/language-relay/hammerspoon.lua")
 ```
 
-Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission, and both supported input sources enabled. Grant Accessibility to both Language Relay and Hammerspoon when macOS prompts you.
+Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.hammerspoon.org/) with Accessibility permission, and both supported input sources enabled. In bridge mode, grant Accessibility to Hammerspoon; Language Relay only needs its own Accessibility approval when running without the Hammerspoon bridge.
 
 ## Controls
 
@@ -110,6 +110,8 @@ make test
 make install
 make integration-test
 ```
+
+`make install` stages and validates the bundle before replacing the running copy. It stores the previous app, LaunchAgent, and Hammerspoon bridge under `~/Library/Application Support/Language Relay/Rollback/`; `make rollback` restores the latest snapshot.
 
 The default suite stays in the background: no app window, focus change, keyboard event, or sound playback. `make live-integration-test` is the separate manual lane.
 

@@ -1,6 +1,11 @@
 #!/bin/zsh
 set -euo pipefail
 
+layout_fail() {
+  print -u2 "FAIL: background suite at line $1"
+}
+trap 'layout_fail $LINENO' ERR
+
 layout_root="$(cd "$(dirname "$0")/.." && pwd)"
 layout_built="$layout_root/.build/Language Relay.app/Contents/MacOS/LanguageRelay"
 layout_installed="$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay"
@@ -9,6 +14,7 @@ layout_agent="gui/$UID/dev.alex.layout-pilot"
 
 "$layout_built" --self-test
 "$layout_installed" --self-test
+"$layout_built" --bounded-process-self-test
 "$layout_built" --ui-self-test
 "$layout_installed" --ui-self-test
 
@@ -33,8 +39,11 @@ layout_lowercase_json="$("$layout_installed" --convert-json "GHBDTN" --capitaliz
 [[ "$layout_lowercase_json" == *'"text":"привет"'* ]]
 
 layout_doctor_json="$("$layout_installed" --doctor-json)"
-[[ "$layout_doctor_json" == *'"schemaVersion":1'* ]]
+[[ "$layout_doctor_json" == *'"schemaVersion":2'* ]]
 [[ "$layout_doctor_json" == *'"ready":true'* ]]
+[[ "$layout_doctor_json" == *'"owner":"Hammerspoon"'* ]]
+[[ "$layout_doctor_json" == *'"ipcAvailable":true'* ]]
+[[ "$layout_doctor_json" == *'"launchAgentLoaded":true'* ]]
 
 layout_capabilities_json="$("$layout_installed" --capabilities-json)"
 [[ "$layout_capabilities_json" == *'"localOnly":true'* ]]
@@ -42,6 +51,8 @@ layout_capabilities_json="$("$layout_installed" --capabilities-json)"
 
 /usr/bin/plutil -lint "$layout_root/Info.plist" >/dev/null
 /usr/bin/plutil -lint "$layout_root/LaunchAgent.plist" >/dev/null
+zsh -n "$layout_root/install-runtime.sh"
+"$layout_root/install-runtime.sh" preflight
 /usr/bin/codesign --verify --deep --strict "$HOME/Applications/Language Relay.app"
 /bin/test -s "$layout_root/assets/LanguageRelay.icns"
 /bin/test -s "$HOME/Applications/Language Relay.app/Contents/Resources/LanguageRelay.icns"
@@ -61,7 +72,7 @@ fi
 /bin/test -f "$HOME/.config/language-relay/hammerspoon-bridge"
 [[ "$(find "$HOME/Applications/Language Relay.app/Contents/Resources/Sounds" -type f -name '*.aiff' | wc -l | tr -d ' ')" == "8" ]]
 
-[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "2.3.1" ]]
+[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "2.3.2" ]]
 [[ "$($layout_hs -c 'return tostring(layoutPilotInputTap and layoutPilotInputTap:isEnabled())')" == "true" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local r=layoutPilotQARange(value, 22, true); return r.location.."|"..r.length')" == "9|13" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local r=layoutPilotQARange(value, 22, false); return r.location.."|"..r.length')" == "16|6" ]]
@@ -79,7 +90,8 @@ fi
 [[ "$($layout_hs -c 'return string.format("%.3f|%.3f",layoutPilotQADeletionDelay(1),layoutPilotQADeletionDelay(100))')" == "0.040|0.235" ]]
 layout_settings="$($layout_hs -c 'return layoutPilotQASettings()')"
 [[ "$layout_settings" =~ '^(pulse|relay|scan|flux|prism|tick|fold|nova)\|(preserve|sentence|uppercase|lowercase)\|(silent|quiet|balanced|full)\|(true|false)$' ]]
-[[ "$($layout_hs -c 'return layoutPilotQACompatibility()')" == "language-relay" || "$($layout_hs -c 'return layoutPilotQACompatibility()')" == "caramba" ]]
+layout_compatibility="$($layout_hs -c 'return layoutPilotQACompatibility()')"
+[[ "$layout_compatibility" == "language-relay" || "$layout_compatibility" == "caramba" ]]
 [[ "$($layout_hs -c 'return tostring(layoutPilotQAOptionSequence("clean")).."|"..tostring(layoutPilotQAOptionSequence("with-key")).."|"..tostring(layoutPilotQAOptionSequence("with-command"))')" == "true|false|false" ]]
 rg -q 'clean Option tap' "$layout_root/hammerspoon-layout-pilot.lua"
 rg -q 'layoutPilotInputTap:stop' "$layout_root/hammerspoon-layout-pilot.lua"
@@ -87,6 +99,8 @@ rg -q 'layoutPilotInputTap:stop' "$layout_root/hammerspoon-layout-pilot.lua"
 rg -q 'not context.terminalInput' "$layout_root/hammerspoon-layout-pilot.lua"
 rg -Fq 'description:lower():find("terminal input"' "$layout_root/hammerspoon-layout-pilot.lua"
 rg -q 'language-relay/hammerspoon.lua' "$HOME/.hammerspoon/init.lua"
+rg -q 'HammerspoonIPC.run' "$layout_root/native/LayoutPilot.swift"
+! rg -q 'waitUntilExit' "$layout_root/native/LayoutPilot.swift"
 
 /bin/launchctl print "$layout_agent" | /usr/bin/grep -q 'state = running'
 layout_process_count="$(/usr/bin/pgrep -f "^$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay --background$" | /usr/bin/wc -l | /usr/bin/tr -d ' ')"
