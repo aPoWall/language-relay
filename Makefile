@@ -18,7 +18,7 @@ AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
 BRIDGE_DIR := $(HOME)/.config/language-relay
 USER_ID := $(shell /usr/bin/id -u)
 
-.PHONY: all build icon test background-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
+.PHONY: all build icon test background-test shutdown-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
 
 all: build
 
@@ -58,6 +58,9 @@ shift-emitter: $(BUILD_DIR)/ShiftEmitter
 
 background-test integration-test: test
 	tests/background.sh
+
+shutdown-test: test
+	tests/shutdown.sh
 
 live-integration-test: test live-harness shift-emitter
 	tests/integration.sh

@@ -1,10 +1,10 @@
 -- layout-pilot:start
--- Language Relay bridge v2.3.2
+-- Language Relay bridge v2.3.3
 --
--- Double Shift or a clean Option tap fixes selected text / the last phrase
--- typed in the wrong layout. The bridge never creates a selection. It first
--- attempts an invisible AXValue replacement and falls back to buffered
--- backspaces + a clipboard-preserving paste for web/Electron fields.
+-- Double Shift or a clean Option tap fixes selected text / the last word typed
+-- in the wrong layout by default. The bridge never creates a selection. It uses
+-- buffered backspaces + a clipboard-preserving paste by default so normal text
+-- editors keep their undo stack; direct AXValue writes are an opt-in fallback.
 -- Typed text stays in memory only and is never logged or persisted.
 
 if layoutPilotInputTap then
@@ -16,20 +16,25 @@ local layoutPilotHome = assert(os.getenv("HOME"), "Language Relay requires HOME"
 local layoutPilotBinary = layoutPilotHome .. "/Applications/Language Relay.app/Contents/MacOS/LanguageRelay"
 local layoutPilotSoundDirectory = layoutPilotHome .. "/Applications/Language Relay.app/Contents/Resources/Sounds"
 local layoutPilotMarker = 1280329266 -- "LPV2"
+local layoutPilotBridgeVersion = "2.3.3"
+local layoutPilotDefaultFixMode = "lastWord"
 local layoutPilotBusy = false
 local layoutPilotTask = nil
 local layoutPilotBuffer = ""
 local layoutPilotBufferApp = nil
 local layoutPilotSyntheticUntil = 0
+local layoutPilotRunToken = 0
 local layoutPilotSoundCache = {}
 local layoutPilotEventTypes = hs.eventtap.event.types
 local layoutPilotEventProperties = hs.eventtap.event.properties
+local layoutPilotResetModifierTaps
 local layoutPilotTapState = {
   shift = {down = false, clean = false, lastTap = 0},
   option = {down = false, clean = false, lastTap = 0},
 }
 local layoutPilotSettings = {
-  phraseMode = true,
+  phraseMode = false,
+  directAXReplacement = false,
   soundEnabled = true,
   soundName = "pulse",
   soundLevel = "balanced",
@@ -63,11 +68,12 @@ local function layoutPilotReadStringDefault(key, fallback)
 end
 
 function layoutPilotReloadSettings()
-  local mode = layoutPilotReadStringDefault("fixMode", "phrase")
+  local mode = layoutPilotReadStringDefault("fixMode", layoutPilotDefaultFixMode)
   local soundName = layoutPilotReadStringDefault("soundName", "pulse")
   local soundLevel = layoutPilotReadStringDefault("soundLevel", "balanced")
   local capitalizationMode = layoutPilotReadStringDefault("capitalizationMode", "preserve")
-  layoutPilotSettings.phraseMode = not mode:match("lastWord")
+  layoutPilotSettings.phraseMode = mode == "phrase"
+  layoutPilotSettings.directAXReplacement = layoutPilotReadDefault("directAXReplacement", false)
   layoutPilotSettings.soundName = ({
     pulse = true, relay = true, scan = true, flux = true,
     prism = true, tick = true, fold = true, nova = true,
@@ -315,6 +321,13 @@ local function layoutPilotFinish(success, detail, targetID, verified)
   layoutPilotBusy = false
 end
 
+local function layoutPilotCanUseDirectAX(context)
+  return layoutPilotSettings.directAXReplacement == true
+    and context.focused ~= nil
+    and not context.manualSelection
+    and not context.terminalInput
+end
+
 local function layoutPilotPostMarkedKey(modifiers, key, isDown)
   local event = hs.eventtap.event.newKeyEvent(modifiers or {}, key, isDown)
   if event and layoutPilotEventProperties.eventSourceUserData then
@@ -454,7 +467,7 @@ local function layoutPilotFallbackApply(context, replacement, targetID, expected
       currentValue,
       deletedValue,
       expectedValue,
-      false
+      context.manualSelection
     )
     if decision == "done" then
       layoutPilotFinish(true, "success-ax-delayed", targetID, true)
@@ -501,7 +514,7 @@ local function layoutPilotApplyConversion(context, payload)
     expectedValue, expectedCaret = layoutPilotReplaceRange(context.value, context.range, payload.text)
   end
 
-  if expectedValue and context.focused and not context.terminalInput then
+  if expectedValue and layoutPilotCanUseDirectAX(context) then
     local settable = false
     pcall(function() settable = context.focused:isAttributeSettable("AXValue") == true end)
     if settable then
@@ -537,8 +550,10 @@ end
 
 local function layoutPilotConvert(context)
   local flag = context.phraseMode and "--convert-phrase-json" or "--convert-json"
+  local token = layoutPilotRunToken
   hs.settings.set("layout_pilot_last_status", "converting")
   layoutPilotTask = hs.task.new(layoutPilotBinary, function(code, stdout, stderr)
+    if token ~= layoutPilotRunToken then return end
     layoutPilotTask = nil
     if code ~= 0 then
       layoutPilotFinish(false, "task-exit-" .. tostring(code))
@@ -557,6 +572,22 @@ local function layoutPilotConvert(context)
     layoutPilotTask = nil
     layoutPilotFinish(false, "task-start-failed")
   end
+end
+
+function layoutPilotShutdown(reason)
+  layoutPilotRunToken = layoutPilotRunToken + 1
+  hs.settings.set("layout_pilot_disabled_by_user", true)
+  if layoutPilotTask then
+    pcall(function() layoutPilotTask:terminate() end)
+    layoutPilotTask = nil
+  end
+  layoutPilotBusy = false
+  layoutPilotSyntheticUntil = 0
+  layoutPilotClearBuffer()
+  layoutPilotResetModifierTaps()
+  if layoutPilotInputTap then pcall(function() layoutPilotInputTap:stop() end) end
+  hs.settings.set("layout_pilot_last_status", reason or "stopped-by-user")
+  return true
 end
 
 local function layoutPilotToggleLayoutOnly()
@@ -621,7 +652,7 @@ local function layoutPilotHandleModifier(name, isDown, onlyModifier, requiredTap
   return false
 end
 
-local function layoutPilotResetModifierTaps()
+layoutPilotResetModifierTaps = function()
   for _, state in pairs(layoutPilotTapState) do
     state.down = false
     state.clean = false
@@ -658,14 +689,7 @@ local function layoutPilotHandleTypedKey(event)
   layoutPilotTrimBuffer()
 end
 
-layoutPilotInputTap = hs.eventtap.new(
-  {
-    layoutPilotEventTypes.flagsChanged,
-    layoutPilotEventTypes.keyDown,
-    layoutPilotEventTypes.leftMouseDown,
-    layoutPilotEventTypes.rightMouseDown,
-  },
-  function(event)
+local function layoutPilotHandleEvent(event)
     local marker = layoutPilotEventProperties.eventSourceUserData
       and event:getProperty(layoutPilotEventProperties.eventSourceUserData) or 0
     if marker == layoutPilotMarker then return false end
@@ -706,8 +730,35 @@ layoutPilotInputTap = hs.eventtap.new(
       hs.timer.doAfter(0.035, function() layoutPilotFix("option") end)
     end
     return false
-  end
-):start()
+end
+
+local function layoutPilotStartTap()
+  if layoutPilotInputTap then pcall(function() layoutPilotInputTap:stop() end) end
+  layoutPilotInputTap = hs.eventtap.new(
+    {
+      layoutPilotEventTypes.flagsChanged,
+      layoutPilotEventTypes.keyDown,
+      layoutPilotEventTypes.leftMouseDown,
+      layoutPilotEventTypes.rightMouseDown,
+    },
+    layoutPilotHandleEvent
+  ):start()
+  hs.settings.set("layout_pilot_last_status", "ready")
+  return layoutPilotInputTap and layoutPilotInputTap:isEnabled() or false
+end
+
+function layoutPilotRestart()
+  layoutPilotRunToken = layoutPilotRunToken + 1
+  hs.settings.set("layout_pilot_disabled_by_user", false)
+  layoutPilotReloadSettings()
+  return layoutPilotStartTap()
+end
+
+if hs.settings.get("layout_pilot_disabled_by_user") == true then
+  hs.settings.set("layout_pilot_last_status", "stopped-by-user")
+else
+  layoutPilotStartTap()
+end
 
 function layoutPilotQARange(value, caretUnits, phraseMode)
   return layoutPilotRangeForValue(value, caretUnits, phraseMode)
@@ -715,6 +766,30 @@ end
 
 function layoutPilotQAReplace(value, location, length, replacement)
   return layoutPilotReplaceRange(value, {location = location, length = length}, replacement)
+end
+
+function layoutPilotQADefaultFixMode()
+  return layoutPilotDefaultFixMode
+end
+
+function layoutPilotQARangeAtEnd(value, phraseMode)
+  local range = layoutPilotRangeForValue(value, layoutPilotUTF16Length(value), phraseMode)
+  if not range then return "nil" end
+  return tostring(range.location)
+    .. "|" .. tostring(range.length)
+    .. "|" .. layoutPilotStringForRange(value, range)
+end
+
+function layoutPilotQACanUseDirectAX(manualSelection, terminalInput, directAXReplacement)
+  local previous = layoutPilotSettings.directAXReplacement
+  layoutPilotSettings.directAXReplacement = directAXReplacement == true
+  local ok = layoutPilotCanUseDirectAX({
+    focused = {},
+    manualSelection = manualSelection == true,
+    terminalInput = terminalInput == true,
+  })
+  layoutPilotSettings.directAXReplacement = previous
+  return tostring(ok)
 end
 
 function layoutPilotQATrigger(modifier, taps)
@@ -789,12 +864,14 @@ function layoutPilotQASettings()
     .. "|" .. layoutPilotSettings.capitalizationMode
     .. "|" .. layoutPilotSettings.soundLevel
     .. "|" .. tostring(layoutPilotSettings.soundEnabled)
+    .. "|" .. tostring(layoutPilotSettings.phraseMode)
+    .. "|" .. tostring(layoutPilotSettings.directAXReplacement)
 end
 
 function layoutPilotQACompatibility()
   return layoutPilotCarambaRunning() and "caramba" or "language-relay"
 end
 
-hs.settings.set("layout_pilot_bridge_ver", "2.3.2")
+hs.settings.set("layout_pilot_bridge_ver", layoutPilotBridgeVersion)
 hs.settings.set("layout_pilot_last_status", hs.settings.get("layout_pilot_last_status") or "ready")
 -- layout-pilot:end
