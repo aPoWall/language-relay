@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta property="og:title" content="language relay – fix the wrong layout in one tap">
   <meta property="og:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta property="og:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=2">
+  <meta property="og:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=3">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="language relay converts ghbdtn into привет locally on macos">
@@ -17,7 +17,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="language relay – fix the wrong layout in one tap">
   <meta name="twitter:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta name="twitter:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=2">
+  <meta name="twitter:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=3">
   <link rel="canonical" href="https://apowall.github.io/language-relay/">
   <link rel="icon" href="favicon.svg" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
@@ -232,10 +232,10 @@
         <div>
           <div class="eyebrow i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · open source">macos utility · local by design · open source</div>
           <h1 class="i18n" data-en="typed in the wrong layout? don't retype it." data-ru="набрал не в той раскладке? не перепечатывай.">typed in the wrong layout? don't retype it.</h1>
-          <p class="lead i18n" data-en="double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word or phrase, switches the input source and leaves the cursor ready." data-ru="двойной shift превращает ghbdtn в привет прямо в текущем поле. language relay исправляет последнее слово или фразу, меняет раскладку и оставляет курсор на месте.">double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word or phrase, switches the input source and leaves the cursor ready.</p>
-          <p class="small-line i18n" data-en="double shift or clean option · no selection · no duplicate paste · verified write" data-ru="двойной shift или чистый option · без выделения · без дублей · проверенная запись">double shift or clean option · no selection · no duplicate paste · verified write</p>
+          <p class="lead i18n" data-en="double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready." data-ru="двойной shift превращает ghbdtn в привет прямо в текущем поле. language relay по умолчанию исправляет последнее слово, фразовый режим включается отдельно, раскладка меняется сама.">double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready.</p>
+          <p class="small-line i18n" data-en="double shift or clean option · no full-line overwrite · undo-friendly event route" data-ru="двойной shift или чистый option · без перезаписи строки · route дружит с undo">double shift or clean option · no full-line overwrite · undo-friendly event route</p>
           <div class="actions">
-            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.2" data-ru="скачать v2.3.2">download v2.3.2</a>
+            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.3" data-ru="скачать v2.3.3">download v2.3.3</a>
             <a class="button i18n" href="#live-demo" data-en="try it here ↓" data-ru="попробовать здесь ↓">try it here ↓</a>
           </div>
           <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
@@ -250,8 +250,8 @@
               <div class="demo-lab-row">
                 <span class="demo-lab-label">scope</span>
                 <div class="demo-controls" aria-label="demo correction scope">
-                  <button data-scope="phrase" aria-pressed="true">phrase · full tail</button>
-                  <button data-scope="word" aria-pressed="false">word · last token</button>
+                  <button data-scope="word" aria-pressed="true">word · last token</button>
+                  <button data-scope="phrase" aria-pressed="false">phrase · full tail</button>
                 </div>
               </div>
               <div class="demo-lab-row">
@@ -298,7 +298,7 @@
         <h2 class="i18n" data-en="one gesture repairs the tail of the thought." data-ru="один жест исправляет хвост мысли.">one gesture repairs the tail of the thought.</h2>
         <div class="steps">
           <article class="step"><span class="step-index">01 · type</span><strong class="i18n" data-en="finish the thought" data-ru="допиши мысль">finish the thought</strong><p class="i18n" data-en="keep writing when the active keyboard source is wrong. the text stays exactly where you typed it." data-ru="продолжай писать, когда активна другая раскладка. текст остаётся ровно там, где ты его набрал.">keep writing when the active keyboard source is wrong. the text stays exactly where you typed it.</p></article>
-          <article class="step"><span class="step-index">02 · relay</span><strong class="i18n" data-en="tap a clean gesture" data-ru="нажми чистый жест">tap a clean gesture</strong><p class="i18n" data-en="double shift or a clean option tap converts the latest language run without opening a window." data-ru="двойной shift или чистый option конвертирует последний языковой фрагмент без открытия окна.">double shift or a clean option tap converts the latest language run without opening a window.</p></article>
+          <article class="step"><span class="step-index">02 · relay</span><strong class="i18n" data-en="tap a clean gesture" data-ru="нажми чистый жест">tap a clean gesture</strong><p class="i18n" data-en="double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting." data-ru="двойной shift или чистый option конвертирует последнее слово без открытия окна. фразовый режим включается явно.">double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting.</p></article>
           <article class="step"><span class="step-index">03 · continue</span><strong class="i18n" data-en="stay at the cursor" data-ru="останься у курсора">stay at the cursor</strong><p class="i18n" data-en="the app verifies the write, switches the layout and leaves the insertion point ready for the next word." data-ru="приложение проверяет запись, меняет раскладку и оставляет курсор готовым к следующему слову.">the app verifies the write, switches the layout and leaves the insertion point ready for the next word.</p></article>
         </div>
       </section>
@@ -309,7 +309,7 @@
           <h2 class="i18n" data-en="small surface. explicit behavior." data-ru="маленькая панель. точное поведение.">small surface. explicit behavior.</h2>
           <p class="i18n" data-en="the menu bar shows the active alphabet. every setting names the exact part of the correction it changes." data-ru="меню показывает активный алфавит. каждая настройка прямо называет ту часть исправления, которую меняет.">the menu bar shows the active alphabet. every setting names the exact part of the correction it changes.</p>
           <figure class="panel-frame">
-            <img src="language-relay-panel.png" alt="language relay compact menu bar control panel" width="840" height="1044">
+            <img src="language-relay-panel.png" alt="language relay compact menu bar control panel" width="840" height="816">
             <figcaption class="panel-caption"><span>native control surface</span><span>swift · appkit</span></figcaption>
           </figure>
         </div>
@@ -318,8 +318,8 @@
           <div class="setting">
             <span class="setting-label">scope</span>
             <div class="choice-row">
-              <button class="choice" data-scope="phrase" aria-pressed="true"><strong>≋ phrase</strong><small class="i18n" data-en="last language-run tail" data-ru="последний фрагмент фразы">last language-run tail</small></button>
-              <button class="choice" data-scope="word" aria-pressed="false"><strong>_ word</strong><small class="i18n" data-en="one trailing token" data-ru="одно последнее слово">one trailing token</small></button>
+              <button class="choice" data-scope="word" aria-pressed="true"><strong>_ word</strong><small class="i18n" data-en="one trailing token" data-ru="одно последнее слово">one trailing token</small></button>
+              <button class="choice" data-scope="phrase" aria-pressed="false"><strong>≋ phrase</strong><small class="i18n" data-en="last language-run tail" data-ru="последний фрагмент фразы">last language-run tail</small></button>
             </div>
           </div>
           <div class="setting">
@@ -409,7 +409,7 @@
         <div class="section-label">06 · install</div>
         <h2 class="i18n" data-en="one command. ready for the next word." data-ru="одна команда. готово к следующему слову.">one command. ready for the next word.</h2>
         <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
-        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.2</div>
+        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.3</div>
       </section>
     </main>
 
@@ -451,7 +451,7 @@
     const demoInput = document.getElementById('demo-input');
     const demoReceipt = document.getElementById('demo-receipt');
     const demoDirection = document.getElementById('demo-direction');
-    let demoScope = 'phrase';
+    let demoScope = 'word';
     let demoCase = 'preserve';
     let demoSound = 'relay';
     const player = new Audio();

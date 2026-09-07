@@ -23,6 +23,7 @@ if (command === 'setup') run(binary, ['--setup']);
 if (command === 'doctor') run(binary, ['--doctor-json']);
 if (command === 'status') run(binary, ['--status-json']);
 if (command === 'capabilities') run(binary, ['--capabilities-json']);
+if (command === 'quit') run(binary, ['--quit']);
 if (command === 'convert') {
   if (args.length === 0) {
     console.error('usage: language-relay convert <text> [--capitalization preserve|sentence|uppercase|lowercase]');
@@ -32,13 +33,14 @@ if (command === 'convert') {
 }
 if (command === 'switch') run(binary, ['--switch']);
 
-console.log(`language relay 2.3.2
+console.log(`language relay 2.3.3
 
 commands:
   install                    build and install in ~/Applications
   setup                      configure local prerequisites and print a checklist
   convert <text>             convert text and return JSON
   switch                     switch U.S. ⇄ Russian–PC
+  quit                       stop the menu app and Hammerspoon repair bridge
   status                     current input source as JSON
   doctor                     local health as JSON
   capabilities               stable capability schema as JSON`);

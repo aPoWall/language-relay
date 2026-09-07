@@ -6,7 +6,7 @@ import Foundation
 
 private enum AppIdentity {
     static let name = "Language Relay"
-    static let version = "2.3.2"
+    static let version = "2.3.3"
     static let bundleID = "dev.alex.layout-pilot"
     static let launchAgentLabel = "dev.alex.layout-pilot"
     static let usID = "com.apple.keylayout.US"
@@ -673,15 +673,34 @@ private struct InstallationHealth {
     }
 }
 
+private enum RuntimeShutdown {
+    @discardableResult
+    static func run() -> Int32 {
+        _ = HammerspoonIPC.run(
+            "if layoutPilotShutdown then return tostring(layoutPilotShutdown('stopped-by-user')) else hs.settings.set('layout_pilot_disabled_by_user', true); return 'stopped-by-user' end"
+        )
+        _ = BoundedProcess.run(
+            "/bin/launchctl",
+            arguments: ["bootout", "gui/\(getuid())/\(AppIdentity.launchAgentLabel)"],
+            timeout: 0.50
+        )
+        return 0
+    }
+}
+
 private enum Setup {
     static func run() -> Int32 {
+        Preferences.migrateDefaultScope()
         _ = InputSources.enable(AppIdentity.usID)
         _ = InputSources.enable(AppIdentity.russianPCID)
         _ = BridgeConfiguration.addLoadLineIfNeeded()
 
         var bridgeHealth: HammerspoonHealth?
         if BridgeConfiguration.isLoaded, HammerspoonIPC.isAvailable {
-            _ = HammerspoonIPC.evaluate("hs.reload(); return 'reload-requested'", timeout: 0.25)
+            _ = HammerspoonIPC.evaluate(
+                "hs.settings.set('layout_pilot_disabled_by_user', false); hs.reload(); return 'reload-requested'",
+                timeout: 0.25
+            )
             bridgeHealth = waitForBridgeActivation()
         }
 
@@ -881,6 +900,21 @@ private final class LayoutConversionCore {
 private enum FixMode: String {
     case phrase
     case lastWord
+}
+
+private enum Preferences {
+    static let fixModeKey = "fixMode"
+    static let defaultFixMode = FixMode.lastWord
+    private static let defaultScopeMigrationKey = "migratedDefaultFixModeToLastWord.2.3.3"
+
+    static func migrateDefaultScope(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: defaultScopeMigrationKey) else { return }
+        let current = FixMode(rawValue: defaults.string(forKey: fixModeKey) ?? "")
+        if current == nil || current == .phrase {
+            defaults.set(defaultFixMode.rawValue, forKey: fixModeKey)
+        }
+        defaults.set(true, forKey: defaultScopeMigrationKey)
+    }
 }
 
 private struct PasteboardSnapshot {
@@ -1205,8 +1239,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var setupExpanded = false
 
     private var mode: FixMode {
-        get { FixMode(rawValue: defaults.string(forKey: "fixMode") ?? "phrase") ?? .phrase }
-        set { defaults.set(newValue.rawValue, forKey: "fixMode") }
+        get {
+            FixMode(rawValue: defaults.string(forKey: Preferences.fixModeKey) ?? Preferences.defaultFixMode.rawValue)
+                ?? Preferences.defaultFixMode
+        }
+        set { defaults.set(newValue.rawValue, forKey: Preferences.fixModeKey) }
     }
 
     private var soundEnabled: Bool {
@@ -1255,6 +1292,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        Preferences.migrateDefaultScope(defaults: defaults)
         enforceSingleInstance()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.enforceSingleInstance()
@@ -1264,7 +1302,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         setupStatusItem()
 
         monitor = DoubleShiftMonitor { [weak self] in self?.performFix() }
-        if !usesHammerspoonBridge { monitor.start() }
+        if usesHammerspoonBridge {
+            _ = HammerspoonIPC.run(
+                "if layoutPilotRestart then return tostring(layoutPilotRestart()) else hs.settings.set('layout_pilot_disabled_by_user', false); return tostring(layoutPilotReloadSettings()) end"
+            )
+        } else {
+            monitor.start()
+        }
         updateStatusButton()
         let timer = Timer(timeInterval: 0.6, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.updateStatusButton() }
@@ -1450,13 +1494,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         root.addArrangedSubview(sectionHeader("correction scope", width: LayoutPilotPanelMetrics.contentWidth))
         root.addArrangedSubview(ShaperSegmentedControl(
             items: [
+                .init("last word", help: "Repair the word before the cursor"),
                 .init("last phrase", help: "Repair the trailing language run"),
-                .init("last word", help: "Repair one token"),
             ],
-            selectedIndex: mode == .phrase ? 0 : 1,
+            selectedIndex: mode == .lastWord ? 0 : 1,
             width: LayoutPilotPanelMetrics.contentWidth
         ) { [weak self] index in
-            index == 0 ? self?.setPhraseMode() : self?.setLastWordMode()
+            index == 0 ? self?.setLastWordMode() : self?.setPhraseMode()
         })
 
         root.addArrangedSubview(sectionHeader("letter case", width: LayoutPilotPanelMetrics.contentWidth))
@@ -1582,7 +1626,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             let bridge = usesHammerspoonBridge ? "hammerspoon bridge" : "native bridge"
             message = "ready · \(bridge) · last \(bridgeStatus())"
         }
-        stack.addArrangedSubview(label(message, size: 8.1, weight: .semibold, color: UI.ink, width: 270, height: 14))
+        stack.addArrangedSubview(label(message, size: 8.1, weight: .semibold, color: UI.ink, width: 222, height: 14))
         stack.addArrangedSubview(flexSpacer())
         if !fixer.hasAccessibilityPermission && !carambaRunning {
             stack.addArrangedSubview(squareButton("open", action: #selector(openAccessibility), width: 54, height: 28))
@@ -1687,7 +1731,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         toggle.target = self
         menu.addItem(toggle)
         menu.addItem(.separator())
-        let quit = NSMenuItem(title: "quit language relay", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q")
+        let quit = NSMenuItem(title: "quit language relay", action: #selector(quitLanguageRelay), keyEquivalent: "q")
+        quit.target = self
         menu.addItem(quit)
         statusItem.menu = menu
         statusItem.button?.performClick(nil)
@@ -1714,6 +1759,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     @objc private func openPanelFromMenu() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in self?.showPopover() }
+    }
+
+    @objc private func quitLanguageRelay() {
+        DispatchQueue.global(qos: .userInitiated).async {
+            _ = RuntimeShutdown.run()
+            DispatchQueue.main.async { NSApp.terminate(nil) }
+        }
     }
 
     @objc private func toggleLayout() {
@@ -1890,6 +1942,9 @@ private struct LayoutPilotMain {
         if arguments.contains("--setup") {
             exit(Setup.run())
         }
+        if arguments.contains("--quit") {
+            exit(RuntimeShutdown.run())
+        }
         if arguments.contains("--status") {
             print("input=\(InputSources.currentID() ?? "unknown")")
             print("accessibility=\(AXIsProcessTrusted())")
@@ -1919,7 +1974,7 @@ private struct LayoutPilotMain {
                 "pair": [AppIdentity.usID, AppIdentity.russianPCID],
                 "scopes": ["word", "phrase"],
                 "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
-                "commands": ["convert", "convert-phrase", "switch", "status", "doctor", "setup"],
+                "commands": ["convert", "convert-phrase", "switch", "status", "doctor", "setup", "quit"],
                 "localOnly": true,
                 "textLogging": false,
             ])

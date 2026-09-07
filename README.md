@@ -10,11 +10,12 @@ Current pair: `U.S.` ⇄ `Russian – PC`. Conversion, settings, and the transie
 
 ## What ships
 
-- `⇧ ⇧` repairs the latest wrong-layout phrase or word;
+- `⇧ ⇧` repairs the latest wrong-layout word by default, with phrase repair as an explicit mode;
 - clean standalone `⌥` repairs text, or switches the layout when there is nothing to repair;
 - Option with Command, Shift, Control, or another key stays untouched;
 - Caps / Hyper switching can remain in Karabiner-Elements;
-- Accessibility replacement is read back before success is reported;
+- the default repair route uses normal edit events so editor undo stacks keep working in the common path;
+- direct Accessibility replacement is available as an opt-in compatibility fallback and is read back before success is reported;
 - guarded web/Electron fallback avoids duplicated text and restores the clipboard;
 - Orca and terminal inputs use a repeatable buffered path that never writes an Accessibility selection;
 - preserve, sentence, uppercase, and lowercase modes;
@@ -61,7 +62,7 @@ Requirements: macOS 13+, Apple Command Line Tools, [Hammerspoon](https://www.ham
 
 | Module | Choices |
 | --- | --- |
-| Scope | Last phrase · Last word |
+| Scope | Last word · Last phrase |
 | Case | `aA` Preserve · `Aa` Sentence · `AA` Uppercase · `aa` Lowercase |
 | Triggers | Double Shift · clean Option |
 | Feedback | Pulse · Relay · Scan · Flux · Prism · Tick · Fold · Nova |
@@ -79,6 +80,7 @@ language-relay setup
 language-relay status
 language-relay doctor
 language-relay capabilities
+language-relay quit
 language-relay switch
 ```
 
@@ -89,9 +91,12 @@ Direct native surface:
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --setup
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --doctor-json
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --capabilities-json
+"$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --quit
 ```
 
-The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename.
+The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename. Version 2.3.3 migrates the old phrase default to Last Word once; choose Last Phrase in the panel when you want the longer tail.
+
+Use `language-relay quit` or the menu-bar Quit item to stop both the menu app and the Hammerspoon repair bridge. Running `language-relay install` starts them again.
 
 ## Gesture ownership and Karabiner
 
@@ -109,6 +114,7 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 make test
 make install
 make integration-test
+make shutdown-test
 ```
 
 `make install` stages and validates the bundle before replacing the running copy. It stores the previous app, LaunchAgent, and Hammerspoon bridge under `~/Library/Application Support/Language Relay/Rollback/`; `make rollback` restores the latest snapshot.

@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.3 – 2026-09-07
+
+- changed the default correction scope to Last Word and added a one-time migration from the old phrase default;
+- routed standard repairs through undo-friendlier edit events by default, with direct AXValue writes left as an explicit compatibility fallback;
+- added background coverage for special-character suffixes, default scope, direct-AX routing, and bridge shutdown;
+- made menu-bar Quit and `language-relay quit` stop the Hammerspoon repair bridge instead of leaving the system gestures active;
+- refreshed the website copy and demo so word repair is the visible default.
+
 ## 2.3.2 – 2026-08-25
 
 - expanded doctor schema with input-source, Accessibility owner, Hammerspoon IPC, LaunchAgent, and app-process health;
