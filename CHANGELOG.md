@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.3.4 – 2026-09-12
+
+- applied the native-white G2 palette with bundled IBM Plex Mono, neutral controls and short active indicators;
+- fixed the panel at 420×488 points for both collapsed and expanded setup, with 8pt controls and a 16pt shell;
+- corrected false setup warnings by checking Hammerspoon's verified Accessibility/bridge state when it owns repair gestures;
+- separated the unchanged 2.3.3 bridge protocol from the native app version;
+- added six offscreen health/disclosure layouts and a background update lane with verified rollback copies before replacement.
+
 ## 2.3.3 – 2026-09-07
 
 - changed the default correction scope to Last Word and added a one-time migration from the old phrase default;

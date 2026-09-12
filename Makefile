@@ -6,6 +6,7 @@ BUILD_DIR := .build
 APP_DIR := $(BUILD_DIR)/$(APP_NAME).app
 BUILD_STAMP := $(BUILD_DIR)/.built
 SHAPERKIT := native/ShaperKit.swift
+FONT_FILES := assets/plex-mono-400.ttf assets/plex-mono-500.ttf assets/plex-mono-600.ttf assets/IBM-Plex-LICENSE.txt
 ICON_SOURCE := native/IconRenderer.swift
 ICON_RENDERER := $(BUILD_DIR)/IconRenderer
 ICONSET := $(BUILD_DIR)/LanguageRelay.iconset
@@ -33,14 +34,15 @@ $(ICON_FILE): $(ICON_SOURCE)
 	"$(ICON_RENDERER)" "$(ICONSET)"
 	iconutil -c icns "$(ICONSET)" -o "$(ICON_FILE)"
 
-$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) Info.plist $(ICON_FILE) $(SOUND_FILES)
+$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift $(FONT_FILES) Info.plist $(ICON_FILE) $(SOUND_FILES)
 	@test "$(words $(SOUND_FILES))" = "8" || (echo "expected exactly eight feedback sounds" >&2; exit 1)
 	rm -rf "$(APP_DIR)"
 	mkdir -p "$(APP_DIR)/Contents/MacOS" "$(APP_DIR)/Contents/Resources/Sounds"
 	cp Info.plist "$(APP_DIR)/Contents/Info.plist"
 	cp "$(ICON_FILE)" "$(APP_DIR)/Contents/Resources/LanguageRelay.icns"
+	cp $(FONT_FILES) "$(APP_DIR)/Contents/Resources/"
 	cp $(SOUND_FILES) "$(APP_DIR)/Contents/Resources/Sounds/"
-	swiftc -parse-as-library "$(SHAPERKIT)" native/LayoutPilot.swift \
+	swiftc -parse-as-library "$(SHAPERKIT)" native/NativeWhite.swift native/LayoutPilot.swift \
 		-framework AppKit \
 		-framework ApplicationServices \
 		-framework Carbon \
@@ -51,6 +53,7 @@ $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) Info.plist $(ICON_FILE) $(
 
 test: build
 	"$(APP_DIR)/Contents/MacOS/$(BIN_NAME)" --self-test
+	"$(APP_DIR)/Contents/MacOS/$(BIN_NAME)" --ui-self-test
 
 live-harness: $(BUILD_DIR)/LiveTextFieldHarness.app
 

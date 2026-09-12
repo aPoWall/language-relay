@@ -1,5 +1,13 @@
 # Asset licenses and provenance
 
+## IBM Plex Mono
+
+`assets/plex-mono-{400,500,600}.ttf` are IBM Plex Mono regular, medium and semibold,
+with Latin and Cyrillic coverage. Copied unchanged from Calendar Control's G2
+assets; those TTFs were losslessly decompressed from the product-system WOFF2
+files without changing outlines or naming tables. SIL Open Font License 1.1 is
+included as `assets/IBM-Plex-LICENSE.txt` and bundled with the fonts.
+
 ## Language Relay micro-SFX
 
 Files:

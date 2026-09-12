@@ -110,6 +110,15 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
+Native version 2.3.4 uses the G2 native-white profile: a fixed 420×488 panel,
+bundled IBM Plex Mono, and inline setup details. The bridge protocol remains
+2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.
+
+For an existing configured installation, `make test` followed by
+`./install-runtime.sh update-background` updates the app without opening setup
+or changing input sources. It requires an unchanged installed bridge and verifies
+the previous bundle and runtime files before replacement.
+
 ```bash
 make test
 make install
