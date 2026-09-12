@@ -6,7 +6,8 @@ import Foundation
 
 private enum AppIdentity {
     static let name = "Language Relay"
-    static let version = "2.3.3"
+    static let version = "2.3.4"
+    static let bridgeVersion = "2.3.3"
     static let bundleID = "dev.alex.layout-pilot"
     static let launchAgentLabel = "dev.alex.layout-pilot"
     static let usID = "com.apple.keylayout.US"
@@ -96,7 +97,7 @@ private struct HammerspoonHealth {
     let timedOut: Bool
 
     var bridgeActive: Bool {
-        ipcAvailable && inputTapEnabled && bridgeVersion == AppIdentity.version
+        ipcAvailable && inputTapEnabled && bridgeVersion == AppIdentity.bridgeVersion
     }
 }
 
@@ -488,7 +489,7 @@ private struct InstallationHealth {
     var bridgeVerificationBlockerCode: String {
         if bridgeHealth.timedOut { return "hammerspoon-ipc-timeout" }
         if !bridgeHealth.executableFound || !bridgeHealth.ipcAvailable { return "hammerspoon-ipc-unavailable" }
-        if bridgeHealth.bridgeVersion != AppIdentity.version { return "bridge-version-mismatch" }
+        if bridgeHealth.bridgeVersion != AppIdentity.bridgeVersion { return "bridge-version-mismatch" }
         return "bridge-not-active"
     }
 
@@ -529,7 +530,7 @@ private struct InstallationHealth {
                     fix: "Start or reload Hammerspoon. If needed, run hs.ipc.cliInstall() in the Hammerspoon console, then run: language-relay setup"
                 ))
             } else {
-                if bridgeHealth.bridgeVersion != AppIdentity.version {
+                if bridgeHealth.bridgeVersion != AppIdentity.bridgeVersion {
                     result.append(DoctorBlocker(
                         code: "bridge-version-mismatch",
                         message: "Hammerspoon is running a stale Language Relay bridge.",
@@ -1146,8 +1147,18 @@ private final class DoubleShiftMonitor {
 
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 420
-    static let height: CGFloat = 408
+    static let height: CGFloat = 488
     static let contentWidth: CGFloat = 388
+}
+
+private enum PanelHealth {
+    static func label(bridge: HammerspoonHealth?, nativeTrusted: Bool, competingOwner: Bool) -> String {
+        if competingOwner { return "paused · owner" }
+        if let bridge {
+            return bridge.bridgeActive && bridge.accessibilityTrusted == true ? "bridge · ready" : "setup · required"
+        }
+        return nativeTrusted ? "native · ready" : "setup · required"
+    }
 }
 
 private final class LayoutPilotRootView: NSView {
@@ -1237,6 +1248,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var previewSound: NSSound?
     private var lastObservedInputID: String?
     private var setupExpanded = false
+    private var panelBridgeHealth: HammerspoonHealth?
 
     private var mode: FixMode {
         get {
@@ -1298,7 +1310,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             self?.enforceSingleInstance()
         }
         NSApp.setActivationPolicy(.accessory)
-        UI.setMode(.light)
+        _ = RelayStyle.mono(11)
         setupStatusItem()
 
         monitor = DoubleShiftMonitor { [weak self] in self?.performFix() }
@@ -1416,7 +1428,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
         let next = NSPopover()
         next.behavior = .transient
-        next.animates = !UI.reduceMotion
+        next.animates = !RelayStyle.reduceMotion
         next.appearance = NSAppearance(named: .aqua)
         next.contentSize = controller.preferredContentSize
         next.contentViewController = controller
@@ -1429,7 +1441,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         popover?.contentViewController?.view = makePanelContent()
     }
 
-    private func makePanelContent() -> NSView {
+    private func makePanelContent(bridgeHealth: HammerspoonHealth? = nil) -> NSView {
         let content = LayoutPilotRootView(frame: NSRect(
             x: 0,
             y: 0,
@@ -1438,20 +1450,25 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         ))
         content.closeAction = { [weak self] in self?.popover?.performClose(nil) }
         content.wantsLayer = true
-        content.layer?.backgroundColor = UI.bg.cgColor
-        content.layer?.borderColor = UI.hair.cgColor
+        content.layer?.backgroundColor = RelayStyle.bg.cgColor
+        content.layer?.borderColor = RelayStyle.hair.cgColor
         content.layer?.borderWidth = 1
+        content.layer?.cornerRadius = 16
+        content.layer?.masksToBounds = true
+        content.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.width).isActive = true
+        content.heightAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.height).isActive = true
+        panelBridgeHealth = bridgeHealth ?? (usesHammerspoonBridge ? HammerspoonIPC.health() : nil)
 
         let root = NSStackView()
         root.orientation = .vertical
         root.alignment = .leading
-        root.spacing = 4
+        root.spacing = 8
         root.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(root)
         NSLayoutConstraint.activate([
             root.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
             root.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            root.topAnchor.constraint(equalTo: content.topAnchor, constant: 10),
+            root.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
             root.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -8),
         ])
 
@@ -1466,15 +1483,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         identity.orientation = .vertical
         identity.alignment = .leading
         identity.spacing = 0
-        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: UI.ink, width: 252, height: 23))
-        identity.addArrangedSubview(label("instrument 02 · local bridge · v\(AppIdentity.version)", size: 8.3, weight: .semibold, color: UI.muted, width: 252, height: 12))
+        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: 252, height: 23))
+        identity.addArrangedSubview(label("local · v\(AppIdentity.version)", size: 8.3, weight: .semibold, color: RelayStyle.muted, width: 252, height: 12))
         header.addArrangedSubview(identity)
         header.addArrangedSubview(flexSpacer())
-        header.addArrangedSubview(stateReadout(panelHealthLabel, width: 118, height: 28, textSize: 8.4))
+        header.addArrangedSubview(stateReadout(panelHealthLabel, width: 118, height: 28, textSize: 10))
         root.addArrangedSubview(header)
         root.addArrangedSubview(hairLine(width: LayoutPilotPanelMetrics.contentWidth))
 
-        root.addArrangedSubview(sectionHeader("active layout", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(relaySectionHeader("active layout", width: LayoutPilotPanelMetrics.contentWidth))
         let layoutRow = NSStackView()
         layoutRow.orientation = .horizontal
         layoutRow.alignment = .centerY
@@ -1491,8 +1508,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         layoutRow.addArrangedSubview(toggle)
         root.addArrangedSubview(layoutRow)
 
-        root.addArrangedSubview(sectionHeader("correction scope", width: LayoutPilotPanelMetrics.contentWidth))
-        root.addArrangedSubview(ShaperSegmentedControl(
+        root.addArrangedSubview(relaySectionHeader("correction scope", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(RelaySegmentedControl(
             items: [
                 .init("last word", help: "Repair the word before the cursor"),
                 .init("last phrase", help: "Repair the trailing language run"),
@@ -1503,14 +1520,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             index == 0 ? self?.setLastWordMode() : self?.setPhraseMode()
         })
 
-        root.addArrangedSubview(sectionHeader("letter case", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(relaySectionHeader("letter case", width: LayoutPilotPanelMetrics.contentWidth))
         let caseIndex: Int = switch capitalization {
         case .preserve: 0
         case .sentence: 1
         case .uppercase: 2
         case .lowercase: 3
         }
-        root.addArrangedSubview(ShaperSegmentedControl(
+        root.addArrangedSubview(RelaySegmentedControl(
             items: [
                 .init("aA preserve", help: "Keep original capitalization", preservesCase: true),
                 .init("Aa sentence", help: "Uppercase the first letter", preservesCase: true),
@@ -1524,7 +1541,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             self?.setCapitalization(values[index])
         })
 
-        root.addArrangedSubview(sectionHeader("triggers · standalone modifier taps", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(relaySectionHeader("repair gestures", width: LayoutPilotPanelMetrics.contentWidth))
         let triggerRow = NSStackView()
         triggerRow.orientation = .horizontal
         triggerRow.spacing = 6
@@ -1538,13 +1555,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         triggerRow.addArrangedSubview(option)
         root.addArrangedSubview(triggerRow)
 
-        root.addArrangedSubview(sectionHeader("feedback · cue + level", width: LayoutPilotPanelMetrics.contentWidth))
+        root.addArrangedSubview(relaySectionHeader("sound + volume", width: LayoutPilotPanelMetrics.contentWidth))
         let feedbackRow = NSStackView()
         feedbackRow.orientation = .horizontal
         feedbackRow.spacing = 6
         let cueLabel = soundEnabled ? "cue · \(soundName) · ▾" : "cue · muted · ▾"
         let cue = squareButton(cueLabel, action: #selector(showSoundMenu(_:)), width: 191, height: 32)
-        cue.isActive = soundEnabled
         cue.setAccessibilityHelp("Choose one of eight feedback cues")
         feedbackRow.addArrangedSubview(cue)
         let levelIndex: Int = switch soundLevel {
@@ -1553,7 +1569,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         case .balanced: 2
         case .full: 3
         }
-        feedbackRow.addArrangedSubview(ShaperSegmentedControl(
+        feedbackRow.addArrangedSubview(RelaySegmentedControl(
             items: [
                 .init("00", help: "Mute feedback"),
                 .init("25", help: "Low feedback level"),
@@ -1571,30 +1587,28 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         root.addArrangedSubview(setupDisclosure())
 
         root.addArrangedSubview(label(
-            "caps · switch   ⇧⇧ / clean ⌥ · repair   esc · close",
+            "⇧⇧ / clean ⌥ · repair       esc · close",
             size: 8.0,
             weight: .semibold,
-            color: UI.muted,
+            color: RelayStyle.muted,
             height: 13
         ))
         return content
     }
 
     private var panelHealthLabel: String {
-        if carambaRunning { return "paused · owner" }
-        if !fixer.hasAccessibilityPermission { return "setup · required" }
-        return usesHammerspoonBridge ? "bridge · ready" : "native · ready"
+        PanelHealth.label(bridge: panelBridgeHealth, nativeTrusted: fixer.hasAccessibilityPermission, competingOwner: carambaRunning)
     }
 
     private func setupDisclosure() -> NSView {
         let host = NSView()
         host.translatesAutoresizingMaskIntoConstraints = false
         host.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
-        host.heightAnchor.constraint(equalToConstant: 48).isActive = true
+        host.heightAnchor.constraint(equalToConstant: 64).isActive = true
 
         if !setupExpanded {
             let suffix = panelHealthLabel.contains("required") || carambaRunning ? "action · show" : "ready · show"
-            let button = squareButton("setup + blockers · \(suffix)", action: #selector(toggleSetupDisclosure), width: LayoutPilotPanelMetrics.contentWidth, height: 32)
+            let button = squareButton("setup · \(suffix)", action: #selector(toggleSetupDisclosure), width: LayoutPilotPanelMetrics.contentWidth, height: 32)
             button.setAccessibilityHelp("Show setup and blocker details")
             host.addSubview(button)
             button.topAnchor.constraint(equalTo: host.topAnchor).isActive = true
@@ -1602,9 +1616,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         }
 
         host.wantsLayer = true
-        host.layer?.backgroundColor = UI.fill.cgColor
-        host.layer?.borderColor = UI.hair.cgColor
-        host.layer?.borderWidth = 1
+        host.layer?.backgroundColor = RelayStyle.fill.cgColor
+        host.layer?.borderColor = RelayStyle.hair.cgColor
+        host.layer?.cornerRadius = 8
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
@@ -1620,15 +1634,23 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let message: String
         if carambaRunning {
             message = "blocked · caramba owns repair gestures"
-        } else if !fixer.hasAccessibilityPermission {
-            message = "blocked · accessibility permission required"
+        } else if let health = panelBridgeHealth, !health.bridgeActive || health.accessibilityTrusted != true {
+            if health.timedOut { message = "Hammerspoon · connection timed out" }
+            else if !health.ipcAvailable { message = "Hammerspoon · connection unavailable" }
+            else if health.accessibilityTrusted != true { message = "Hammerspoon · Accessibility required" }
+            else { message = "Hammerspoon · reload bridge" }
+        } else if !usesHammerspoonBridge && !fixer.hasAccessibilityPermission {
+            message = "Language Relay · Accessibility required"
         } else {
             let bridge = usesHammerspoonBridge ? "hammerspoon bridge" : "native bridge"
             message = "ready · \(bridge) · last \(bridgeStatus())"
         }
-        stack.addArrangedSubview(label(message, size: 8.1, weight: .semibold, color: UI.ink, width: 222, height: 14))
+        let detail = label(message, size: 10, weight: .regular, color: RelayStyle.ink, width: 222, height: 40)
+        detail.maximumNumberOfLines = 3
+        detail.lineBreakMode = .byWordWrapping
+        stack.addArrangedSubview(detail)
         stack.addArrangedSubview(flexSpacer())
-        if !fixer.hasAccessibilityPermission && !carambaRunning {
+        if (usesHammerspoonBridge ? panelBridgeHealth?.accessibilityTrusted == false : !fixer.hasAccessibilityPermission) && !carambaRunning {
             stack.addArrangedSubview(squareButton("open", action: #selector(openAccessibility), width: 54, height: 28))
         }
         let hide = squareButton("hide", action: #selector(toggleSetupDisclosure), width: 54, height: 28)
@@ -1647,7 +1669,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         centered: Bool = false
     ) -> NSTextField {
         let field = NSTextField(labelWithString: text.lowercased())
-        field.font = UI.mono(size, weight: weight)
+        field.font = RelayStyle.mono(size, weight: weight)
         field.textColor = color
         field.alignment = centered ? .center : .left
         field.lineBreakMode = .byTruncatingTail
@@ -1657,9 +1679,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         return field
     }
 
-    private func squareButton(_ title: String, action: Selector, width: CGFloat, height: CGFloat) -> ShaperButton {
-        let button = ShaperButton(title, target: self, action: action, width: width, height: height)
-        button.layer?.cornerRadius = 0
+    private func squareButton(_ title: String, action: Selector, width: CGFloat, height: CGFloat) -> RelayButton {
+        let button = RelayButton(title, target: self, action: action, width: width, height: height)
         return button
     }
 
@@ -1667,12 +1688,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let view = NSView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.wantsLayer = true
-        view.layer?.backgroundColor = UI.ink.cgColor
-        view.layer?.borderColor = UI.ink.cgColor
+        view.layer?.backgroundColor = RelayStyle.card.cgColor
+        view.layer?.cornerRadius = 8
+        view.layer?.borderColor = RelayStyle.card.cgColor
         view.layer?.borderWidth = 1
         view.widthAnchor.constraint(equalToConstant: width).isActive = true
         view.heightAnchor.constraint(equalToConstant: height).isActive = true
-        let text = label(title, size: textSize, weight: .semibold, color: UI.bg, width: width - 20, height: 18, centered: true)
+        let text = label(title, size: textSize, weight: .medium, color: RelayStyle.ink, width: width - 20, height: 18, centered: true)
         text.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(text)
         NSLayoutConstraint.activate([
@@ -1693,22 +1715,52 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     func runBackgroundUISelfTest() -> Bool {
-        UI.setMode(.light)
-        let panel = makePanelContent()
-        panel.layoutSubtreeIfNeeded()
+        _ = RelayStyle.mono(11)
+        let healthy = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: "ready", timedOut: false)
+        let denied = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: false, inputTapEnabled: false, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: nil, timedOut: false)
+        let unavailable = HammerspoonHealth(ipcAvailable: false, executableFound: true, accessibilityTrusted: nil, inputTapEnabled: false, bridgeVersion: nil, lastStatus: nil, timedOut: true)
+        guard PanelHealth.label(bridge: healthy, nativeTrusted: false, competingOwner: false) == "bridge · ready",
+              PanelHealth.label(bridge: denied, nativeTrusted: true, competingOwner: false) == "setup · required",
+              PanelHealth.label(bridge: unavailable, nativeTrusted: true, competingOwner: false) == "setup · required",
+              PanelHealth.label(bridge: nil, nativeTrusted: false, competingOwner: false) == "setup · required",
+              PanelHealth.label(bridge: nil, nativeTrusted: true, competingOwner: false) == "native · ready",
+              PanelHealth.label(bridge: healthy, nativeTrusted: true, competingOwner: true) == "paused · owner"
+        else { return false }
+        for weight: NSFont.Weight in [.regular, .medium, .semibold] {
+            guard RelayStyle.mono(11, weight: weight).fontName.hasPrefix("IBMPlexMono") else { return false }
+        }
+        for health in [healthy, denied, unavailable] {
+            for expanded in [false, true] {
+                setupExpanded = expanded
+                let panel = makePanelContent(bridgeHealth: health)
+                panel.layoutSubtreeIfNeeded()
+                var labels = Set<String>()
+                func validate(_ view: NSView) -> Bool {
+                    let rect = view.convert(view.bounds, to: panel)
+                    guard panel.bounds.insetBy(dx: -0.5, dy: -0.5).contains(rect) else {
+                        fputs("FAIL: UI overflow \(type(of: view)) \(rect)\n", stderr); return false
+                    }
+                    if let button = view as? RelayButton {
+                        guard let label = button.accessibilityLabel(), !label.isEmpty, labels.insert(label).inserted else { return false }
+                    }
+                    if let group = view as? RelaySegmentedControl {
+                        guard group.segmentButtons.filter({ $0.isActive }).count == 1 else { return false }
+                    }
+                    return view.subviews.allSatisfy(validate)
+                }
+                guard panel.frame.size == NSSize(width: LayoutPilotPanelMetrics.width, height: LayoutPilotPanelMetrics.height),
+                      panel.window == nil, validate(panel) else { return false }
+            }
+        }
+        setupExpanded = false
         let glyph = LayoutPilotStatusGlyph.make(russianActive: false)
-        return panel.frame.size == NSSize(
-            width: LayoutPilotPanelMetrics.width,
-            height: LayoutPilotPanelMetrics.height
-        )
-            && panel.window == nil
-            && !panel.subviews.isEmpty
-            && glyph.size == NSSize(width: 54, height: 18)
+        return glyph.size == NSSize(width: 54, height: 18)
             && glyph.isTemplate
     }
 
     func renderBackgroundUIPreview(to url: URL) -> Bool {
-        UI.setMode(.light)
+        _ = RelayStyle.mono(11)
+        setupExpanded = CommandLine.arguments.contains("--expanded")
         let panel = makePanelContent()
         panel.layoutSubtreeIfNeeded()
         guard let bitmap = panel.bitmapImageRepForCachingDisplay(in: panel.bounds) else { return false }
@@ -1786,7 +1838,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         setupExpanded.toggle()
         rebuildPopoverContent()
     }
-    @objc private func showSoundMenu(_ sender: ShaperButton) {
+    @objc private func showSoundMenu(_ sender: RelayButton) {
         let choices: [(FeedbackSound, Selector)] = [
             (.pulse, #selector(setSoundPulse)),
             (.relay, #selector(setSoundRelay)),
@@ -1857,7 +1909,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     @objc private func openAccessibility() {
-        fixer.requestAccessibilityPermission()
+        if !usesHammerspoonBridge { fixer.requestAccessibilityPermission() }
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }
@@ -2011,7 +2063,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; panel=420x408; glyph=54x18; window=none")
+            print("PASS: background UI self-test; 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {

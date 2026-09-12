@@ -64,8 +64,13 @@ case "$action" in
     stage_install
     print "PASS: install staging, signature, LaunchAgent, and bridge"
     ;;
-  install)
+  install|update-background)
     stage_install
+    if [[ "$action" == update-background ]]; then
+      # An existing healthy runtime can be updated without interactive setup.
+      [[ -d "$installed_app" && -f "$agent_dest" && -f "$bridge_dest" && -f "$bridge_marker" ]]
+      /usr/bin/cmp "$bridge_source" "$bridge_dest"
+    fi
     snapshot="$rollback_root/$(/bin/date -u +%Y%m%dT%H%M%SZ)"
     /bin/mkdir -p "$snapshot" "$HOME/Applications" "$HOME/Library/LaunchAgents" \
       "$HOME/Library/Logs/layout-pilot" "$bridge_dir"
@@ -83,6 +88,14 @@ case "$action" in
     fi
     [[ ! -f "$bridge_marker" ]] || /usr/bin/touch "$snapshot/had-marker"
 
+    # Verify the recovery copy before replacing any runtime artifact.
+    if flagged "$snapshot" had-app; then
+      /usr/bin/diff -qr "$installed_app" "$snapshot/$app_name"
+      /usr/bin/codesign --verify --deep --strict "$snapshot/$app_name"
+    fi
+    if flagged "$snapshot" had-agent; then /usr/bin/cmp "$agent_dest" "$snapshot/$label.plist"; fi
+    if flagged "$snapshot" had-bridge; then /usr/bin/cmp "$bridge_dest" "$snapshot/hammerspoon.lua"; fi
+
     restore_on_error=true
     /bin/launchctl bootout "$launch_target" 2>/dev/null || true
     /bin/rm -rf "$installed_app"
@@ -96,7 +109,7 @@ case "$action" in
 	    /bin/launchctl enable "$launch_target"
 	    /bin/launchctl kickstart -k "$launch_target"
 	    restore_on_error=false
-	    "$installed_app/Contents/MacOS/LanguageRelay" --setup
+	    if [[ "$action" == install ]]; then "$installed_app/Contents/MacOS/LanguageRelay" --setup; fi
 	    print "installed; rollback snapshot: $snapshot"
 	    ;;
   rollback)
@@ -107,7 +120,7 @@ case "$action" in
     print "restored: $snapshot"
     ;;
   *)
-    print -u2 "usage: $0 install|preflight|rollback"
+    print -u2 "usage: $0 install|update-background|preflight|rollback"
     exit 2
     ;;
 esac
