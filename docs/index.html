@@ -13,6 +13,8 @@
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="language relay converts ghbdtn into привет locally on macos">
   <meta property="og:type" content="website">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:locale:alternate" content="ru_RU">
   <meta property="og:url" content="https://apps.aimindset.org/language-relay/">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="language relay – fix the wrong layout in one tap">
@@ -217,6 +219,23 @@
     @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   </style>
   <link rel="stylesheet" href="native-white.css">
+  <style>
+    .features { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--line); background:var(--line); gap:1px; }
+    .features .step { min-height:200px; }
+    .sub { border-top:1px solid var(--line); padding:64px 0 0; margin-top:64px; }
+    .install-steps { max-width:620px; margin:26px auto 0; padding:0 0 0 20px; text-align:left; color:var(--muted); font-size:14px; line-height:1.7; display:grid; gap:8px; }
+    .install-steps strong,.install-steps code { color:var(--ink); }
+    .install-steps code { background:var(--wash); padding:1px 6px; border-radius:4px; font-size:12px; }
+    .install-links { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:22px; }
+    .voxel-stage { width:176px; height:176px; display:grid; place-items:center; }
+    .voxel-stage img { width:140px; height:140px; }
+    .voxel-stage svg { width:100%; height:100%; display:block; }
+    .voxel-stage:focus-visible { outline:2px solid var(--signal); outline-offset:6px; }
+    @media (max-width:940px) { .features { grid-template-columns:repeat(2,1fr); } }
+    @media (max-width:620px) { .features { grid-template-columns:1fr; } .sub { padding-top:48px; margin-top:48px; } }
+  </style>
+  <script src="design/aim-i18n.js"></script>
+  <script src="design/aim-voxel.js" defer></script>
 </head>
 <body id="top">
   <div class="shell">
@@ -235,15 +254,14 @@
           <div class="eyebrow i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · open source">macos utility · local by design · open source</div>
           <h1 class="i18n" data-en="typed in the wrong layout? don't retype it." data-ru="набрал не в той раскладке? не перепечатывай.">typed in the wrong layout? don't retype it.</h1>
           <p class="lead i18n" data-en="double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready." data-ru="двойной shift превращает ghbdtn в привет прямо в текущем поле. language relay по умолчанию исправляет последнее слово, фразовый режим включается отдельно, раскладка меняется сама.">double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready.</p>
-          <p class="small-line i18n" data-en="double shift or clean option · last word by default · native edit events" data-ru="двойной shift или чистый option · последнее слово по умолчанию · обычные события редактирования">double shift or clean option · last word by default · native edit events</p>
+          <p class="small-line i18n" data-en="double shift or clean option · last word by default · native edit events · v2.3.6" data-ru="двойной shift или чистый option · последнее слово по умолчанию · обычные события редактирования · v2.3.6">double shift or clean option · last word by default · native edit events · v2.3.6</p>
           <div class="actions">
-            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.5" data-ru="скачать v2.3.5">download v2.3.5</a>
+            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.6" data-ru="скачать v2.3.6">download v2.3.6</a>
             <a class="button i18n" href="#live-demo" data-en="try it here ↓" data-ru="попробовать здесь ↓">try it here ↓</a>
           </div>
           <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
-          <div class="suite-voxel suite-hero-voxel" aria-hidden="true"><img src="voxel-relay.svg" alt=""><div class="suite-caption"><span>two alphabets · one thought</span><b>relay</b></div></div>
+          <div class="suite-voxel suite-hero-voxel"><div class="voxel-stage" id="relay-mark" data-voxel="relay"><img src="voxel-relay.svg" alt="relay voxel character" width="140" height="140"></div><div class="suite-caption"><span class="i18n" data-en="two alphabets · one thought · click to reassemble" data-ru="два алфавита · одна мысль · клик собирает заново">two alphabets · one thought · click to reassemble</span><b>relay</b></div></div>
         </div>
-
         <div class="demo" id="live-demo" aria-label="interactive keyboard layout relay demo">
           <div class="demo-head"><span>live browser demo · same key map</span><span id="demo-direction">u.s. → russian–pc</span></div>
           <div class="demo-body">
@@ -296,9 +314,9 @@
 
       <div class="trust" aria-label="privacy and product properties"><span class="i18n" data-en="local only" data-ru="только локально">local only</span><span class="i18n" data-en="no account" data-ru="без аккаунта">no account</span><span class="i18n" data-en="no ads" data-ru="без рекламы">no ads</span><span class="i18n" data-en="no telemetry" data-ru="без телеметрии">no telemetry</span><span>mit · open source</span></div>
 
-      <section>
-        <div class="section-label">01 · the relay</div>
-        <h2 class="i18n" data-en="one gesture repairs the tail of the thought." data-ru="один жест исправляет хвост мысли.">one gesture repairs the tail of the thought.</h2>
+      <section id="example">
+        <div class="section-label">01 · one example</div>
+        <h2 class="i18n" data-en="ghbdtn? vbh becomes привет? мир. one gesture repairs the tail of the thought." data-ru="ghbdtn? vbh становится привет? мир. один жест исправляет хвост мысли.">ghbdtn? vbh becomes привет? мир. one gesture repairs the tail of the thought.</h2>
         <div class="steps">
           <article class="step"><span class="step-index">01 · type</span><strong class="i18n" data-en="finish the thought" data-ru="допиши мысль">finish the thought</strong><p class="i18n" data-en="keep writing when the active keyboard source is wrong. the text stays exactly where you typed it." data-ru="продолжай писать, когда активна другая раскладка. текст остаётся ровно там, где ты его набрал.">keep writing when the active keyboard source is wrong. the text stays exactly where you typed it.</p></article>
           <article class="step"><span class="step-index">02 · relay</span><strong class="i18n" data-en="tap a clean gesture" data-ru="нажми чистый жест">tap a clean gesture</strong><p class="i18n" data-en="double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting." data-ru="двойной shift или чистый option конвертирует последнее слово без открытия окна. фразовый режим включается явно.">double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting.</p></article>
@@ -306,13 +324,23 @@
         </div>
       </section>
 
-      <section class="control-grid">
+      <section id="features">
+        <div class="section-label">02 · features</div>
+        <h2 class="i18n" data-en="small surface. explicit behavior. a contract for agents." data-ru="маленькая панель. точное поведение. контракт для агентов.">small surface. explicit behavior. a contract for agents.</h2>
+        <div class="features">
+          <article class="step"><span class="step-index">01 · scope</span><strong class="i18n" data-en="word or phrase" data-ru="слово или фраза">word or phrase</strong><p class="i18n" data-en="the last word is repaired by default. phrase repair is a visible setting in the panel." data-ru="по умолчанию исправляется последнее слово. фразовый режим включается в панели явно.">the last word is repaired by default. phrase repair is a visible setting in the panel.</p></article>
+          <article class="step"><span class="step-index">02 · gestures</span><strong class="i18n" data-en="clean double shift or option" data-ru="чистый двойной shift или option">clean double shift or option</strong><p class="i18n" data-en="two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet." data-ru="два системных жеста, оба отключаемые, оба без открытия окна. меню показывает активный алфавит.">two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet.</p></article>
+          <article class="step"><span class="step-index">03 · case + cues</span><strong class="i18n" data-en="four case modes, eight cues" data-ru="четыре режима регистра, восемь сигналов">four case modes, eight cues</strong><p class="i18n" data-en="preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels." data-ru="сохранить, предложение, верхний или нижний. короткие звуковые сигналы 75–200 мс и четыре уровня громкости.">preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels.</p></article>
+          <article class="step"><span class="step-index">04 · live mark</span><strong class="i18n" data-en="the character lives in the app" data-ru="персонаж живёт в приложении">the character lives in the app</strong><p class="i18n" data-en="the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still." data-ru="воксельный relay стоит в шапке панели и в строке меню, следует за курсором и собирается заново по клику. reduce motion оставляет его неподвижным.">the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still.</p></article>
+        </div>
+
+      <div class="control-grid sub">
         <div class="control-copy">
-          <div class="section-label">02 · precise controls</div>
+          <div class="section-label">02.1 · precise controls</div>
           <h2 class="i18n" data-en="small surface. explicit behavior." data-ru="маленькая панель. точное поведение.">small surface. explicit behavior.</h2>
           <p class="i18n" data-en="the menu bar shows the active alphabet. every setting names the exact part of the correction it changes." data-ru="меню показывает активный алфавит. каждая настройка прямо называет ту часть исправления, которую меняет.">the menu bar shows the active alphabet. every setting names the exact part of the correction it changes.</p>
           <figure class="panel-frame">
-            <img src="language-relay-panel.png?v=235" alt="Language Relay native white menu bar control panel" width="840" height="976">
+            <img src="language-relay-panel.png?v=236" alt="Language Relay native white menu bar control panel" width="840" height="976">
             <figcaption class="panel-caption"><span>native control surface</span><span>swift · appkit</span></figcaption>
           </figure>
         </div>
@@ -349,11 +377,11 @@
             </div>
           </div>
         </div>
-      </section>
+      </div>
 
-      <section class="agent-grid">
+      <div class="agent-grid sub">
         <div>
-          <div class="section-label">03 · built for agents</div>
+          <div class="section-label">02.2 · built for agents</div>
           <h2 class="i18n" data-en="a keyboard tool with a machine-readable contract." data-ru="клавиатурный инструмент с машиночитаемым контрактом.">a keyboard tool with a machine-readable contract.</h2>
           <p class="agent-copy i18n" data-en="agents get deterministic conversion, readiness checks, stable capabilities and useful exit status. conversion returns the requested text; diagnostic receipts contain no typed content." data-ru="агенты получают детерминированную конвертацию, проверку готовности, стабильные capabilities и полезные exit status. команда конвертации возвращает запрошенный текст; диагностические receipts не содержат введённый текст.">agents get deterministic conversion, readiness checks, stable capabilities and useful exit status. conversion returns the requested text; diagnostic receipts contain no typed content.</p>
           <div class="agent-points">
@@ -374,11 +402,43 @@
 <span class="signal">$</span> language-relay capabilities
 {"scopes":["word","phrase"],"localOnly":true}</code></pre>
         </div>
+      </div>
+
+        <div class="sub">
+          <div class="section-label">02.3 · relay signals</div>
+          <h2 class="i18n" data-en="eight short signals. one clear receipt." data-ru="восемь коротких сигналов. один ясный результат.">eight short signals. one clear receipt.</h2>
+        <div class="sound-grid" id="sound-grid">
+          <button class="sound-pad" data-sound="pulse" aria-pressed="false"><small>01 · 110ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>pulse</strong></button>
+          <button class="sound-pad" data-sound="relay" aria-pressed="true"><small>02 · 140ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>relay</strong></button>
+          <button class="sound-pad" data-sound="scan" aria-pressed="false"><small>03 · 170ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>scan</strong></button>
+          <button class="sound-pad" data-sound="flux" aria-pressed="false"><small>04 · 200ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>flux</strong></button>
+          <button class="sound-pad" data-sound="prism" aria-pressed="false"><small>05 · 120ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>prism</strong></button>
+          <button class="sound-pad" data-sound="tick" aria-pressed="false"><small>06 · 075ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>tick</strong></button>
+          <button class="sound-pad" data-sound="fold" aria-pressed="false"><small>07 · 145ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>fold</strong></button>
+          <button class="sound-pad" data-sound="nova" aria-pressed="false"><small>08 · 180ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>nova</strong></button>
+        </div>
+        </div>
+      </section>
+
+      <section class="install-section" id="install">
+        <div class="section-label">03 · install</div>
+        <h2 class="i18n" data-en="one command. ready for the next word." data-ru="одна команда. готово к следующему слову.">one command. ready for the next word.</h2>
+        <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
+        <ol class="install-steps">
+          <li class="i18n" data-en="run the command above. it builds the app from source and installs it into ~/Applications with a launch agent." data-ru="выполни команду выше. она соберёт приложение из исходников и установит его в ~/Applications вместе с launch agent.">run the command above. it builds the app from source and installs it into ~/Applications with a launch agent.</li>
+          <li class="i18n" data-en="approve accessibility access when macos asks. the app needs it to repair the focused field." data-ru="разреши accessibility, когда macos спросит. без него приложение не сможет исправить активное поле.">approve accessibility access when macos asks. the app needs it to repair the focused field.</li>
+          <li class="i18n" data-en="type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet." data-ru="набери ghbdtn в любом поле и нажми двойной shift. знак в строке меню покажет активный алфавит.">type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet.</li>
+        </ol>
+        <div class="install-links">
+          <a class="button i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="github release · v2.3.6" data-ru="релиз на github · v2.3.6">github release · v2.3.6</a>
+          <a class="button i18n" href="https://github.com/aPoWall/language-relay/blob/main/CHANGELOG.md" data-en="what changed" data-ru="что изменилось">what changed</a>
+        </div>
+        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.6 · <span class="i18n" data-en="update an existing install: make test && ./install-runtime.sh update-background" data-ru="обновление установленной версии: make test && ./install-runtime.sh update-background">update an existing install: make test && ./install-runtime.sh update-background</span></div>
       </section>
 
       <section class="privacy-grid">
         <div>
-          <div class="section-label">04 · local by design</div>
+          <div class="section-label">04 · privacy · local by design</div>
           <h2 class="i18n" data-en="your text stays on your mac." data-ru="твой текст остаётся на mac.">your text stays on your mac.</h2>
           <p class="privacy-copy i18n" data-en="language relay runs as a small native menu bar app. it needs accessibility access to repair the focused field. there is no account, advertising surface, analytics sdk or cloud processing path." data-ru="language relay работает как маленькое нативное приложение в меню. accessibility нужен для исправления активного поля. здесь нет аккаунта, рекламной поверхности, analytics sdk и облачной обработки.">language relay runs as a small native menu bar app. it needs accessibility access to repair the focused field. there is no account, advertising surface, analytics sdk or cloud processing path.</p>
         </div>
@@ -392,54 +452,29 @@
           <p class="pair-note i18n" data-en="current release: u.s. ⇄ russian–pc. the engine uses explicit verified layout pairs, so every future language pair can ship with its own deterministic map and tests." data-ru="текущая версия: u.s. ⇄ russian–pc. движок использует явные проверенные пары раскладок, поэтому каждая следующая языковая пара получит собственную детерминированную карту и тесты.">current release: u.s. ⇄ russian–pc. the engine uses explicit verified layout pairs, so every future language pair can ship with its own deterministic map and tests.</p>
         </div>
       </section>
-
-      <section>
-        <div class="section-label">05 · micro feedback</div>
-        <h2 class="i18n" data-en="eight short signals. one clear receipt." data-ru="восемь коротких сигналов. один ясный результат.">eight short signals. one clear receipt.</h2>
-        <div class="sound-grid" id="sound-grid">
-          <button class="sound-pad" data-sound="pulse" aria-pressed="false"><small>01 · 110ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>pulse</strong></button>
-          <button class="sound-pad" data-sound="relay" aria-pressed="true"><small>02 · 140ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>relay</strong></button>
-          <button class="sound-pad" data-sound="scan" aria-pressed="false"><small>03 · 170ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>scan</strong></button>
-          <button class="sound-pad" data-sound="flux" aria-pressed="false"><small>04 · 200ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>flux</strong></button>
-          <button class="sound-pad" data-sound="prism" aria-pressed="false"><small>05 · 120ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>prism</strong></button>
-          <button class="sound-pad" data-sound="tick" aria-pressed="false"><small>06 · 075ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>tick</strong></button>
-          <button class="sound-pad" data-sound="fold" aria-pressed="false"><small>07 · 145ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>fold</strong></button>
-          <button class="sound-pad" data-sound="nova" aria-pressed="false"><small>08 · 180ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>nova</strong></button>
-        </div>
-      </section>
-
-      <section class="install-section">
-        <div class="section-label">06 · install</div>
-        <h2 class="i18n" data-en="one command. ready for the next word." data-ru="одна команда. готово к следующему слову.">one command. ready for the next word.</h2>
-        <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
-        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.5</div>
-      </section>
     </main>
 
     <footer>
-      <div class="signature"><small>designed + built in lisbon by</small><strong>alexander povaliaev</strong><small>apowall instruments · 2026</small></div>
-      <div class="footer-links"><a href="https://github.com/aPoWall">author ↗</a><a href="https://github.com/aPoWall/language-relay">source ↗</a><a href="https://github.com/aPoWall/language-relay/blob/main/SECURITY.md">privacy ↗</a></div>
+      <div class="signature"><small>ai mindset apps · built by alexander povaliaev</small><strong>language relay</strong><small>apowall instruments · lisbon · 2026</small></div>
+      <div class="footer-links"><a href="https://apps.aimindset.org/">all apps ↗</a><a href="https://github.com/aPoWall">author ↗</a><a href="https://github.com/aPoWall/language-relay">source ↗</a><a href="https://github.com/aPoWall/language-relay/blob/main/SECURITY.md">privacy ↗</a></div>
     </footer>
   </div>
 
   <script>
     const root = document.documentElement;
     const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const stored = localStorage.getItem('language-relay-lang');
-    let lang = stored || (navigator.language.toLowerCase().startsWith('ru') ? 'ru' : 'en');
-    const applyLanguage = (next, animate = true) => {
-      lang = next;
-      if (animate && !reduceMotion) root.dataset.switching = 'true';
-      setTimeout(() => {
-        root.dataset.lang = lang;
-        root.lang = lang;
-        document.querySelectorAll('.i18n').forEach(node => node.textContent = node.dataset[lang]);
-        localStorage.setItem('language-relay-lang', lang);
-      }, animate && !reduceMotion ? 90 : 0);
-      setTimeout(() => delete root.dataset.switching, 240);
+
+    /* live product mark · relay character · shared assets/aim-voxel.js + voxel-models.json */
+    const stage = document.getElementById('relay-mark');
+    const mountMark = () => {
+      if (!window.AIMVoxel || !stage) return;
+      fetch('design/voxel-models.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(doc => {
+        const model = doc.models && doc.models.relay;
+        if (!model) return;
+        AIMVoxel.render(stage, model, { unit: 9, animate: 'assemble', duration: 1600, interactive: true, whenVisible: false });
+      }).catch(() => {});
     };
-    applyLanguage(lang, false);
-    document.getElementById('lang-toggle').addEventListener('click', () => applyLanguage(lang === 'en' ? 'ru' : 'en'));
+    if (window.AIMVoxel) mountMark(); else window.addEventListener('load', mountMark, { once: true });
 
     document.querySelectorAll('.copy').forEach(button => button.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(button.dataset.copy); } catch (_) {}
