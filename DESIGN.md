@@ -1,8 +1,8 @@
 # N1 · native white
 
-Language Relay 2.3.5 adopts the generated N1 profile. Its SSOT is
+Language Relay 2.3.6 adopts the generated N1 profile. Its SSOT is
 `ai-mindset-org/lab-sites`, `internal-sites/aim-product-system/mini-apps.tokens.json`.
-`native/AIMMiniAppTokens.swift` is a byte-identical export. `native/NativeWhite.swift`
+`native/AIMMiniAppTokens.swift`, `native/AIMVoxelModels.swift` and `native/AIMVoxelView.swift` are byte-identical exports. `native/NativeWhite.swift`
 maps its semantic roles into AppKit colors, geometry, font registration and controls.
 Vendored and shared ShaperKit remain unchanged.
 
@@ -22,6 +22,18 @@ The panel keeps layout, repair scope, case, gestures and feedback visible. Setup
 expands inside reserved space. Hover uses a neutral fill; selection also has a
 short red marker, and keyboard focus has an inset red ring. Escape closes the
 panel. The menu glyph remains a system template image for light/dark menu bars.
+
+## Live mark · 2026-09-14
+
+The relay voxel character (52 voxels, one red signal) is the dynamic product mark.
+`AIMVoxelView` draws it in the panel header at 43 pt next to the name, inside the same
+420×488 shell (the identity column narrowed from 252 to 201 pt). Hover shifts cubes by
+depth up to ±3 pt; click, Space or Return runs scatter → assemble once, 1.6 s at 16 ticks
+per second, only while the popover is visible. Reduce Motion keeps the still frame and a
+click only moves the red signal to a neighbouring cell. The menu bar shows the same
+character as an 18 pt template image (`AIMVoxelView.image(model:size:mono:)`) beside the
+active alphabet cell; the 54×18 template glyph size is unchanged. The app icon is not
+redrawn in this wave.
 
 ## Generated contract
 

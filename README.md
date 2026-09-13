@@ -111,7 +111,7 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
-Native version 2.3.5 uses the generated N1 native-white profile: a fixed 420×488 panel,
+Native version 2.3.6 uses the generated N1 native-white profile: a fixed 420×488 panel,
 bundled IBM Plex Mono, and inline setup details. The bridge protocol remains
 2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.
 
@@ -119,6 +119,10 @@ The runtime version comes from the bundle's `Info.plist`. `language-relay design
 reports the installed app version and exact N1 token source digest. The controls
 keep keyboard focus when settings or setup details refresh; Left/Right chooses
 adjacent segments and Space/Return activates a focused control.
+
+The panel header and the menu bar carry the live product mark, the relay voxel
+character from the shared `AIMVoxelView.swift` / `AIMVoxelModels.swift` exports
+(cursor parallax, one finite reassemble on click, still frame under Reduce Motion).
 
 `make design-check` verifies vendored design assets against their receipt.
 To update them, run `node scripts/sync-design-tokens.mjs <export-directory>` with
