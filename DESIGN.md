@@ -1,8 +1,10 @@
 # N1 · native white
 
-Language Relay 2.3.4 adopts the Native White tools profile dated 2026-09-12,
-based on Calendar Control G2. `native/NativeWhite.swift` owns this app's palette,
-font registration and controls. Vendored and shared ShaperKit remain unchanged.
+Language Relay 2.3.5 adopts the generated N1 profile. Its SSOT is
+`ai-mindset-org/lab-sites`, `internal-sites/aim-product-system/mini-apps.tokens.json`.
+`native/AIMMiniAppTokens.swift` is a byte-identical export. `native/NativeWhite.swift`
+maps its semantic roles into AppKit colors, geometry, font registration and controls.
+Vendored and shared ShaperKit remain unchanged.
 
 | Role | Value |
 | --- | --- |
@@ -18,8 +20,45 @@ font registration and controls. Vendored and shared ShaperKit remain unchanged.
 
 The panel keeps layout, repair scope, case, gestures and feedback visible. Setup
 expands inside reserved space. Hover uses a neutral fill; selection also has a
-short red marker, and keyboard focus has an inset ink ring. Escape closes the
+short red marker, and keyboard focus has an inset red ring. Escape closes the
 panel. The menu glyph remains a system template image for light/dark menu bars.
+
+## Generated contract
+
+`docs/design/aim-mini-apps.receipt.json` records the exact source and asset hashes.
+Run `make design-check` before shipping; update only through the documented sync
+script. Native `--design-json` reports the compiled token identity and bundle version.
+App `Info.plist` is the native version source; npm metadata is checked at release.
+
+Setup disclosure uses the N1 160 ms state fade. It ends once, never loops, and
+reduced motion shows the final state immediately. The OS owns popover show/hide
+timing; its animation is disabled for reduced motion. The 420×488 shell and
+30–36 pt native controls deliberately retain the accepted compact layout rather
+than the web profile's 44 px touch targets. Native text remains 10–17 pt; the
+generated web type scale does not enlarge this utility. Hover, red selection
+marker and red inset focus ring are separate cues.
+
+All controls have stable identities. Panel rebuilds restore focus to the same
+control, including the setup show/hide pair. Left/Right selects adjacent segments;
+Space/Return activates the focused control. UI QA dispatches events only to local
+offscreen controls and never posts a system keyboard event.
+
+The product website vendors the same CSS export and fonts. The page demo stays
+browser-local and does not own native repair gestures. Shared app catalog and
+shared source remain owned by the mini-apps design system task.
+
+## Local verification · 2026-09-13
+
+- App 2.3.5 (10), N1 2026.09.13-n1. Shared source commit `d4558e3` in lab-sites.
+- Token source SHA-256 `057f940f65b14a27cb72bffc6a21cb313bb576a49c04cb2b7678cbe326af8f78`.
+- Core, offscreen state/focus/local-arrow and background runtime checks pass.
+- Website: English/Russian, word/phrase conversion, 1440/390 px, fonts, images,
+  overflow, reduced motion and console checked in headless Chromium.
+- Background update preserved preferences and the exact bridge bytes. Rollback
+  snapshot: `Rollback/20260913T004322Z` in the existing Application Support path.
+- Installed executable SHA-256: `d5124ddc4bb94ba4d13da67f85bc8fd8787f4cc44581cad4ef9a0d5804b93b7d`.
+- Global input gestures and audible previews were not dispatched. Native OS
+  popover animation was not visually exercised in the user's foreground session.
 
 Health follows the active permission owner. A verified Hammerspoon bridge can be
 ready even when the native app lacks Accessibility approval. Unavailable IPC,

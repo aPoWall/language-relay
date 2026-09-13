@@ -1,0 +1,14 @@
+IBM Plex Mono — подмножество (латиница + кириллица), три начертания.
+Файлы получены из установленных OTF через fonttools subset.
+
+copyright:
+Copyright 2017 IBM Corp. All rights reserved.
+
+trademark:
+IBM Plex® is a trademark of IBM Corp, registered in many jurisdictions worldwide.
+
+license:
+This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: http://scripts.sil.org/OFL
+
+license url:
+http://scripts.sil.org/OFL

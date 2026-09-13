@@ -1,0 +1,18 @@
+{
+  "schema": "aim.mini-apps.receipt/v1",
+  "version": "2026.09.13-n1",
+  "source": "internal-sites/aim-product-system/mini-apps.tokens.json",
+  "sourceSHA256": "057f940f65b14a27cb72bffc6a21cb313bb576a49c04cb2b7678cbe326af8f78",
+  "generatorSHA256": "13377db1315e5aec6901b78fd7dbdba2af244767bfb2690529458e832f4b67c8",
+  "artifacts": {
+    "aim-mini-apps.css": "7e254d7d60dc060d41634703270b8b945cc65255b4d39cc4e58ca29b9b3e8b5e",
+    "aim-mini-apps.tokens.json": "057f940f65b14a27cb72bffc6a21cb313bb576a49c04cb2b7678cbe326af8f78",
+    "AIMMiniAppTokens.swift": "d092a160d457936a2bc5d1278a6f9df32e052bbf4db8c11362b839b6773fc737",
+    "aim-plex-400.woff2": "38bb5e722f243e539009f441e1b990f0a73bc2072539ad6c27b243c5752fc21b",
+    "aim-plex-500.woff2": "77a3af7e5b5e000537e37b67503c29f370e09cdda0afc3a1ed0c6ce3696c8f1f",
+    "aim-plex-600.woff2": "438885a4c355d5713f004d0b46225d9ba9558bbf86f3273e9d43511b90b5710e",
+    "aim-plex-LICENSE.txt": "3ac523a33b08ba56283e0f111d0f4f8426af0beb9e17d466c840d01c0e9cedad",
+    "aim-app-marks.svg": "d46d50bf832d90814f3e175a16452678c185d0cabe34dcde86629bfd8d317f17"
+  },
+  "nativeRuntimeAdoption": false
+}

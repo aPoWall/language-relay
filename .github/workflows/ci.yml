@@ -21,6 +21,7 @@ jobs:
           test "$(find ".build/Language Relay.app/Contents/Resources/Sounds" -name '*.aiff' | wc -l | tr -d ' ')" = 8
       - name: Validate agent CLI and website assets
         run: |
+          make design-check
           node --check bin/language-relay.mjs
           npm pack --dry-run >/dev/null
           test "$(find docs/sounds -name '*.mp3' | wc -l | tr -d ' ')" = 8

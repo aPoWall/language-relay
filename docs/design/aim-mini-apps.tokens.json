@@ -1,0 +1,391 @@
+{
+  "schema": "aim.mini-apps/v1",
+  "version": "2026.09.13-n1",
+  "defaultProfile": "n1",
+  "primitives": {
+    "white": "#ffffff",
+    "ink": "#202124",
+    "gray600": "#6b6e75",
+    "gray200": "#e8e9ed",
+    "gray50": "#f5f6f8",
+    "gray100": "#f2f3f5",
+    "red": "#db303d",
+    "purple": "#69429a",
+    "amber": "#98600b",
+    "green": "#287958",
+    "blue": "#3465c5",
+    "black": "#000000",
+    "webGray": "#d9d9d9",
+    "lime": "#c3ff00",
+    "radius0": "0px",
+    "radius2": "2px",
+    "radius8": "8px",
+    "radius16": "16px",
+    "space4": "4px",
+    "space8": "8px",
+    "space12": "12px",
+    "space16": "16px",
+    "space24": "24px",
+    "space32": "32px",
+    "sizeMeta": "11px",
+    "sizeBody": "14px",
+    "sizeTitle": "24px",
+    "target": "44px",
+    "font": "\"AIMPlex\", ui-monospace, monospace",
+    "state": "160ms",
+    "reveal": "440ms",
+    "relationship": "640ms",
+    "sweep": "1000ms",
+    "ease": "cubic-bezier(.2,.8,.2,1)",
+    "panel": "180ms",
+    "hide": "140ms",
+    "gray300": "#c9cbd1"
+  },
+  "profiles": {
+    "n1": {
+      "canvas": "{primitive.white}",
+      "surface": "{primitive.white}",
+      "text": "{primitive.ink}",
+      "text-secondary": "{primitive.gray600}",
+      "divider": "{primitive.gray200}",
+      "hover": "{primitive.gray50}",
+      "selected": "{primitive.gray50}",
+      "data": "{primitive.gray100}",
+      "selection": "{primitive.red}",
+      "evidence": "{primitive.purple}",
+      "warning": "{primitive.amber}",
+      "danger": "{primitive.red}",
+      "success": "{primitive.green}",
+      "info": "{primitive.blue}",
+      "neutral": "{primitive.gray600}",
+      "radius-control": "{primitive.radius8}",
+      "radius-card": "{primitive.radius8}",
+      "radius-content": "{primitive.radius16}",
+      "radius-shell": "{primitive.radius0}",
+      "font": "{primitive.font}",
+      "size-meta": "{primitive.sizeMeta}",
+      "size-body": "{primitive.sizeBody}",
+      "size-title": "{primitive.sizeTitle}",
+      "target": "{primitive.target}",
+      "motion-state": "{primitive.state}",
+      "motion-reveal": "{primitive.reveal}",
+      "motion-relationship": "{primitive.relationship}",
+      "motion-sweep": "{primitive.sweep}",
+      "motion-ease": "{primitive.ease}",
+      "motion-panel": "{primitive.panel}",
+      "motion-hide": "{primitive.hide}",
+      "text-disabled": "{primitive.gray300}"
+    },
+    "web": {
+      "canvas": "{primitive.white}",
+      "surface": "{primitive.white}",
+      "text": "{primitive.black}",
+      "text-secondary": "{primitive.gray600}",
+      "divider": "{primitive.webGray}",
+      "hover": "{primitive.gray50}",
+      "selected": "{primitive.gray50}",
+      "data": "{primitive.gray100}",
+      "selection": "{primitive.red}",
+      "evidence": "{primitive.purple}",
+      "warning": "{primitive.amber}",
+      "danger": "{primitive.red}",
+      "success": "{primitive.green}",
+      "info": "{primitive.blue}",
+      "neutral": "{primitive.gray600}",
+      "radius-control": "{primitive.radius2}",
+      "radius-card": "{primitive.radius2}",
+      "radius-content": "{primitive.radius2}",
+      "radius-shell": "{primitive.radius0}",
+      "font": "{primitive.font}",
+      "size-meta": "{primitive.sizeMeta}",
+      "size-body": "{primitive.sizeBody}",
+      "size-title": "{primitive.sizeTitle}",
+      "target": "{primitive.target}",
+      "motion-state": "{primitive.state}",
+      "motion-reveal": "{primitive.reveal}",
+      "motion-relationship": "{primitive.relationship}",
+      "motion-sweep": "{primitive.sweep}",
+      "motion-ease": "{primitive.ease}",
+      "motion-panel": "{primitive.panel}",
+      "motion-hide": "{primitive.hide}",
+      "text-disabled": "{primitive.gray300}"
+    }
+  },
+  "components": {
+    "button-background": "{semantic.surface}",
+    "button-hover": "{semantic.hover}",
+    "button-text": "{semantic.text}",
+    "button-border": "{semantic.divider}",
+    "button-radius": "{semantic.radius-control}",
+    "button-height": "{semantic.target}",
+    "focus-ring": "{semantic.selection}",
+    "card-background": "{semantic.surface}",
+    "card-border": "{semantic.divider}",
+    "card-radius": "{semantic.radius-card}",
+    "panel-radius": "{semantic.radius-content}",
+    "event-background": "{semantic.data}",
+    "event-now": "{semantic.selection}",
+    "event-radius": "{semantic.radius-card}",
+    "receipt-linked": "{semantic.evidence}",
+    "receipt-degraded": "{semantic.danger}",
+    "receipt-unobserved": "{semantic.neutral}",
+    "hint-text": "{semantic.text}",
+    "hint-background": "{semantic.surface}",
+    "logo-ink": "{semantic.text}",
+    "logo-signal": "{semantic.selection}",
+    "companion-attention": "{semantic.warning}"
+  },
+  "states": {
+    "binding": [
+      "linked",
+      "needs-link",
+      "not-applicable"
+    ],
+    "observation": [
+      "observed",
+      "degraded",
+      "unobserved"
+    ],
+    "request": [
+      "idle",
+      "resolving"
+    ],
+    "freshness": [
+      "fresh",
+      "stale",
+      "unknown"
+    ],
+    "precedence": [
+      "resolving",
+      "unobserved",
+      "degraded",
+      "needs-link",
+      "linked",
+      "observed"
+    ],
+    "pressure": [
+      "normal",
+      "warning",
+      "critical",
+      "unknown"
+    ],
+    "hint": [
+      "eligible",
+      "presented",
+      "snoozed",
+      "acknowledged",
+      "expired",
+      "suppressed"
+    ],
+    "history": [
+      "empty",
+      "recorded",
+      "stale",
+      "unavailable"
+    ],
+    "calendar": [
+      "access-unavailable",
+      "no-calendars",
+      "observed-empty",
+      "upcoming",
+      "meeting",
+      "focus",
+      "conflict"
+    ],
+    "companion": [
+      "calm",
+      "attention",
+      "thinking",
+      "receipt",
+      "rest"
+    ]
+  },
+  "rules": {
+    "zero": "Only observed results can show numeric zero. Degraded/unobserved show — with reason and next action.",
+    "freshness": "Source timestamp and observation remain separate. Stale observations cannot issue current-context hints.",
+    "hints": "Persist cooldown and snooze across restart. Dismiss, acknowledge and completed action are distinct. Expire on context change.",
+    "motion": "No ambient decorative loops. Request motion ends with request, hidden view or reduced motion. Labels remain.",
+    "identity": "Square signal anchor + legible product glyph + optional separate companion. Existing voxel illustration is not a claim of canonical theDog likeness.",
+    "native": "Map exports into a local namespace; bundle fonts; macOS owns window chrome. Adoption needs separate runtime evidence.",
+    "web": "Explicit 2px candidate profile; existing CRM 4/8/12 runtime is reference evidence, not migrated by this export.",
+    "calendar": "EventKit proves authorization, selected calendars, observed empty day, timed events and overlap. Offline and remote sync health require a different source. Context is inline; no automatic writes or joining.",
+    "disabled": "text-disabled is only for disabled controls; meaningful secondary text uses text-secondary for contrast."
+  },
+  "motion": [
+    {
+      "id": "state",
+      "label": "Hover / selection",
+      "duration": 160,
+      "trigger": "interaction",
+      "purpose": "Surface and border; no layout shift",
+      "reduced": "Static selected surface",
+      "sources": [
+        "N1",
+        "CRM"
+      ]
+    },
+    {
+      "id": "route-reveal",
+      "label": "Route reveal",
+      "duration": 440,
+      "trigger": "navigation",
+      "purpose": "First entry only",
+      "reduced": "Immediate content",
+      "sources": [
+        "CRM:route-reveal",
+        "Inspector:slidein/hmin/cgTipIn"
+      ]
+    },
+    {
+      "id": "route-signal-lock",
+      "label": "Navigation indicator",
+      "duration": 160,
+      "trigger": "navigation",
+      "purpose": "Underline settles on selected route",
+      "reduced": "Selected underline",
+      "sources": [
+        "CRM:route-signal-lock"
+      ]
+    },
+    {
+      "id": "drop-line-in",
+      "label": "Insertion line",
+      "duration": 160,
+      "trigger": "drag",
+      "purpose": "Line marks an insertion target",
+      "reduced": "Static insertion line",
+      "sources": [
+        "CRM:drop-line-in"
+      ]
+    },
+    {
+      "id": "card-settle",
+      "label": "Card transfer",
+      "duration": 160,
+      "trigger": "move",
+      "purpose": "Card settles after a confirmed move",
+      "reduced": "Final card position",
+      "sources": [
+        "CRM:card-settle"
+      ]
+    },
+    {
+      "id": "relationship",
+      "label": "Source → target",
+      "duration": 640,
+      "trigger": "relationship",
+      "purpose": "One visible transfer after selected relationship",
+      "reduced": "Solid connection + endpoints",
+      "sources": [
+        "CRM:topology-flow",
+        "Technichka:edgerun",
+        "Inspector:cgflow"
+      ]
+    },
+    {
+      "id": "receipt",
+      "label": "Fresh receipt",
+      "duration": 440,
+      "trigger": "receipt",
+      "purpose": "One pulse after new observed evidence",
+      "reduced": "Timestamp + label",
+      "sources": [
+        "Technichka:hitpulse",
+        "Inspector:freshpulse/redpulse/pulse"
+      ]
+    },
+    {
+      "id": "sweep",
+      "label": "Card signal sweep",
+      "duration": 1000,
+      "trigger": "hover",
+      "purpose": "One sweep on deliberate entry",
+      "reduced": "Surface change",
+      "sources": [
+        "Inspector:cardShimmer/sparkle",
+        "CRM:source-sweep"
+      ]
+    },
+    {
+      "id": "loading",
+      "label": "Request loading",
+      "duration": 1000,
+      "trigger": "request",
+      "purpose": "Only while request resolving and view visible; demo is bounded",
+      "reduced": "Loading label",
+      "sources": [
+        "CRM:boot/graph-loading",
+        "Inspector:fp-shimmer"
+      ]
+    },
+    {
+      "id": "saving",
+      "label": "Saving request",
+      "duration": 640,
+      "trigger": "request",
+      "purpose": "Only while save pending; stop on success/error/hidden",
+      "reduced": "Saving label",
+      "sources": [
+        "CRM:saving-spin/spin"
+      ]
+    },
+    {
+      "id": "companion",
+      "label": "Companion attention",
+      "duration": 640,
+      "trigger": "context",
+      "purpose": "One response to relevant context; quiet rest",
+      "reduced": "Static pose + accessible context label",
+      "sources": [
+        "apps:suite-hover converted from ambient loop"
+      ]
+    },
+    {
+      "id": "panel",
+      "label": "Native panel",
+      "duration": 180,
+      "trigger": "disclosure",
+      "purpose": "Panel enters with 10 pt slide and 180 ms fade; keep window footprint",
+      "reduced": "Immediate panel, stable footprint",
+      "sources": [
+        "Calendar:slide160/fade180"
+      ]
+    },
+    {
+      "id": "hide",
+      "label": "Native hide",
+      "duration": 140,
+      "trigger": "dismiss",
+      "purpose": "Fade without moving the window frame",
+      "reduced": "Immediate hide",
+      "sources": [
+        "Calendar:hide140"
+      ]
+    },
+    {
+      "id": "period",
+      "label": "Calendar period",
+      "duration": 160,
+      "trigger": "navigation",
+      "purpose": "Directional fade after explicit day or month navigation",
+      "reduced": "Immediate selected period",
+      "sources": [
+        "Calendar:directional-period"
+      ]
+    }
+  ],
+  "references": {
+    "colinTokenVideo": {
+      "status": "unresolved",
+      "note": "Exact old video not found in checked project documents; no attribution claimed."
+    },
+    "rainbowGateway": {
+      "status": "unresolved",
+      "note": "Exact reference not found in checked project documents; no inferred identity."
+    }
+  },
+  "acceptance": {
+    "n1Grammar": "Accepted Calendar G2 visual language on 2026-09-12; this export and gallery have separate QA.",
+    "nativeRuntime": "Not asserted by this contract"
+  }
+}

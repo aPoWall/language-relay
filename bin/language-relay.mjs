@@ -4,6 +4,7 @@ import { spawnSync } from 'node:child_process';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { homedir } from 'node:os';
+import { readFileSync } from 'node:fs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const binary = resolve(homedir(), 'Applications/Language Relay.app/Contents/MacOS/LanguageRelay');
@@ -21,6 +22,7 @@ const run = (executable, argv, cwd = process.cwd()) => {
 if (command === 'install') run('/usr/bin/make', ['install'], root);
 if (command === 'setup') run(binary, ['--setup']);
 if (command === 'doctor') run(binary, ['--doctor-json']);
+if (command === 'design') run(binary, ['--design-json']);
 if (command === 'status') run(binary, ['--status-json']);
 if (command === 'capabilities') run(binary, ['--capabilities-json']);
 if (command === 'quit') run(binary, ['--quit']);
@@ -33,7 +35,8 @@ if (command === 'convert') {
 }
 if (command === 'switch') run(binary, ['--switch']);
 
-console.log(`language relay 2.3.3
+const { version } = JSON.parse(readFileSync(resolve(root, 'package.json'), 'utf8'));
+console.log(`language relay ${version}
 
 commands:
   install                    build and install in ~/Applications
@@ -43,4 +46,5 @@ commands:
   quit                       stop the menu app and Hammerspoon repair bridge
   status                     current input source as JSON
   doctor                     local health as JSON
+  design                     installed N1 profile and token identity as JSON
   capabilities               stable capability schema as JSON`);

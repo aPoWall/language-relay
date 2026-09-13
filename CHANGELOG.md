@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.5 – 2026-09-13
+
+- adopted generated N1 Swift/CSS tokens with verified artifact receipts;
+- kept the 420×488 native panel and bundled Plex fonts;
+- preserved keyboard focus across panel refreshes and added local arrow navigation;
+- added a finite setup disclosure transition with immediate reduced-motion state;
+- exposed installed design identity through `language-relay design`;
+- aligned the product page, package help and panel image with the native release.
+
 ## 2.3.4 – 2026-09-12
 
 - applied the native-white G2 palette with bundled IBM Plex Mono, neutral controls and short active indicators;

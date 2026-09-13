@@ -1,17 +1,25 @@
 import AppKit
 import CoreText
+import QuartzCore
 
-// App-local G2 profile. Vendored and shared ShaperKit stay unchanged.
+// Local AppKit adapter for the generated N1 contract.
 enum RelayStyle {
-    static let bg = NSColor(hex: "#ffffff")
-    static let ink = NSColor(hex: "#202124")
-    static let muted = NSColor(hex: "#6b6e75")
-    static let hair = NSColor(hex: "#e8e9ed")
-    static let fill = NSColor(hex: "#f5f6f8")
-    static let card = NSColor(hex: "#f2f3f5")
-    static let accent = NSColor(hex: "#db303d")
-    static let radius: CGFloat = 8
+    private static let tokens = AIMMiniAppTokens.N1.semantic
+    static let bg = NSColor(hex: tokens["canvas"]!)
+    static let ink = NSColor(hex: tokens["text"]!)
+    static let muted = NSColor(hex: tokens["text-secondary"]!)
+    static let disabled = NSColor(hex: tokens["text-disabled"]!)
+    static let hair = NSColor(hex: tokens["divider"]!)
+    static let fill = NSColor(hex: tokens["selected"]!)
+    static let card = NSColor(hex: tokens["data"]!)
+    static let accent = NSColor(hex: tokens["selection"]!)
+    static let focus = NSColor(hex: AIMMiniAppTokens.N1.component["focus-ring"]!)
+    static let radius = CGFloat(AIMMiniAppTokens.number(tokens["radius-control"]!)!)
+    static let contentRadius = CGFloat(AIMMiniAppTokens.number(tokens["radius-content"]!)!)
     static var reduceMotion: Bool { NSWorkspace.shared.accessibilityDisplayShouldReduceMotion }
+    static func stateDuration(reducedMotion: Bool) -> TimeInterval {
+        AIMMiniAppTokens.seconds(tokens["motion-state"]!, reducedMotion: reducedMotion)
+    }
     private static let registered: Void = {
         for weight in [400, 500, 600] {
             if let url = Bundle.main.url(forResource: "plex-mono-\(weight)", withExtension: "ttf") {
@@ -26,8 +34,30 @@ enum RelayStyle {
     }
 }
 
+enum RelayFocus {
+    static func target(in view: NSView, identifier: NSUserInterfaceItemIdentifier) -> NSView? {
+        if view.identifier == identifier { return view }
+        return view.subviews.lazy.compactMap { target(in: $0, identifier: identifier) }.first
+    }
+}
+
+enum RelayMotion {
+    static func reveal(_ view: NSView, reducedMotion: Bool = RelayStyle.reduceMotion) {
+        view.layer?.removeAnimation(forKey: "relay-state")
+        let duration = RelayStyle.stateDuration(reducedMotion: reducedMotion)
+        guard duration > 0, view.window?.isVisible == true else { return }
+        let animation = CABasicAnimation(keyPath: "opacity")
+        animation.fromValue = 0
+        animation.toValue = 1
+        animation.duration = duration
+        animation.timingFunction = CAMediaTimingFunction(controlPoints: 0.2, 0.8, 0.2, 1)
+        view.layer?.add(animation, forKey: "relay-state")
+    }
+}
+
 final class RelayButton: NSButton {
     var isActive = false { didSet { state = isActive ? .on : .off; needsDisplay = true } }
+    var moveSelection: ((Int) -> Void)?
     private let caption: String
     private var hovering = false { didSet { needsDisplay = true } }
     init(_ title: String, target: AnyObject?, action: Selector?, width: CGFloat, height: CGFloat = 32, lowercase: Bool = true) {
@@ -42,12 +72,25 @@ final class RelayButton: NSButton {
         widthAnchor.constraint(equalToConstant: width).isActive = true
         heightAnchor.constraint(equalToConstant: height).isActive = true
         setAccessibilityLabel(caption)
+        identifier = NSUserInterfaceItemIdentifier(caption)
     }
     required init?(coder: NSCoder) { fatalError() }
     override var acceptsFirstResponder: Bool { isEnabled }
     override func isAccessibilitySelected() -> Bool { isActive }
     override func becomeFirstResponder() -> Bool { needsDisplay = true; return true }
     override func resignFirstResponder() -> Bool { needsDisplay = true; return true }
+    override func keyDown(with event: NSEvent) {
+        guard isEnabled, event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else {
+            super.keyDown(with: event); return
+        }
+        if let moveSelection, event.keyCode == 123 || event.keyCode == 124 {
+            moveSelection(event.keyCode == 123 ? -1 : 1)
+        } else if event.keyCode == 36 || event.keyCode == 49 || event.keyCode == 76 {
+            performClick(nil)
+        } else {
+            super.keyDown(with: event)
+        }
+    }
     override func updateTrackingAreas() {
         super.updateTrackingAreas()
         trackingAreas.forEach(removeTrackingArea)
@@ -68,13 +111,13 @@ final class RelayButton: NSButton {
         }
         let text = NSAttributedString(string: caption, attributes: [
             .font: RelayStyle.mono(11, weight: isActive ? .medium : .regular),
-            .foregroundColor: isEnabled ? RelayStyle.ink : RelayStyle.muted,
+            .foregroundColor: isEnabled ? RelayStyle.ink : RelayStyle.disabled,
         ])
         text.draw(at: NSPoint(x: (bounds.width - text.size().width) / 2, y: (bounds.height - text.size().height) / 2))
         if let window, window.firstResponder === self {
-            RelayStyle.ink.setStroke()
+            RelayStyle.focus.setStroke()
             let ring = NSBezierPath(roundedRect: bounds.insetBy(dx: 3, dy: 3), xRadius: 5, yRadius: 5)
-            ring.lineWidth = 1; ring.stroke()
+            ring.lineWidth = 2; ring.stroke()
         }
     }
 }
@@ -102,6 +145,13 @@ final class RelaySegmentedControl: NSStackView {
         for (index, item) in items.enumerated() {
             let button = RelayButton(item.title, target: self, action: #selector(select(_:)), width: buttonWidth, height: height, lowercase: !item.preservesCase)
             button.tag = index; button.toolTip = item.help; button.setAccessibilityHelp(item.help)
+            button.moveSelection = { [weak self] delta in
+                guard let self else { return }
+                let next = max(0, min(self.segmentButtons.count - 1, index + delta))
+                let target = self.segmentButtons[next]
+                self.window?.makeFirstResponder(target)
+                self.select(target)
+            }
             segmentButtons.append(button); addArrangedSubview(button)
         }
         updateSelection()

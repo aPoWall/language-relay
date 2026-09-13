@@ -6,7 +6,7 @@
 
 Current pair: `U.S.` ⇄ `Russian – PC`. Conversion, settings, and the transient typing buffer stay on the Mac. There is no telemetry, account, typed-text log, database, or runtime network request.
 
-[Interactive website](https://apowall.github.io/language-relay/) · [Latest release](https://github.com/aPoWall/language-relay/releases/latest)
+[Interactive website](https://apps.aimindset.org/language-relay/) · [GitHub Pages mirror](https://apowall.github.io/language-relay/) · [Latest release](https://github.com/aPoWall/language-relay/releases/latest)
 
 ## What ships
 
@@ -79,6 +79,7 @@ language-relay convert ghbdtn
 language-relay setup
 language-relay status
 language-relay doctor
+language-relay design
 language-relay capabilities
 language-relay quit
 language-relay switch
@@ -110,9 +111,19 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
-Native version 2.3.4 uses the G2 native-white profile: a fixed 420×488 panel,
+Native version 2.3.5 uses the generated N1 native-white profile: a fixed 420×488 panel,
 bundled IBM Plex Mono, and inline setup details. The bridge protocol remains
 2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.
+
+The runtime version comes from the bundle's `Info.plist`. `language-relay design`
+reports the installed app version and exact N1 token source digest. The controls
+keep keyboard focus when settings or setup details refresh; Left/Right chooses
+adjacent segments and Space/Return activates a focused control.
+
+`make design-check` verifies vendored design assets against their receipt.
+To update them, run `node scripts/sync-design-tokens.mjs <export-directory>` with
+the reviewed `sites/apps/assets` export from `ai-mindset-org/lab-sites`.
+See [DESIGN.md](DESIGN.md) for the adapter and compact native exceptions.
 
 For an existing configured installation, `make test` followed by
 `./install-runtime.sh update-background` updates the app without opening setup

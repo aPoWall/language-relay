@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" data-lang="en">
+<html lang="en" data-lang="en" data-aim-profile="n1">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -8,21 +8,22 @@
   <meta name="theme-color" content="#ffffff">
   <meta property="og:title" content="language relay – fix the wrong layout in one tap">
   <meta property="og:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta property="og:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=3">
+  <meta property="og:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=3">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="language relay converts ghbdtn into привет locally on macos">
   <meta property="og:type" content="website">
-  <meta property="og:url" content="https://apowall.github.io/language-relay/">
+  <meta property="og:url" content="https://apps.aimindset.org/language-relay/">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="language relay – fix the wrong layout in one tap">
   <meta name="twitter:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta name="twitter:image" content="https://apowall.github.io/language-relay/language-relay-social.png?v=3">
-  <link rel="canonical" href="https://apowall.github.io/language-relay/">
-  <link rel="icon" href="favicon.svg" type="image/svg+xml">
+  <meta name="twitter:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=3">
+  <link rel="canonical" href="https://apps.aimindset.org/language-relay/">
+  <link rel="icon" href="favicon.svg?v=20260912" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
   <link rel="apple-touch-icon" href="apple-touch-icon.png">
   <link rel="manifest" href="site.webmanifest">
+  <link rel="stylesheet" href="design/aim-mini-apps.css">
   <style>
     :root {
       --paper:#fff; --ink:#080808; --muted:#696969; --line:#d9d9d4;
@@ -215,13 +216,14 @@
     }
     @media (prefers-reduced-motion:reduce) { html{scroll-behavior:auto} *{animation:none!important;transition:none!important} }
   </style>
+  <link rel="stylesheet" href="native-white.css">
 </head>
 <body id="top">
   <div class="shell">
     <nav class="nav">
-      <a class="wordmark" href="#top" aria-label="language relay home"><span class="relay-mark" aria-hidden="true"><i>a</i><em>я</em><b></b></span><span>language relay</span></a>
+      <a class="wordmark" href="#top" aria-label="language relay home"><img src="voxel-relay.svg" alt="" width="42" height="42"><span>language relay</span></a>
       <div class="nav-actions">
-        <span class="family">apowall instrument 02</span>
+        <a class="family mini-apps-link" href="https://apps.aimindset.org/">ai mindset apps</a>
         <button class="micro-button" id="lang-toggle" aria-label="switch website language">en ⇄ ру</button>
         <a class="text-link" href="https://github.com/aPoWall/language-relay">github ↗</a>
       </div>
@@ -233,12 +235,13 @@
           <div class="eyebrow i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · open source">macos utility · local by design · open source</div>
           <h1 class="i18n" data-en="typed in the wrong layout? don't retype it." data-ru="набрал не в той раскладке? не перепечатывай.">typed in the wrong layout? don't retype it.</h1>
           <p class="lead i18n" data-en="double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready." data-ru="двойной shift превращает ghbdtn в привет прямо в текущем поле. language relay по умолчанию исправляет последнее слово, фразовый режим включается отдельно, раскладка меняется сама.">double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready.</p>
-          <p class="small-line i18n" data-en="double shift or clean option · no full-line overwrite · undo-friendly event route" data-ru="двойной shift или чистый option · без перезаписи строки · route дружит с undo">double shift or clean option · no full-line overwrite · undo-friendly event route</p>
+          <p class="small-line i18n" data-en="double shift or clean option · last word by default · native edit events" data-ru="двойной shift или чистый option · последнее слово по умолчанию · обычные события редактирования">double shift or clean option · last word by default · native edit events</p>
           <div class="actions">
-            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.3" data-ru="скачать v2.3.3">download v2.3.3</a>
+            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.5" data-ru="скачать v2.3.5">download v2.3.5</a>
             <a class="button i18n" href="#live-demo" data-en="try it here ↓" data-ru="попробовать здесь ↓">try it here ↓</a>
           </div>
           <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
+          <div class="suite-voxel suite-hero-voxel" aria-hidden="true"><img src="voxel-relay.svg" alt=""><div class="suite-caption"><span>two alphabets · one thought</span><b>relay</b></div></div>
         </div>
 
         <div class="demo" id="live-demo" aria-label="interactive keyboard layout relay demo">
@@ -309,7 +312,7 @@
           <h2 class="i18n" data-en="small surface. explicit behavior." data-ru="маленькая панель. точное поведение.">small surface. explicit behavior.</h2>
           <p class="i18n" data-en="the menu bar shows the active alphabet. every setting names the exact part of the correction it changes." data-ru="меню показывает активный алфавит. каждая настройка прямо называет ту часть исправления, которую меняет.">the menu bar shows the active alphabet. every setting names the exact part of the correction it changes.</p>
           <figure class="panel-frame">
-            <img src="language-relay-panel.png" alt="language relay compact menu bar control panel" width="840" height="816">
+            <img src="language-relay-panel.png?v=235" alt="Language Relay native white menu bar control panel" width="840" height="976">
             <figcaption class="panel-caption"><span>native control surface</span><span>swift · appkit</span></figcaption>
           </figure>
         </div>
@@ -362,13 +365,13 @@
         </div>
         <div class="terminal">
           <div class="terminal-head"><span>language-relay · schema 1</span><span class="signal">■ ready</span></div>
-          <pre><code><span class="signal">$</span> language-relay --convert-json ghbdtn
+          <pre><code><span class="signal">$</span> language-relay convert ghbdtn
 {"sourceID":"…US","targetID":"…RussianWin","text":"привет"}
 
-<span class="signal">$</span> language-relay --doctor-json
+<span class="signal">$</span> language-relay doctor
 {"accessibilityTrusted":true,"ready":true}
 
-<span class="signal">$</span> language-relay --capabilities-json
+<span class="signal">$</span> language-relay capabilities
 {"scopes":["word","phrase"],"localOnly":true}</code></pre>
         </div>
       </section>
@@ -409,7 +412,7 @@
         <div class="section-label">06 · install</div>
         <h2 class="i18n" data-en="one command. ready for the next word." data-ru="одна команда. готово к следующему слову.">one command. ready for the next word.</h2>
         <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
-        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.3</div>
+        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.5</div>
       </section>
     </main>
 
