@@ -1,6 +1,6 @@
 {
   "name": "language-relay",
-  "version": "2.3.4",
+  "version": "2.3.5",
   "description": "Local macOS keyboard layout bridge for people and agents",
   "license": "MIT",
   "private": false,
@@ -22,6 +22,9 @@
     "install-runtime.sh",
     "hammerspoon-layout-pilot.lua",
     "LICENSE",
-    "README.md"
+    "README.md",
+    "DESIGN.md",
+    "scripts/sync-design-tokens.mjs",
+    "docs/design"
   ]
 }

@@ -6,7 +6,7 @@ import Foundation
 
 private enum AppIdentity {
     static let name = "Language Relay"
-    static let version = "2.3.4"
+    static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unbundled"
     static let bridgeVersion = "2.3.3"
     static let bundleID = "dev.alex.layout-pilot"
     static let launchAgentLabel = "dev.alex.layout-pilot"
@@ -1436,9 +1436,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         popover = next
     }
 
-    private func rebuildPopoverContent() {
+    private func rebuildPopoverContent(animateDisclosure: Bool = false) {
         guard popover?.isShown == true else { return }
-        popover?.contentViewController?.view = makePanelContent()
+        let old = popover?.contentViewController?.view
+        let focusedID = (old?.window?.firstResponder as? NSView)?.identifier
+        let next = makePanelContent()
+        popover?.contentViewController?.view = next
+        next.layoutSubtreeIfNeeded()
+        if let focusedID, let target = RelayFocus.target(in: next, identifier: focusedID) {
+            next.window?.makeFirstResponder(target)
+        } else {
+            next.window?.makeFirstResponder(next)
+        }
+        if animateDisclosure, let disclosure = RelayFocus.target(in: next, identifier: .init("setup-details")) {
+            RelayMotion.reveal(disclosure)
+        }
     }
 
     private func makePanelContent(bridgeHealth: HammerspoonHealth? = nil) -> NSView {
@@ -1453,7 +1465,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         content.layer?.backgroundColor = RelayStyle.bg.cgColor
         content.layer?.borderColor = RelayStyle.hair.cgColor
         content.layer?.borderWidth = 1
-        content.layer?.cornerRadius = 16
+        content.layer?.cornerRadius = RelayStyle.contentRadius
         content.layer?.masksToBounds = true
         content.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.width).isActive = true
         content.heightAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.height).isActive = true
@@ -1602,6 +1614,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private func setupDisclosure() -> NSView {
         let host = NSView()
+        host.identifier = NSUserInterfaceItemIdentifier("setup-details")
+        host.wantsLayer = true
         host.translatesAutoresizingMaskIntoConstraints = false
         host.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
         host.heightAnchor.constraint(equalToConstant: 64).isActive = true
@@ -1618,7 +1632,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         host.wantsLayer = true
         host.layer?.backgroundColor = RelayStyle.fill.cgColor
         host.layer?.borderColor = RelayStyle.hair.cgColor
-        host.layer?.cornerRadius = 8
+        host.layer?.cornerRadius = RelayStyle.radius
         let stack = NSStackView()
         stack.orientation = .horizontal
         stack.alignment = .centerY
@@ -1681,6 +1695,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private func squareButton(_ title: String, action: Selector, width: CGFloat, height: CGFloat) -> RelayButton {
         let button = RelayButton(title, target: self, action: action, width: width, height: height)
+        button.identifier = NSUserInterfaceItemIdentifier(NSStringFromSelector(action))
         return button
     }
 
@@ -1689,7 +1704,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         view.translatesAutoresizingMaskIntoConstraints = false
         view.wantsLayer = true
         view.layer?.backgroundColor = RelayStyle.card.cgColor
-        view.layer?.cornerRadius = 8
+        view.layer?.cornerRadius = RelayStyle.radius
         view.layer?.borderColor = RelayStyle.card.cgColor
         view.layer?.borderWidth = 1
         view.widthAnchor.constraint(equalToConstant: width).isActive = true
@@ -1716,6 +1731,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     func runBackgroundUISelfTest() -> Bool {
         _ = RelayStyle.mono(11)
+        guard RelayStyle.radius == 8, RelayStyle.contentRadius == 16,
+              RelayStyle.stateDuration(reducedMotion: false) == 0.16,
+              RelayStyle.stateDuration(reducedMotion: true) == 0 else { return false }
+        var choices: [Int] = []
+        let keyboardGroup = RelaySegmentedControl(items: [.init("one", help: "One"), .init("two", help: "Two")], selectedIndex: 0, width: 180) { choices.append($0) }
+        func arrow(_ code: UInt16) -> NSEvent {
+            NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+                windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "",
+                isARepeat: false, keyCode: code)!
+        }
+        keyboardGroup.segmentButtons[0].keyDown(with: arrow(124))
+        keyboardGroup.segmentButtons[1].keyDown(with: arrow(124))
+        keyboardGroup.segmentButtons[1].keyDown(with: arrow(123))
+        guard choices == [1, 0], keyboardGroup.segmentButtons[0].isAccessibilitySelected(),
+              keyboardGroup.segmentButtons.filter({ $0.isActive }).count == 1 else { return false }
         let healthy = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: "ready", timedOut: false)
         let denied = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: false, inputTapEnabled: false, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: nil, timedOut: false)
         let unavailable = HammerspoonHealth(ipcAvailable: false, executableFound: true, accessibilityTrusted: nil, inputTapEnabled: false, bridgeVersion: nil, lastStatus: nil, timedOut: true)
@@ -1735,6 +1765,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 let panel = makePanelContent(bridgeHealth: health)
                 panel.layoutSubtreeIfNeeded()
                 var labels = Set<String>()
+                var identifiers = Set<NSUserInterfaceItemIdentifier>()
                 func validate(_ view: NSView) -> Bool {
                     let rect = view.convert(view.bounds, to: panel)
                     guard panel.bounds.insetBy(dx: -0.5, dy: -0.5).contains(rect) else {
@@ -1742,6 +1773,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                     }
                     if let button = view as? RelayButton {
                         guard let label = button.accessibilityLabel(), !label.isEmpty, labels.insert(label).inserted else { return false }
+                        guard let identifier = button.identifier, identifiers.insert(identifier).inserted,
+                              RelayFocus.target(in: panel, identifier: identifier) === button else { return false }
                     }
                     if let group = view as? RelaySegmentedControl {
                         guard group.segmentButtons.filter({ $0.isActive }).count == 1 else { return false }
@@ -1750,6 +1783,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 }
                 guard panel.frame.size == NSSize(width: LayoutPilotPanelMetrics.width, height: LayoutPilotPanelMetrics.height),
                       panel.window == nil, validate(panel) else { return false }
+                guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")),
+                      RelayFocus.target(in: panel, identifier: .init("toggleSetupDisclosure")) is RelayButton else { return false }
+                RelayMotion.reveal(disclosure, reducedMotion: true)
+                guard disclosure.layer?.animation(forKey: "relay-state") == nil else { return false }
             }
         }
         setupExpanded = false
@@ -1836,7 +1873,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     @objc private func toggleOption() { optionEnabled.toggle(); reloadBridgeSettings(); rebuildPopoverContent() }
     @objc private func toggleSetupDisclosure() {
         setupExpanded.toggle()
-        rebuildPopoverContent()
+        rebuildPopoverContent(animateDisclosure: true)
     }
     @objc private func showSoundMenu(_ sender: RelayButton) {
         let choices: [(FeedbackSound, Selector)] = [
@@ -2018,6 +2055,17 @@ private struct LayoutPilotMain {
             ])
             exit(0)
         }
+        if arguments.contains("--design-json") {
+            writeJSONObject([
+                "schemaVersion": 1, "app": AppIdentity.name, "version": AppIdentity.version,
+                "profile": "N1", "tokenVersion": AIMMiniAppTokens.version,
+                "tokenSourceSHA256": AIMMiniAppTokens.sourceSHA256,
+                "panelWidth": Int(LayoutPilotPanelMetrics.width), "panelHeight": Int(LayoutPilotPanelMetrics.height),
+                "reducedMotion": RelayStyle.reduceMotion,
+                "stateDuration": RelayStyle.stateDuration(reducedMotion: RelayStyle.reduceMotion),
+            ])
+            exit(0)
+        }
         if arguments.contains("--capabilities-json") {
             writeJSONObject([
                 "schemaVersion": 1,
@@ -2026,7 +2074,7 @@ private struct LayoutPilotMain {
                 "pair": [AppIdentity.usID, AppIdentity.russianPCID],
                 "scopes": ["word", "phrase"],
                 "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
-                "commands": ["convert", "convert-phrase", "switch", "status", "doctor", "setup", "quit"],
+                "commands": ["convert", "convert-phrase", "switch", "status", "doctor", "design", "setup", "quit"],
                 "localOnly": true,
                 "textLogging": false,
             ])
@@ -2063,7 +2111,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {

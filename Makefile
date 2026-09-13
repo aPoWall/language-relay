@@ -19,7 +19,7 @@ AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
 BRIDGE_DIR := $(HOME)/.config/language-relay
 USER_ID := $(shell /usr/bin/id -u)
 
-.PHONY: all build icon test background-test shutdown-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
+.PHONY: all build icon test design-check background-test shutdown-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
 
 all: build
 
@@ -34,7 +34,7 @@ $(ICON_FILE): $(ICON_SOURCE)
 	"$(ICON_RENDERER)" "$(ICONSET)"
 	iconutil -c icns "$(ICONSET)" -o "$(ICON_FILE)"
 
-$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift $(FONT_FILES) Info.plist $(ICON_FILE) $(SOUND_FILES)
+$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift native/AIMMiniAppTokens.swift $(FONT_FILES) Info.plist $(ICON_FILE) $(SOUND_FILES)
 	@test "$(words $(SOUND_FILES))" = "8" || (echo "expected exactly eight feedback sounds" >&2; exit 1)
 	rm -rf "$(APP_DIR)"
 	mkdir -p "$(APP_DIR)/Contents/MacOS" "$(APP_DIR)/Contents/Resources/Sounds"
@@ -42,7 +42,7 @@ $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift $
 	cp "$(ICON_FILE)" "$(APP_DIR)/Contents/Resources/LanguageRelay.icns"
 	cp $(FONT_FILES) "$(APP_DIR)/Contents/Resources/"
 	cp $(SOUND_FILES) "$(APP_DIR)/Contents/Resources/Sounds/"
-	swiftc -parse-as-library "$(SHAPERKIT)" native/NativeWhite.swift native/LayoutPilot.swift \
+	swiftc -parse-as-library "$(SHAPERKIT)" native/AIMMiniAppTokens.swift native/NativeWhite.swift native/LayoutPilot.swift \
 		-framework AppKit \
 		-framework ApplicationServices \
 		-framework Carbon \
@@ -54,6 +54,9 @@ $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift $
 test: build
 	"$(APP_DIR)/Contents/MacOS/$(BIN_NAME)" --self-test
 	"$(APP_DIR)/Contents/MacOS/$(BIN_NAME)" --ui-self-test
+
+design-check:
+	node scripts/sync-design-tokens.mjs --check
 
 live-harness: $(BUILD_DIR)/LiveTextFieldHarness.app
 
