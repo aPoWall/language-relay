@@ -3,7 +3,7 @@
   "version": "2026.09.13-n1",
   "source": "internal-sites/aim-product-system/mini-apps.tokens.json",
   "sourceSHA256": "057f940f65b14a27cb72bffc6a21cb313bb576a49c04cb2b7678cbe326af8f78",
-  "generatorSHA256": "13377db1315e5aec6901b78fd7dbdba2af244767bfb2690529458e832f4b67c8",
+  "generatorSHA256": "11c85660214ebced91fccb7f7c44a1ebb28b374047c233ebf6e153065d4bc5a0",
   "artifacts": {
     "aim-mini-apps.css": "7e254d7d60dc060d41634703270b8b945cc65255b4d39cc4e58ca29b9b3e8b5e",
     "aim-mini-apps.tokens.json": "057f940f65b14a27cb72bffc6a21cb313bb576a49c04cb2b7678cbe326af8f78",
@@ -12,7 +12,10 @@
     "aim-plex-500.woff2": "77a3af7e5b5e000537e37b67503c29f370e09cdda0afc3a1ed0c6ce3696c8f1f",
     "aim-plex-600.woff2": "438885a4c355d5713f004d0b46225d9ba9558bbf86f3273e9d43511b90b5710e",
     "aim-plex-LICENSE.txt": "3ac523a33b08ba56283e0f111d0f4f8426af0beb9e17d466c840d01c0e9cedad",
-    "aim-app-marks.svg": "d46d50bf832d90814f3e175a16452678c185d0cabe34dcde86629bfd8d317f17"
+    "aim-app-marks.svg": "3ce99d0c9702a62bf07e1cea5eb8894a1076e097100d78b42338d82c170d7f25",
+    "AIMVoxelModels.swift": "5c2c9c83993a714fa2a1844959fe409c531df5c867cca33c07c2aae91ecc96a3",
+    "AIMVoxelView.swift": "ee7319eeea3b4ad282aeb9a2ea53d6c1486922df4324ad6d845a6b2e98571e31"
   },
+  "voxelModelsSHA256": "346273caa96e33223b18c9d30ed1d56692cf7e3981d656a0f8e88aedfb2e3ce1",
   "nativeRuntimeAdoption": false
 }

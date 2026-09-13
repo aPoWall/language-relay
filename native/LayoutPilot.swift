@@ -1178,12 +1178,14 @@ private final class LayoutPilotRootView: NSView {
 private enum LayoutPilotStatusGlyph {
     static func make(russianActive: Bool) -> NSImage {
         let size = NSSize(width: 54, height: 18)
+        let mark = AIMVoxelView.image(model: AIMVoxelModels.relay, size: 18, mono: true)
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.black.setStroke()
             NSColor.black.setFill()
 
-            drawCell(NSRect(x: 1, y: 1, width: 18, height: 16), text: "a", active: !russianActive)
-            drawCell(NSRect(x: 35, y: 1, width: 18, height: 16), text: "ру", active: russianActive)
+            // live mark on the left (template voxel character), active alphabet cell on the right
+            mark.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18), from: .zero, operation: .sourceOver, fraction: 1)
+            drawCell(NSRect(x: 35, y: 1, width: 18, height: 16), text: russianActive ? "ру" : "a", active: true)
 
             let relay = NSBezierPath()
             relay.move(to: NSPoint(x: 21, y: 9))
@@ -1201,7 +1203,7 @@ private enum LayoutPilotStatusGlyph {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Language Relay input source"
+        image.accessibilityDescription = "Language Relay · \(russianActive ? "Russian – PC" : "U.S.") active"
         return image
     }
 
@@ -1491,12 +1493,20 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         header.translatesAutoresizingMaskIntoConstraints = false
         header.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
         header.heightAnchor.constraint(equalToConstant: 43).isActive = true
+        // live product mark: the relay character reacts to the cursor and to a click, inside the fixed 420×488 shell
+        let liveMark = AIMVoxelView(model: AIMVoxelModels.relay, frame: NSRect(x: 0, y: 0, width: 43, height: 43))
+        liveMark.translatesAutoresizingMaskIntoConstraints = false
+        liveMark.widthAnchor.constraint(equalToConstant: 43).isActive = true
+        liveMark.heightAnchor.constraint(equalToConstant: 43).isActive = true
+        liveMark.identifier = NSUserInterfaceItemIdentifier("live-mark")
+        liveMark.toolTip = "relay · click to reassemble"
+        header.addArrangedSubview(liveMark)
         let identity = NSStackView()
         identity.orientation = .vertical
         identity.alignment = .leading
         identity.spacing = 0
-        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: 252, height: 23))
-        identity.addArrangedSubview(label("local · v\(AppIdentity.version)", size: 8.3, weight: .semibold, color: RelayStyle.muted, width: 252, height: 12))
+        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: 201, height: 23))
+        identity.addArrangedSubview(label("local · v\(AppIdentity.version)", size: 8.3, weight: .semibold, color: RelayStyle.muted, width: 201, height: 12))
         header.addArrangedSubview(identity)
         header.addArrangedSubview(flexSpacer())
         header.addArrangedSubview(stateReadout(panelHealthLabel, width: 118, height: 28, textSize: 10))
@@ -1785,12 +1795,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       panel.window == nil, validate(panel) else { return false }
                 guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")),
                       RelayFocus.target(in: panel, identifier: .init("toggleSetupDisclosure")) is RelayButton else { return false }
+                guard let mark = RelayFocus.target(in: panel, identifier: .init("live-mark")) as? AIMVoxelView,
+                      mark.frame.size == NSSize(width: 43, height: 43), mark.accessibilityLabel() == AIMVoxelModels.relay.label else {
+                    fputs("FAIL: live mark missing in panel header\n", stderr); return false
+                }
                 RelayMotion.reveal(disclosure, reducedMotion: true)
                 guard disclosure.layer?.animation(forKey: "relay-state") == nil else { return false }
             }
         }
         setupExpanded = false
         let glyph = LayoutPilotStatusGlyph.make(russianActive: false)
+        let mark = AIMVoxelView.image(model: AIMVoxelModels.relay, size: 18, mono: true)
+        guard AIMVoxelModels.relay.count <= 200, AIMVoxelModels.relay.signals.count == 1,
+              AIMVoxelModels.sourceSHA256.count == 64, mark.isTemplate, mark.size == NSSize(width: 18, height: 18) else {
+            fputs("FAIL: live mark model or menu image\n", stderr); return false
+        }
         return glyph.size == NSSize(width: 54, height: 18)
             && glyph.isTemplate
     }
@@ -2060,6 +2079,8 @@ private struct LayoutPilotMain {
                 "schemaVersion": 1, "app": AppIdentity.name, "version": AppIdentity.version,
                 "profile": "N1", "tokenVersion": AIMMiniAppTokens.version,
                 "tokenSourceSHA256": AIMMiniAppTokens.sourceSHA256,
+                "liveMark": "relay", "voxelModelsVersion": AIMVoxelModels.version,
+                "voxelModelsSHA256": AIMVoxelModels.sourceSHA256, "voxelCount": AIMVoxelModels.relay.count,
                 "panelWidth": Int(LayoutPilotPanelMetrics.width), "panelHeight": Int(LayoutPilotPanelMetrics.height),
                 "reducedMotion": RelayStyle.reduceMotion,
                 "stateDuration": RelayStyle.stateDuration(reducedMotion: RelayStyle.reduceMotion),
@@ -2111,7 +2132,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 43pt, menu 18pt template); panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {
