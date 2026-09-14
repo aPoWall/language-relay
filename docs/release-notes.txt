@@ -1,0 +1,40 @@
+Language Relay 2.3.7 (build 12) – 2026-09-14
+
+- one window contract: header live mark 40 pt · name · version · settings · × on one line; footer keys · esc close · version · status, 11 pt on the 16 pt grid
+- settings opens setup details, switch layout and quit; × and Escape both close the panel
+- light relay character v2: 36 voxels, assembles 0.7 s after the first drawn frame, 2 pt hover lift, click scatters and swaps the arrows
+- timer only during a run and while the popover is visible: layout switch, cue and gesture keep the app at or below 2 % CPU
+- product page: what's new from release-notes.txt, real panel screenshot in the hero, N1 social card with the character, zip download with SHA-256
+
+Language Relay 2.3.6 (build 11) – 2026-09-14
+
+- live product mark: the relay voxel character in the panel header, cursor parallax, scatter → assemble on click
+- the same character as an 18 pt template image in the menu bar next to the active alphabet cell
+- shared AIMVoxelModels.swift and AIMVoxelView.swift vendored byte for byte, verified by the design receipt
+- language-relay design reports liveMark, voxelModelsVersion, voxelModelsSHA256 and voxelCount
+- product page: shared aim-i18n.js switch (en default, ру), interactive character in the hero
+
+Language Relay 2.3.5 (build 10) – 2026-09-13
+
+- generated N1 Swift/CSS tokens with verified artifact receipts
+- 420×488 native panel with bundled Plex fonts
+- keyboard focus survives panel refreshes; local arrow navigation
+- finite setup disclosure transition with an immediate reduced-motion state
+- language-relay design exposes the installed design identity
+
+Language Relay 2.3.4 – 2026-09-12
+
+- native-white G2 palette with bundled IBM Plex Mono, neutral controls and short active indicators
+- panel fixed at 420×488 for collapsed and expanded setup, 8 pt controls, 16 pt shell
+- setup warnings check Hammerspoon's verified Accessibility/bridge state
+- bridge protocol 2.3.3 separated from the native app version
+- six offscreen health/disclosure layouts and a background update lane with verified rollback copies
+
+Language Relay 2.3.3 – 2026-09-07
+
+- default correction scope is Last Word, with a one-time migration from the phrase default
+- standard repairs go through undo-friendly edit events; direct AXValue writes stay an explicit fallback
+- background coverage for special-character suffixes, default scope, direct-AX routing and bridge shutdown
+- menu-bar Quit and language-relay quit stop the Hammerspoon repair bridge
+- website copy and demo refreshed around word repair
+
