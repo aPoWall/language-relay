@@ -18,6 +18,15 @@ AGENT_SOURCE := LaunchAgent.plist
 AGENT_DEST := $(HOME)/Library/LaunchAgents/$(AGENT_LABEL).plist
 BRIDGE_DIR := $(HOME)/.config/language-relay
 USER_ID := $(shell /usr/bin/id -u)
+# Shared AIM signing lane (lab-sites/internal-sites/aim-product-system/RELEASE-PIPELINE.md):
+# SIGN_ID is used only when `security find-identity -v` lists it as valid; otherwise ad-hoc "-".
+SIGN_ID ?= AIM Mini Apps
+VALID_SIGN_ID := $(shell security find-identity -v -p codesigning 2>/dev/null | grep -F '"$(SIGN_ID)"' | head -n 1)
+CODESIGN_ID := $(if $(strip $(VALID_SIGN_ID)),$(SIGN_ID),-)
+
+.PHONY: sign-status
+sign-status:
+	@echo "SIGN_ID '$(SIGN_ID)': $(if $(strip $(VALID_SIGN_ID)),valid in login keychain,not valid (ad-hoc fallback))"
 
 .PHONY: all build icon test design-check background-test shutdown-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
 
@@ -50,7 +59,8 @@ $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift n
 		-framework Carbon \
 		-o "$(APP_DIR)/Contents/MacOS/$(BIN_NAME)"
 	chmod +x "$(APP_DIR)/Contents/MacOS/$(BIN_NAME)"
-	codesign --force --deep --sign - --identifier dev.alex.layout-pilot "$(APP_DIR)"
+	@echo "codesign: $(if $(strip $(VALID_SIGN_ID)),identity '$(SIGN_ID)',ad-hoc (SIGN_ID '$(SIGN_ID)' not valid))"
+	codesign --force --deep --sign "$(CODESIGN_ID)" --identifier dev.alex.layout-pilot "$(APP_DIR)"
 	touch "$(BUILD_STAMP)"
 
 test: build
