@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.8 – 2026-09-14
+
+- Command-W closes the panel like Escape and the `×` button (window contract, rule 21); the root view handles the key equivalent because the accessory app carries no main menu;
+- every panel button stays in the Tab order even when macOS Full Keyboard Access is off (`canBecomeKeyView`, Tab handled inside `RelayButton`), and the popover window gets an explicit key view loop on show and rebuild, so the focus ring is reachable from the keyboard everywhere;
+- the footer names only the repair gestures that are switched on (`⇧⇧ ⌥ · repair`, `⇧⇧ · repair`, `⌥ · repair`, `gestures off`) instead of promising both keys;
+- `--render-ui out.png [--expanded] [--health ready|denied|unavailable]` renders the bridge and permission states offscreen, `--key-loop` prints the Tab order; both for QA;
+- the UI self-test covers the Command-W equivalent, the key view reach and the footer keys; QA table with 40 checks in `docs/QA-2026-09-14.md`;
+- product page: the hero caption wraps and the SHA line breaks at 390 px (no horizontal scroll), hero screenshot of the 2.3.8 panel, download 2.3.8 with SHA-256.
+
 ## 2.3.7 – 2026-09-14
 
 - one window contract for the AIM mini apps (AIM-APPS-RULES 21–26): the panel header is live mark 40 pt · name · version · `settings` · `×` 28 pt on one line, the footer reads keys · `esc close` · version · status in 11 pt Plex 500 muted and sits on the 16 pt grid;

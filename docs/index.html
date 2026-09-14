@@ -227,10 +227,11 @@
     .install-steps code { background:var(--wash); padding:1px 6px; border-radius:4px; font-size:12px; }
     .install-links { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:22px; }
     .download-meta { display:flex; flex-wrap:wrap; gap:8px 22px; justify-content:center; margin-top:14px; color:var(--muted); font-size:12px; }
-    .download-meta code { font-size:11px; word-break:break-all; color:var(--ink); }
+    .download-meta code { font-size:11px; word-break:break-all; overflow-wrap:anywhere; white-space:normal; color:var(--ink); }
+    .download-meta span { min-width:0; max-width:100%; }
     .hero-proof { display:flex; flex-wrap:wrap; align-items:flex-start; gap:32px; margin-top:26px; }
-    .hero-proof .suite-voxel { flex:none; display:grid; gap:6px; justify-items:start; }
-    .hero-proof .suite-caption { display:flex; gap:10px; align-items:baseline; color:var(--muted); font-size:11px; }
+    .hero-proof .suite-voxel { flex:none; display:grid; gap:6px; justify-items:start; max-width:100%; min-width:0; }
+    .hero-proof .suite-caption { display:flex; flex-wrap:wrap; gap:6px 10px; align-items:baseline; max-width:100%; color:var(--muted); font-size:11px; }
     .hero-proof .suite-caption b { color:var(--signal); font-weight:600; }
     .hero-shot { margin:0; width:236px; flex:none; }
     .hero-shot img { display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:8px; background:var(--wash); }
@@ -261,7 +262,7 @@
       <a class="wordmark" href="#top" aria-label="language relay home"><img src="voxel-relay.svg" alt="" width="42" height="42"><span>language relay</span></a>
       <div class="nav-actions">
         <a class="family mini-apps-link" href="https://apps.aimindset.org/">ai mindset apps</a>
-        <span class="head-version">v2.3.7</span>
+        <span class="head-version">v2.3.8</span>
         <button class="micro-button" id="lang-toggle" aria-label="switch website language">en ⇄ ру</button>
         <a class="text-link i18n" href="#install" data-en="install ↗" data-ru="установить ↗">install ↗</a>
         <a class="text-link" href="https://github.com/aPoWall/language-relay">github ↗</a>
@@ -274,15 +275,15 @@
           <div class="eyebrow"><svg class="hero-mark" aria-hidden="true" viewBox="0 0 48 48"><use href="../assets/aim-app-marks.svg#relay"/></svg><span class="i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · открытый код">macos utility · local by design · open source</span></div>
           <h1 class="i18n" data-en="typed in the wrong layout? don't retype it." data-ru="набрал не в той раскладке? не перепечатывай.">typed in the wrong layout? don't retype it.</h1>
           <p class="lead i18n" data-en="double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready." data-ru="двойной shift превращает ghbdtn в привет прямо в текущем поле. language relay по умолчанию исправляет последнее слово, фразовый режим включается отдельно, раскладка меняется сама.">double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready.</p>
-          <p class="small-line i18n" data-en="double shift or clean option · last word by default · one window contract · v2.3.7" data-ru="двойной shift или чистый option · последнее слово по умолчанию · единый контракт окна · v2.3.7">double shift or clean option · last word by default · one window contract · v2.3.7</p>
+          <p class="small-line i18n" data-en="double shift or clean option · last word by default · one window contract · v2.3.8" data-ru="двойной shift или чистый option · последнее слово по умолчанию · единый контракт окна · v2.3.8">double shift or clean option · last word by default · one window contract · v2.3.8</p>
           <div class="actions">
-            <a class="button primary i18n" href="Language-Relay-2.3.7-arm64.zip" download data-en="download v2.3.7 ↓" data-ru="скачать v2.3.7 ↓">download v2.3.7 ↓</a>
+            <a class="button primary i18n" href="Language-Relay-2.3.8-arm64.zip" download data-en="download v2.3.8 ↓" data-ru="скачать v2.3.8 ↓">download v2.3.8 ↓</a>
             <a class="button i18n" href="#live-demo" data-en="try it here ↓" data-ru="попробовать здесь ↓">try it here ↓</a>
           </div>
           <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
           <div class="hero-proof">
             <div class="suite-voxel suite-hero-voxel"><div class="voxel-stage" id="relay-mark" data-voxel="relay"><img src="voxel-relay.svg" alt="relay voxel character" width="140" height="140"></div><div class="suite-caption"><span class="i18n" data-en="two alphabets · one thought · click to swap the arrows" data-ru="два алфавита · одна мысль · клик меняет стрелки местами">two alphabets · one thought · click to swap the arrows</span><b>relay</b></div></div>
-            <figure class="hero-shot"><img src="assets/window.png?v=237" alt="Language Relay 2.3.7 panel: live mark, name, version, settings and close in the header, keys and esc close in the footer" width="984" height="1122" loading="eager" decoding="async"><figcaption><span class="i18n" data-en="the real panel · 2.3.7 · 420×488" data-ru="настоящая панель · 2.3.7 · 420×488">the real panel · 2.3.7 · 420×488</span></figcaption></figure>
+            <figure class="hero-shot"><img src="assets/window.png?v=238" alt="Language Relay 2.3.8 panel: live mark, name, version, settings and close in the header, keys and esc close in the footer" width="984" height="1120" loading="eager" decoding="async"><figcaption><span class="i18n" data-en="the real panel · 2.3.8 · 420×488" data-ru="настоящая панель · 2.3.8 · 420×488">the real panel · 2.3.8 · 420×488</span></figcaption></figure>
           </div>
         </div>
         <div class="demo" id="live-demo" aria-label="interactive keyboard layout relay demo">
@@ -363,7 +364,7 @@
           <h2 class="i18n" data-en="small surface. explicit behavior." data-ru="маленькая панель. точное поведение.">small surface. explicit behavior.</h2>
           <p class="i18n" data-en="the menu bar shows the active alphabet. every setting names the exact part of the correction it changes." data-ru="меню показывает активный алфавит. каждая настройка прямо называет ту часть исправления, которую меняет.">the menu bar shows the active alphabet. every setting names the exact part of the correction it changes.</p>
           <figure class="panel-frame">
-            <img src="assets/window.png?v=237" alt="Language Relay 2.3.7 native panel with the shared window contract" width="984" height="1122" loading="lazy">
+            <img src="assets/window.png?v=238" alt="Language Relay 2.3.8 native panel with the shared window contract" width="984" height="1120" loading="lazy">
             <figcaption class="panel-caption"><span class="i18n" data-en="native control surface" data-ru="нативная панель управления">native control surface</span><span>swift · appkit</span></figcaption>
           </figure>
         </div>
@@ -453,12 +454,12 @@
           <li class="i18n" data-en="type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet." data-ru="набери ghbdtn в любом поле и нажми двойной shift. знак в строке меню покажет активный алфавит.">type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet.</li>
         </ol>
         <div class="install-links">
-          <a class="button primary i18n" href="Language-Relay-2.3.7-arm64.zip" download data-en="download v2.3.7 · zip ↓" data-ru="скачать v2.3.7 · zip ↓">download v2.3.7 · zip ↓</a>
-          <a class="button i18n" href="https://github.com/aPoWall/language-relay/releases/tag/v2.3.7" data-en="github release · v2.3.7" data-ru="релиз на github · v2.3.7">github release · v2.3.7</a>
+          <a class="button primary i18n" href="Language-Relay-2.3.8-arm64.zip" download data-en="download v2.3.8 · zip ↓" data-ru="скачать v2.3.8 · zip ↓">download v2.3.8 · zip ↓</a>
+          <a class="button i18n" href="https://github.com/aPoWall/language-relay/releases/tag/v2.3.8" data-en="github release · v2.3.8" data-ru="релиз на github · v2.3.8">github release · v2.3.8</a>
           <a class="button" href="#whats-new"><span class="i18n" data-en="what's new" data-ru="что нового">what's new</span> ↓</a>
         </div>
-        <div class="download-meta"><span>2026-09-14 · 540 KB · apple silicon</span><span>sha-256 <code>0acdf079b5e30673da691101f1d590691d706a7adddc17392f4e84bcd1dd4a75</code> · <a href="SHA256SUMS.txt">SHA256SUMS.txt</a></span></div>
-        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.7 · <span class="i18n" data-en="update an existing install: make test && ./install-runtime.sh update-background" data-ru="обновление установленной версии: make test && ./install-runtime.sh update-background">update an existing install: make test && ./install-runtime.sh update-background</span></div>
+        <div class="download-meta"><span>2026-09-14 · 550 KB · apple silicon</span><span>sha-256 <code>fa70a65207fc011c1e8752e71265b01bc5d5a2edcc6205fbe51c5775f2cc7653</code> · <a href="SHA256SUMS.txt">SHA256SUMS.txt</a></span></div>
+        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.8 · <span class="i18n" data-en="update an existing install: make test && ./install-runtime.sh update-background" data-ru="обновление установленной версии: make test && ./install-runtime.sh update-background">update an existing install: make test && ./install-runtime.sh update-background</span></div>
       </section>
 
       <section class="whats-new" id="whats-new">

@@ -111,7 +111,7 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
-Native version 2.3.7 uses the generated N1 native-white profile: a fixed 420×488 panel,
+Native version 2.3.8 uses the generated N1 native-white profile: a fixed 420×488 panel,
 bundled IBM Plex Mono, inline setup details and the shared AIM window contract
 (header: live mark 40 pt · name · version · settings · ×; footer: keys · esc close · version · status). The bridge protocol remains
 2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.
