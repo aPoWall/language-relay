@@ -2,7 +2,7 @@
 
 ## 2.3.6 – 2026-09-14
 
-- added the live product mark: the relay voxel character sits in the panel header (43 pt, inside the unchanged 420×488 shell), follows the cursor with a ±3 pt depth parallax and reassembles on click, Space or Return in one finite 1.6 s sequence; Reduce Motion keeps the still frame;
+- added the live product mark: the relay voxel character sits in the panel header (44 pt, inside the unchanged 420×488 shell), follows the cursor with a ±3 pt depth parallax and reassembles on click, Space or Return in one finite 1.6 s sequence; Reduce Motion keeps the still frame;
 - replaced the two-cell menu glyph with the same character as an 18 pt template image next to the active alphabet cell (54×18 stays);
 - vendored the shared `AIMVoxelModels.swift` and `AIMVoxelView.swift` byte for byte into `native/`, hashed by the same design receipt as `AIMMiniAppTokens.swift`; `make design-check` verifies all ten artifacts;
 - `language-relay design` reports `liveMark`, `voxelModelsVersion`, `voxelModelsSHA256` and `voxelCount`;

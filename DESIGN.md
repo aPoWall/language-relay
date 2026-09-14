@@ -26,7 +26,7 @@ panel. The menu glyph remains a system template image for light/dark menu bars.
 ## Live mark · 2026-09-14
 
 The relay voxel character (52 voxels, one red signal) is the dynamic product mark.
-`AIMVoxelView` draws it in the panel header at 43 pt next to the name, inside the same
+`AIMVoxelView` draws it in the panel header at 44 pt next to the name, inside the same
 420×488 shell (the identity column narrowed from 252 to 201 pt). Hover shifts cubes by
 depth up to ±3 pt; click, Space or Return runs scatter → assemble once, 1.6 s at 16 ticks
 per second, only while the popover is visible. Reduce Motion keeps the still frame and a

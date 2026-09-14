@@ -1492,12 +1492,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         header.spacing = 8
         header.translatesAutoresizingMaskIntoConstraints = false
         header.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
-        header.heightAnchor.constraint(equalToConstant: 43).isActive = true
+        header.heightAnchor.constraint(equalToConstant: 44).isActive = true
         // live product mark: the relay character reacts to the cursor and to a click, inside the fixed 420×488 shell
-        let liveMark = AIMVoxelView(model: AIMVoxelModels.relay, frame: NSRect(x: 0, y: 0, width: 43, height: 43))
+        let liveMark = AIMVoxelView(model: AIMVoxelModels.relay, frame: NSRect(x: 0, y: 0, width: 44, height: 44))
         liveMark.translatesAutoresizingMaskIntoConstraints = false
-        liveMark.widthAnchor.constraint(equalToConstant: 43).isActive = true
-        liveMark.heightAnchor.constraint(equalToConstant: 43).isActive = true
+        liveMark.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        liveMark.heightAnchor.constraint(equalToConstant: 44).isActive = true
         liveMark.identifier = NSUserInterfaceItemIdentifier("live-mark")
         liveMark.toolTip = "relay · click to reassemble"
         header.addArrangedSubview(liveMark)
@@ -1796,7 +1796,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")),
                       RelayFocus.target(in: panel, identifier: .init("toggleSetupDisclosure")) is RelayButton else { return false }
                 guard let mark = RelayFocus.target(in: panel, identifier: .init("live-mark")) as? AIMVoxelView,
-                      mark.frame.size == NSSize(width: 43, height: 43), mark.accessibilityLabel() == AIMVoxelModels.relay.label else {
+                      mark.frame.size == NSSize(width: 44, height: 44), mark.accessibilityLabel() == AIMVoxelModels.relay.label else {
                     fputs("FAIL: live mark missing in panel header\n", stderr); return false
                 }
                 RelayMotion.reveal(disclosure, reducedMotion: true)
@@ -2132,7 +2132,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 43pt, menu 18pt template); panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 44pt, menu 18pt template); panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {
