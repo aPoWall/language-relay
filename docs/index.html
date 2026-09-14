@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#ffffff">
   <meta property="og:title" content="language relay – fix the wrong layout in one tap">
   <meta property="og:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta property="og:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=3">
+  <meta property="og:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=4">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="language relay converts ghbdtn into привет locally on macos">
@@ -19,7 +19,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="language relay – fix the wrong layout in one tap">
   <meta name="twitter:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta name="twitter:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=3">
+  <meta name="twitter:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=4">
   <link rel="canonical" href="https://apps.aimindset.org/language-relay/">
   <link rel="icon" href="favicon.svg?v=20260912" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
@@ -27,12 +27,7 @@
   <link rel="manifest" href="site.webmanifest">
   <link rel="stylesheet" href="design/aim-mini-apps.css">
   <style>
-    :root {
-      --paper:#fff; --ink:#080808; --muted:#696969; --line:#d9d9d4;
-      --wash:#f1f1ed; --wash-2:#e7e7e1; --signal:#caff18;
-      --mono:"JetBrains Mono","SFMono-Regular",ui-monospace,Menlo,monospace;
-      --ease:cubic-bezier(.2,.8,.2,1);
-    }
+    /* palette, font and easing come from design/aim-mini-apps.css (N1) through native-white.css */
     * { box-sizing:border-box; }
     html { scroll-behavior:smooth; background:var(--paper); color:var(--ink); font-family:var(--mono); }
     body { margin:0; overflow-x:hidden; }
@@ -64,31 +59,31 @@
     .button { min-height:48px; display:inline-flex; align-items:center; justify-content:center; border:1px solid var(--ink); padding:0 19px; font-size:13px; font-weight:750; transition:background 140ms var(--ease),color 140ms var(--ease),transform 140ms var(--ease); }
     .button:hover,.button:focus-visible { transform:translateY(-2px); outline:none; }
     .button.primary { background:var(--ink); color:var(--paper); }
-    .button.primary:hover { background:#222; }
+    .button.primary:hover { background:var(--ink); }
     .install-rail { margin-top:14px; display:grid; grid-template-columns:1fr 48px; border:1px solid var(--ink); max-width:620px; background:var(--ink); color:var(--paper); }
     .install-rail code { min-width:0; padding:15px 16px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:12px; }
-    .copy { border:0; border-left:1px solid #555; background:transparent; color:var(--paper); font-size:13px; font-weight:800; }
+    .copy { border:0; border-left:1px solid var(--line); background:transparent; color:var(--paper); font-size:13px; font-weight:800; }
     .copy:hover,.copy:focus-visible { background:var(--signal); color:var(--ink); outline:none; }
 
     .demo { border:1px solid var(--ink); background:var(--ink); color:var(--paper); min-height:590px; display:flex; flex-direction:column; position:relative; overflow:hidden; }
     .demo::after { content:""; position:absolute; width:9px; height:9px; right:17px; top:17px; background:var(--signal); }
-    .demo-head { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:0 38px 0 16px; border-bottom:1px solid #3a3a36; color:#aaa; font-size:11px; }
+    .demo-head { min-height:48px; display:flex; align-items:center; justify-content:space-between; gap:18px; padding:0 38px 0 16px; border-bottom:1px solid var(--line); color:var(--muted); font-size:11px; }
     .demo-body { padding:20px; display:flex; flex:1; flex-direction:column; gap:14px; }
-    .terminal-prompt { color:#a5a5a0; font-size:12px; }
+    .terminal-prompt { color:var(--muted); font-size:12px; }
     .terminal-prompt strong { color:var(--signal); font-weight:800; }
-    .demo-input { width:100%; min-height:142px; resize:none; border:1px solid #55554f; border-radius:0; background:#111; color:var(--paper); padding:18px; font-size:clamp(25px,3vw,38px); line-height:1.25; letter-spacing:-.045em; caret-color:var(--signal); outline:none; }
+    .demo-input { width:100%; min-height:142px; resize:none; border:1px solid var(--line); border-radius:0; background:var(--wash); color:var(--paper); padding:18px; font-size:clamp(25px,3vw,38px); line-height:1.25; letter-spacing:-.045em; caret-color:var(--signal); outline:none; }
     .demo-input:focus { border-color:var(--signal); box-shadow:inset 4px 0 0 var(--signal); }
-    .demo-controls { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:#55554f; border:1px solid #55554f; }
-    .demo-controls button { min-height:38px; border:0; background:#191919; color:#b6b6b0; font-size:11px; font-weight:750; }
+    .demo-controls { display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--line); border:1px solid var(--line); }
+    .demo-controls button { min-height:38px; border:0; background:var(--paper); color:var(--muted); font-size:11px; font-weight:750; }
     .demo-controls button[aria-pressed="true"] { background:var(--paper); color:var(--ink); }
     .demo-lab { display:grid; gap:7px; }
     .demo-lab-row { display:grid; grid-template-columns:58px 1fr; align-items:center; gap:8px; }
-    .demo-lab-label { color:#85857f; font-size:9px; letter-spacing:.04em; }
-    .demo-case,.demo-cues,.demo-examples { display:grid; gap:1px; border:1px solid #55554f; background:#55554f; }
+    .demo-lab-label { color:var(--muted); font-size:9px; letter-spacing:.04em; }
+    .demo-case,.demo-cues,.demo-examples { display:grid; gap:1px; border:1px solid var(--line); background:var(--line); }
     .demo-case { grid-template-columns:repeat(4,1fr); }
     .demo-cues { grid-template-columns:repeat(4,1fr); }
     .demo-examples { grid-template-columns:repeat(3,1fr); }
-    .demo-case button,.demo-cues button,.demo-examples button { min-width:0; min-height:30px; border:0; background:#191919; color:#a7a7a1; font-size:9px; font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .demo-case button,.demo-cues button,.demo-examples button { min-width:0; min-height:30px; border:0; background:var(--paper); color:var(--muted); font-size:9px; font-weight:750; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .demo-case button:hover,.demo-case button:focus-visible,.demo-cues button:hover,.demo-cues button:focus-visible,.demo-examples button:hover,.demo-examples button:focus-visible { color:var(--paper); outline:1px solid var(--paper); outline-offset:-1px; }
     .demo-case button[aria-pressed="true"],.demo-cues button[aria-pressed="true"] { background:var(--paper); color:var(--ink); }
     .demo-cues button[aria-pressed="true"]::before { content:"■ "; color:var(--signal); }
@@ -96,17 +91,21 @@
     .relay-button { border:0; background:var(--paper); color:var(--ink); font-size:13px; font-weight:800; text-align:left; padding:0 16px; }
     .relay-button:hover,.relay-button:focus-visible { background:var(--signal); outline:none; }
     .key-pair { display:flex; align-items:center; padding:0 11px; gap:4px; border-left:1px solid var(--paper); }
-    .key { min-width:29px; height:27px; display:grid; place-items:center; border:1px solid #70706a; color:#cacac4; font-size:10px; transition:background 100ms,color 100ms,transform 100ms; }
+    .key { min-width:29px; height:27px; display:grid; place-items:center; border:1px solid var(--line); color:var(--muted); font-size:10px; transition:background 100ms,color 100ms,transform 100ms; }
     .demo.is-keying .key { background:var(--signal); color:var(--ink); transform:translateY(2px); }
-    .receipt { min-height:36px; border-top:1px solid #3a3a36; display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:auto; padding-top:13px; color:#9b9b95; font-size:11px; }
+    .receipt { min-height:36px; border-top:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; gap:16px; margin-top:auto; padding-top:13px; color:var(--muted); font-size:11px; }
     .receipt strong { color:var(--signal); font-weight:800; }
-    .demo-note { margin:0; color:#8f8f89; font-size:10px; line-height:1.5; }
-    .demo-note kbd { color:#d0d0ca; font:inherit; }
+    .demo-note { margin:0; color:var(--muted); font-size:10px; line-height:1.5; }
+    .demo-note kbd { color:var(--ink); font:inherit; }
 
     .trust { display:grid; grid-template-columns:repeat(5,1fr); border:1px solid var(--line); background:var(--line); gap:1px; margin-bottom:88px; }
     .trust span { min-height:66px; display:grid; place-items:center; background:var(--paper); font-size:12px; font-weight:750; text-align:center; padding:10px; }
     .trust span:first-child { background:var(--signal); }
     section { border-top:1px solid var(--line); padding:88px 0; }
+    section.hero { border-top:0; }
+    .eyebrow { display:flex; align-items:center; gap:10px; }
+    .hero-mark { width:38px; height:38px; flex:none; color:var(--ink); }
+    .head-version { color:var(--muted); }
     h2 { max-width:940px; margin:17px 0 40px; font-size:clamp(42px,5.2vw,68px); line-height:.98; letter-spacing:-.063em; }
     .steps { display:grid; grid-template-columns:repeat(3,1fr); border:1px solid var(--line); background:var(--line); gap:1px; }
     .step { min-height:230px; padding:25px; background:var(--paper); display:flex; flex-direction:column; justify-content:space-between; }
@@ -126,7 +125,7 @@
     .choice[aria-pressed="true"] { background:var(--ink); color:var(--paper); }
     .choice strong { font-size:13px; }
     .choice small { color:var(--muted); font-size:9px; line-height:1.3; }
-    .choice[aria-pressed="true"] small { color:#bdbdb6; }
+    .choice[aria-pressed="true"] small { color:var(--muted); }
     .panel-frame { border:1px solid var(--ink); padding:14px; background:var(--wash); margin-top:18px; }
     .panel-frame img { width:100%; height:auto; border:1px solid var(--line); }
     .panel-caption { display:flex; justify-content:space-between; margin-top:10px; color:var(--muted); font-size:10px; }
@@ -138,11 +137,11 @@
     .agent-point b { display:block; font-size:12px; margin-bottom:9px; }
     .agent-point span { color:var(--muted); font-size:11px; line-height:1.5; }
     .terminal { min-width:0; max-width:100%; background:var(--ink); color:var(--paper); border:1px solid var(--ink); }
-    .terminal-head { min-height:43px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 15px; border-bottom:1px solid #444; color:#aaa; font-size:11px; }
+    .terminal-head { min-height:43px; display:flex; align-items:center; justify-content:space-between; gap:20px; padding:0 15px; border-bottom:1px solid rgba(255,255,255,.18); color:rgba(255,255,255,.62); font-size:11px; }
     pre { margin:0; padding:22px; overflow:auto; font-size:12px; line-height:1.8; }
     .signal { color:var(--signal); }
 
-    .privacy-grid { display:grid; grid-template-columns:.72fr 1.28fr; gap:72px; align-items:start; }
+    .privacy { display:grid; grid-template-columns:.72fr 1.28fr; gap:72px; align-items:start; }
     .privacy-ledger { display:grid; grid-template-columns:repeat(2,1fr); border:1px solid var(--line); background:var(--line); gap:1px; }
     .privacy-item { min-height:125px; background:var(--paper); padding:20px; display:flex; flex-direction:column; justify-content:space-between; }
     .privacy-item strong { font-size:17px; }
@@ -156,7 +155,7 @@
     .sound-pad:hover,.sound-pad:focus-visible,.sound-pad.is-playing { background:var(--ink); color:var(--paper); outline:none; }
     .sound-pad[aria-pressed="true"] { box-shadow:inset 0 -5px 0 var(--signal); }
     .sound-pad small { color:var(--muted); font-size:10px; }
-    .sound-pad:hover small,.sound-pad.is-playing small { color:#aaa; }
+    .sound-pad:hover small,.sound-pad.is-playing small { color:rgba(255,255,255,.62); }
     .wave { width:100%; height:24px; display:flex; align-items:center; gap:3px; }
     .wave i { display:block; width:2px; background:currentColor; opacity:.8; }
     .wave i:nth-child(1),.wave i:nth-child(7){height:5px}.wave i:nth-child(2),.wave i:nth-child(6){height:11px}.wave i:nth-child(3),.wave i:nth-child(5){height:18px}.wave i:nth-child(4){height:22px}.wave i:nth-child(8){height:8px}.wave i:nth-child(9){height:14px}
@@ -178,7 +177,7 @@
     @keyframes relay-glitch { 0%{transform:translateX(0);filter:none} 25%{transform:translateX(6px)} 50%{transform:translateX(-5px);clip-path:inset(34% 0 28%)} 75%{transform:translateX(3px);clip-path:inset(8% 0 63%)} 100%{transform:translateX(0);clip-path:none} }
     @keyframes relay-pulse { 0%,100%{background:var(--signal)} 50%{height:11px;transform:translate(-50%,-6px)} }
     @media (max-width:940px) {
-      .hero,.agent-grid,.control-grid,.privacy-grid { grid-template-columns:1fr; gap:46px; }
+      .hero,.agent-grid,.control-grid,.privacy { grid-template-columns:1fr; gap:46px; }
       .hero { padding-top:58px; }
       .demo { max-width:660px; min-height:590px; }
       .steps { grid-template-columns:1fr; }
@@ -227,6 +226,25 @@
     .install-steps strong,.install-steps code { color:var(--ink); }
     .install-steps code { background:var(--wash); padding:1px 6px; border-radius:4px; font-size:12px; }
     .install-links { display:flex; flex-wrap:wrap; gap:8px; justify-content:center; margin-top:22px; }
+    .download-meta { display:flex; flex-wrap:wrap; gap:8px 22px; justify-content:center; margin-top:14px; color:var(--muted); font-size:12px; }
+    .download-meta code { font-size:11px; word-break:break-all; color:var(--ink); }
+    .hero-proof { display:flex; flex-wrap:wrap; align-items:flex-start; gap:32px; margin-top:26px; }
+    .hero-proof .suite-voxel { flex:none; display:grid; gap:6px; justify-items:start; }
+    .hero-proof .suite-caption { display:flex; gap:10px; align-items:baseline; color:var(--muted); font-size:11px; }
+    .hero-proof .suite-caption b { color:var(--signal); font-weight:600; }
+    .hero-shot { margin:0; width:236px; flex:none; }
+    .hero-shot img { display:block; width:100%; height:auto; border:1px solid var(--line); border-radius:8px; background:var(--wash); }
+    .hero-shot figcaption { margin-top:8px; color:var(--muted); font-size:11px; }
+    .whats-new { padding:64px 0 0; }
+    .release-list { display:grid; gap:1px; border:1px solid var(--line); background:var(--line); margin-top:22px; }
+    .release { background:var(--paper); padding:18px 20px; display:grid; grid-template-columns:200px 1fr; gap:16px; }
+    .release h3 { margin:0; font-size:14px; font-weight:600; color:var(--ink); }
+    .release time { display:block; margin-top:4px; color:var(--muted); font-size:11px; }
+    .release ul { margin:0; padding-left:18px; color:var(--ink); font-size:13px; line-height:1.55; }
+    .release li + li { margin-top:4px; }
+    .release-fallback { padding:18px 20px; background:var(--paper); color:var(--muted); font-size:12px; margin:0; }
+    @media (max-width:940px) { .release { grid-template-columns:1fr; gap:8px; } }
+    @media (max-width:620px) { .hero-shot { width:100%; max-width:300px; } }
     .voxel-stage { width:176px; height:176px; display:grid; place-items:center; }
     .voxel-stage img { width:140px; height:140px; }
     .voxel-stage svg { width:100%; height:100%; display:block; }
@@ -234,67 +252,72 @@
     @media (max-width:940px) { .features { grid-template-columns:repeat(2,1fr); } }
     @media (max-width:620px) { .features { grid-template-columns:1fr; } .sub { padding-top:48px; margin-top:48px; } }
   </style>
-  <script src="design/aim-i18n.js"></script>
-  <script src="design/aim-voxel.js" defer></script>
+  <script src="../assets/aim-i18n.js"></script>
+  <script src="../assets/aim-voxel.js" defer></script>
 </head>
 <body id="top">
   <div class="shell">
-    <nav class="nav">
+    <header class="site-head nav">
       <a class="wordmark" href="#top" aria-label="language relay home"><img src="voxel-relay.svg" alt="" width="42" height="42"><span>language relay</span></a>
       <div class="nav-actions">
         <a class="family mini-apps-link" href="https://apps.aimindset.org/">ai mindset apps</a>
+        <span class="head-version">v2.3.7</span>
         <button class="micro-button" id="lang-toggle" aria-label="switch website language">en ⇄ ру</button>
+        <a class="text-link i18n" href="#install" data-en="install ↗" data-ru="установить ↗">install ↗</a>
         <a class="text-link" href="https://github.com/aPoWall/language-relay">github ↗</a>
       </div>
-    </nav>
+    </header>
 
     <main>
-      <div class="hero">
+      <section class="hero" id="hero">
         <div>
-          <div class="eyebrow i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · open source">macos utility · local by design · open source</div>
+          <div class="eyebrow"><svg class="hero-mark" aria-hidden="true" viewBox="0 0 48 48"><use href="../assets/aim-app-marks.svg#relay"/></svg><span class="i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · открытый код">macos utility · local by design · open source</span></div>
           <h1 class="i18n" data-en="typed in the wrong layout? don't retype it." data-ru="набрал не в той раскладке? не перепечатывай.">typed in the wrong layout? don't retype it.</h1>
           <p class="lead i18n" data-en="double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready." data-ru="двойной shift превращает ghbdtn в привет прямо в текущем поле. language relay по умолчанию исправляет последнее слово, фразовый режим включается отдельно, раскладка меняется сама.">double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready.</p>
-          <p class="small-line i18n" data-en="double shift or clean option · last word by default · native edit events · v2.3.6" data-ru="двойной shift или чистый option · последнее слово по умолчанию · обычные события редактирования · v2.3.6">double shift or clean option · last word by default · native edit events · v2.3.6</p>
+          <p class="small-line i18n" data-en="double shift or clean option · last word by default · one window contract · v2.3.7" data-ru="двойной shift или чистый option · последнее слово по умолчанию · единый контракт окна · v2.3.7">double shift or clean option · last word by default · one window contract · v2.3.7</p>
           <div class="actions">
-            <a class="button primary i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="download v2.3.6" data-ru="скачать v2.3.6">download v2.3.6</a>
+            <a class="button primary i18n" href="Language-Relay-2.3.7-arm64.zip" download data-en="download v2.3.7 ↓" data-ru="скачать v2.3.7 ↓">download v2.3.7 ↓</a>
             <a class="button i18n" href="#live-demo" data-en="try it here ↓" data-ru="попробовать здесь ↓">try it here ↓</a>
           </div>
           <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
-          <div class="suite-voxel suite-hero-voxel"><div class="voxel-stage" id="relay-mark" data-voxel="relay"><img src="voxel-relay.svg" alt="relay voxel character" width="140" height="140"></div><div class="suite-caption"><span class="i18n" data-en="two alphabets · one thought · click to reassemble" data-ru="два алфавита · одна мысль · клик собирает заново">two alphabets · one thought · click to reassemble</span><b>relay</b></div></div>
+          <div class="hero-proof">
+            <div class="suite-voxel suite-hero-voxel"><div class="voxel-stage" id="relay-mark" data-voxel="relay"><img src="voxel-relay.svg" alt="relay voxel character" width="140" height="140"></div><div class="suite-caption"><span class="i18n" data-en="two alphabets · one thought · click to swap the arrows" data-ru="два алфавита · одна мысль · клик меняет стрелки местами">two alphabets · one thought · click to swap the arrows</span><b>relay</b></div></div>
+            <figure class="hero-shot"><img src="assets/window.png?v=237" alt="Language Relay 2.3.7 panel: live mark, name, version, settings and close in the header, keys and esc close in the footer" width="984" height="1122" loading="eager" decoding="async"><figcaption><span class="i18n" data-en="the real panel · 2.3.7 · 420×488" data-ru="настоящая панель · 2.3.7 · 420×488">the real panel · 2.3.7 · 420×488</span></figcaption></figure>
+          </div>
         </div>
         <div class="demo" id="live-demo" aria-label="interactive keyboard layout relay demo">
-          <div class="demo-head"><span>live browser demo · same key map</span><span id="demo-direction">u.s. → russian–pc</span></div>
+          <div class="demo-head"><span class="i18n" data-en="live browser demo · same key map" data-ru="живая демо в браузере · та же карта клавиш">live browser demo · same key map</span><span id="demo-direction">u.s. → russian–pc</span></div>
           <div class="demo-body">
             <div class="terminal-prompt"><strong>alex@mac</strong> ~ % relay</div>
             <textarea class="demo-input" id="demo-input" rows="4" spellcheck="false" autocapitalize="off" autocomplete="off" aria-label="type text in the wrong keyboard layout">ghbdtn? vbh</textarea>
             <div class="demo-lab" aria-label="live relay settings">
               <div class="demo-lab-row">
-                <span class="demo-lab-label">scope</span>
+                <span class="demo-lab-label i18n" data-en="scope" data-ru="охват">scope</span>
                 <div class="demo-controls" aria-label="demo correction scope">
-                  <button data-scope="word" aria-pressed="true">word · last token</button>
-                  <button data-scope="phrase" aria-pressed="false">phrase · full tail</button>
+                  <button class="i18n" data-scope="word" aria-pressed="true" data-en="word · last token" data-ru="слово · последний токен">word · last token</button>
+                  <button class="i18n" data-scope="phrase" aria-pressed="false" data-en="phrase · full tail" data-ru="фраза · весь хвост">phrase · full tail</button>
                 </div>
               </div>
               <div class="demo-lab-row">
-                <span class="demo-lab-label">case</span>
+                <span class="demo-lab-label i18n" data-en="case" data-ru="регистр">case</span>
                 <div class="demo-case" aria-label="demo capitalization">
-                  <button data-case="preserve" aria-pressed="true">aA · keep</button>
-                  <button data-case="sentence" aria-pressed="false">Aa · sentence</button>
-                  <button data-case="uppercase" aria-pressed="false">AA · upper</button>
-                  <button data-case="lowercase" aria-pressed="false">aa · lower</button>
+                  <button class="i18n" data-case="preserve" aria-pressed="true" data-en="aA · keep" data-ru="aA · как есть">aA · keep</button>
+                  <button class="i18n" data-case="sentence" aria-pressed="false" data-en="Aa · sentence" data-ru="Aa · предложение">Aa · sentence</button>
+                  <button class="i18n" data-case="uppercase" aria-pressed="false" data-en="AA · upper" data-ru="AA · верхний">AA · upper</button>
+                  <button class="i18n" data-case="lowercase" aria-pressed="false" data-en="aa · lower" data-ru="aa · нижний">aa · lower</button>
                 </div>
               </div>
               <div class="demo-lab-row">
-                <span class="demo-lab-label">cue</span>
+                <span class="demo-lab-label i18n" data-en="cue" data-ru="сигнал">cue</span>
                 <div class="demo-cues" aria-label="demo sound cue">
                   <button data-demo-sound="pulse" aria-pressed="false">pulse</button>
                   <button data-demo-sound="relay" aria-pressed="true">relay</button>
                   <button data-demo-sound="scan" aria-pressed="false">scan</button>
-                  <button data-demo-sound="silent" aria-pressed="false">silent</button>
+                  <button class="i18n" data-demo-sound="silent" aria-pressed="false" data-en="silent" data-ru="тихо">silent</button>
                 </div>
               </div>
               <div class="demo-lab-row">
-                <span class="demo-lab-label">examples</span>
+                <span class="demo-lab-label i18n" data-en="examples" data-ru="примеры">examples</span>
                 <div class="demo-examples" aria-label="demo text examples">
                   <button data-example="ghbdtn? vbh">ghbdtn? vbh</button>
                   <button data-example="руддщ цщкдв">руддщ цщкдв</button>
@@ -304,76 +327,76 @@
             </div>
             <div class="demo-action">
               <button class="relay-button i18n" id="relay-button" data-en="relay text" data-ru="исправить текст">relay text</button>
-              <div class="key-pair" aria-hidden="true"><span class="key">⌘↩</span><span class="key">click</span></div>
+              <div class="key-pair" aria-hidden="true"><span class="key">⌘↩</span><span class="key i18n" data-en="click" data-ru="клик">click</span></div>
             </div>
-            <div class="receipt" aria-live="polite"><span id="demo-receipt">ready · type · relay / ⌘↩</span><strong>local</strong></div>
+            <div class="receipt" aria-live="polite"><span id="demo-receipt">ready · type · relay / ⌘↩</span><strong class="i18n" data-en="local" data-ru="локально">local</strong></div>
             <p class="demo-note i18n" data-en="this browser demo uses relay or ⌘↩. the installed app uses clean double shift or option." data-ru="в браузере нажми relay или ⌘↩. в приложении работают чистый двойной shift и option.">this browser demo uses relay or ⌘↩. the installed app uses clean double shift or option.</p>
           </div>
         </div>
-      </div>
+      </section>
 
-      <div class="trust" aria-label="privacy and product properties"><span class="i18n" data-en="local only" data-ru="только локально">local only</span><span class="i18n" data-en="no account" data-ru="без аккаунта">no account</span><span class="i18n" data-en="no ads" data-ru="без рекламы">no ads</span><span class="i18n" data-en="no telemetry" data-ru="без телеметрии">no telemetry</span><span>mit · open source</span></div>
+      <div class="trust" aria-label="privacy and product properties"><span class="i18n" data-en="local only" data-ru="только локально">local only</span><span class="i18n" data-en="no account" data-ru="без аккаунта">no account</span><span class="i18n" data-en="no ads" data-ru="без рекламы">no ads</span><span class="i18n" data-en="no telemetry" data-ru="без телеметрии">no telemetry</span><span class="i18n" data-en="mit · open source" data-ru="mit · открытый код">mit · open source</span></div>
 
       <section id="example">
-        <div class="section-label">01 · one example</div>
+        <div class="section-label i18n" data-en="01 · one example" data-ru="01 · один пример">01 · one example</div>
         <h2 class="i18n" data-en="ghbdtn? vbh becomes привет? мир. one gesture repairs the tail of the thought." data-ru="ghbdtn? vbh становится привет? мир. один жест исправляет хвост мысли.">ghbdtn? vbh becomes привет? мир. one gesture repairs the tail of the thought.</h2>
         <div class="steps">
-          <article class="step"><span class="step-index">01 · type</span><strong class="i18n" data-en="finish the thought" data-ru="допиши мысль">finish the thought</strong><p class="i18n" data-en="keep writing when the active keyboard source is wrong. the text stays exactly where you typed it." data-ru="продолжай писать, когда активна другая раскладка. текст остаётся ровно там, где ты его набрал.">keep writing when the active keyboard source is wrong. the text stays exactly where you typed it.</p></article>
-          <article class="step"><span class="step-index">02 · relay</span><strong class="i18n" data-en="tap a clean gesture" data-ru="нажми чистый жест">tap a clean gesture</strong><p class="i18n" data-en="double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting." data-ru="двойной shift или чистый option конвертирует последнее слово без открытия окна. фразовый режим включается явно.">double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting.</p></article>
-          <article class="step"><span class="step-index">03 · continue</span><strong class="i18n" data-en="stay at the cursor" data-ru="останься у курсора">stay at the cursor</strong><p class="i18n" data-en="the app verifies the write, switches the layout and leaves the insertion point ready for the next word." data-ru="приложение проверяет запись, меняет раскладку и оставляет курсор готовым к следующему слову.">the app verifies the write, switches the layout and leaves the insertion point ready for the next word.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="01 · type" data-ru="01 · набери">01 · type</span><strong class="i18n" data-en="finish the thought" data-ru="допиши мысль">finish the thought</strong><p class="i18n" data-en="keep writing when the active keyboard source is wrong. the text stays exactly where you typed it." data-ru="продолжай писать, когда активна другая раскладка. текст остаётся ровно там, где ты его набрал.">keep writing when the active keyboard source is wrong. the text stays exactly where you typed it.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="02 · relay" data-ru="02 · relay">02 · relay</span><strong class="i18n" data-en="tap a clean gesture" data-ru="нажми чистый жест">tap a clean gesture</strong><p class="i18n" data-en="double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting." data-ru="двойной shift или чистый option конвертирует последнее слово без открытия окна. фразовый режим включается явно.">double shift or a clean option tap converts the latest word without opening a window. phrase repair is a visible setting.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="03 · continue" data-ru="03 · продолжай">03 · continue</span><strong class="i18n" data-en="stay at the cursor" data-ru="останься у курсора">stay at the cursor</strong><p class="i18n" data-en="the app verifies the write, switches the layout and leaves the insertion point ready for the next word." data-ru="приложение проверяет запись, меняет раскладку и оставляет курсор готовым к следующему слову.">the app verifies the write, switches the layout and leaves the insertion point ready for the next word.</p></article>
         </div>
       </section>
 
       <section id="features">
-        <div class="section-label">02 · features</div>
+        <div class="section-label i18n" data-en="02 · features" data-ru="02 · возможности">02 · features</div>
         <h2 class="i18n" data-en="small surface. explicit behavior. a contract for agents." data-ru="маленькая панель. точное поведение. контракт для агентов.">small surface. explicit behavior. a contract for agents.</h2>
         <div class="features">
-          <article class="step"><span class="step-index">01 · scope</span><strong class="i18n" data-en="word or phrase" data-ru="слово или фраза">word or phrase</strong><p class="i18n" data-en="the last word is repaired by default. phrase repair is a visible setting in the panel." data-ru="по умолчанию исправляется последнее слово. фразовый режим включается в панели явно.">the last word is repaired by default. phrase repair is a visible setting in the panel.</p></article>
-          <article class="step"><span class="step-index">02 · gestures</span><strong class="i18n" data-en="clean double shift or option" data-ru="чистый двойной shift или option">clean double shift or option</strong><p class="i18n" data-en="two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet." data-ru="два системных жеста, оба отключаемые, оба без открытия окна. меню показывает активный алфавит.">two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet.</p></article>
-          <article class="step"><span class="step-index">03 · case + cues</span><strong class="i18n" data-en="four case modes, eight cues" data-ru="четыре режима регистра, восемь сигналов">four case modes, eight cues</strong><p class="i18n" data-en="preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels." data-ru="сохранить, предложение, верхний или нижний. короткие звуковые сигналы 75–200 мс и четыре уровня громкости.">preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels.</p></article>
-          <article class="step"><span class="step-index">04 · live mark</span><strong class="i18n" data-en="the character lives in the app" data-ru="персонаж живёт в приложении">the character lives in the app</strong><p class="i18n" data-en="the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still." data-ru="воксельный relay стоит в шапке панели и в строке меню, следует за курсором и собирается заново по клику. reduce motion оставляет его неподвижным.">the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="01 · scope" data-ru="01 · охват">01 · scope</span><strong class="i18n" data-en="word or phrase" data-ru="слово или фраза">word or phrase</strong><p class="i18n" data-en="the last word is repaired by default. phrase repair is a visible setting in the panel." data-ru="по умолчанию исправляется последнее слово. фразовый режим включается в панели явно.">the last word is repaired by default. phrase repair is a visible setting in the panel.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="02 · gestures" data-ru="02 · жесты">02 · gestures</span><strong class="i18n" data-en="clean double shift or option" data-ru="чистый двойной shift или option">clean double shift or option</strong><p class="i18n" data-en="two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet." data-ru="два системных жеста, оба отключаемые, оба без открытия окна. меню показывает активный алфавит.">two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="03 · case + cues" data-ru="03 · регистр + сигналы">03 · case + cues</span><strong class="i18n" data-en="four case modes, eight cues" data-ru="четыре режима регистра, восемь сигналов">four case modes, eight cues</strong><p class="i18n" data-en="preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels." data-ru="сохранить, предложение, верхний или нижний. короткие звуковые сигналы 75–200 мс и четыре уровня громкости.">preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="04 · live mark" data-ru="04 · живой знак">04 · live mark</span><strong class="i18n" data-en="the character lives in the app" data-ru="персонаж живёт в приложении">the character lives in the app</strong><p class="i18n" data-en="the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still." data-ru="воксельный relay стоит в шапке панели и в строке меню, следует за курсором и собирается заново по клику. reduce motion оставляет его неподвижным.">the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still.</p></article>
         </div>
 
       <div class="control-grid sub">
         <div class="control-copy">
-          <div class="section-label">02.1 · precise controls</div>
+          <div class="section-label i18n" data-en="02.1 · precise controls" data-ru="02.1 · точные настройки">02.1 · precise controls</div>
           <h2 class="i18n" data-en="small surface. explicit behavior." data-ru="маленькая панель. точное поведение.">small surface. explicit behavior.</h2>
           <p class="i18n" data-en="the menu bar shows the active alphabet. every setting names the exact part of the correction it changes." data-ru="меню показывает активный алфавит. каждая настройка прямо называет ту часть исправления, которую меняет.">the menu bar shows the active alphabet. every setting names the exact part of the correction it changes.</p>
           <figure class="panel-frame">
-            <img src="language-relay-panel.png?v=236" alt="Language Relay native white menu bar control panel" width="840" height="976">
-            <figcaption class="panel-caption"><span>native control surface</span><span>swift · appkit</span></figcaption>
+            <img src="assets/window.png?v=237" alt="Language Relay 2.3.7 native panel with the shared window contract" width="984" height="1122" loading="lazy">
+            <figcaption class="panel-caption"><span class="i18n" data-en="native control surface" data-ru="нативная панель управления">native control surface</span><span>swift · appkit</span></figcaption>
           </figure>
         </div>
         <div class="settings-console" aria-label="interactive settings explainer">
-          <div class="settings-head"><span>language relay / settings</span><span>changes sync to the demo ↑</span></div>
+          <div class="settings-head"><span class="i18n" data-en="language relay / settings" data-ru="language relay / настройки">language relay / settings</span><span class="i18n" data-en="changes sync to the demo ↑" data-ru="изменения уходят в демо ↑">changes sync to the demo ↑</span></div>
           <div class="setting">
-            <span class="setting-label">scope</span>
+            <span class="setting-label i18n" data-en="scope" data-ru="охват">scope</span>
             <div class="choice-row">
               <button class="choice" data-scope="word" aria-pressed="true"><strong>_ word</strong><small class="i18n" data-en="one trailing token" data-ru="одно последнее слово">one trailing token</small></button>
               <button class="choice" data-scope="phrase" aria-pressed="false"><strong>≋ phrase</strong><small class="i18n" data-en="last language-run tail" data-ru="последний фрагмент фразы">last language-run tail</small></button>
             </div>
           </div>
           <div class="setting">
-            <span class="setting-label">capitalization</span>
+            <span class="setting-label i18n" data-en="capitalization" data-ru="регистр">capitalization</span>
             <div class="choice-row">
-              <button class="choice" data-case="preserve" aria-pressed="true"><strong>aA</strong><small>preserve · keep case</small></button>
-              <button class="choice" data-case="sentence" aria-pressed="false"><strong>Aa</strong><small>sentence · first upper</small></button>
-              <button class="choice" data-case="uppercase" aria-pressed="false"><strong>AA</strong><small>uppercase · all upper</small></button>
-              <button class="choice" data-case="lowercase" aria-pressed="false"><strong>aa</strong><small>lowercase · all lower</small></button>
+              <button class="choice" data-case="preserve" aria-pressed="true"><strong>aA</strong><small class="i18n" data-en="preserve · keep case" data-ru="как есть · регистр не трогаем">preserve · keep case</small></button>
+              <button class="choice" data-case="sentence" aria-pressed="false"><strong>Aa</strong><small class="i18n" data-en="sentence · first upper" data-ru="предложение · первая заглавная">sentence · first upper</small></button>
+              <button class="choice" data-case="uppercase" aria-pressed="false"><strong>AA</strong><small class="i18n" data-en="uppercase · all upper" data-ru="верхний · все заглавные">uppercase · all upper</small></button>
+              <button class="choice" data-case="lowercase" aria-pressed="false"><strong>aa</strong><small class="i18n" data-en="lowercase · all lower" data-ru="нижний · все строчные">lowercase · all lower</small></button>
             </div>
           </div>
           <div class="setting">
-            <span class="setting-label">triggers</span>
+            <span class="setting-label i18n" data-en="triggers" data-ru="жесты">triggers</span>
             <div class="choice-row">
-              <button class="choice" aria-pressed="true"><strong>⇧ ⇧</strong><small>double shift · clean taps</small></button>
-              <button class="choice" aria-pressed="true"><strong>⌥</strong><small>option · clean tap</small></button>
+              <button class="choice" aria-pressed="true"><strong>⇧ ⇧</strong><small class="i18n" data-en="double shift · clean taps" data-ru="двойной shift · чистые нажатия">double shift · clean taps</small></button>
+              <button class="choice" aria-pressed="true"><strong>⌥</strong><small class="i18n" data-en="option · clean tap" data-ru="option · чистое нажатие">option · clean tap</small></button>
             </div>
           </div>
           <div class="setting">
-            <span class="setting-label">feedback</span>
+            <span class="setting-label i18n" data-en="feedback" data-ru="отклик">feedback</span>
             <div class="choice-row">
-              <button class="choice" aria-pressed="true"><strong>8 cues</strong><small>75–200 ms</small></button>
-              <button class="choice" aria-pressed="true"><strong>4 levels</strong><small>mute · low · mid · high</small></button>
+              <button class="choice" aria-pressed="true"><strong class="i18n" data-en="8 cues" data-ru="8 сигналов">8 cues</strong><small class="i18n" data-en="75–200 ms" data-ru="75–200 мс">75–200 ms</small></button>
+              <button class="choice" aria-pressed="true"><strong class="i18n" data-en="4 levels" data-ru="4 уровня">4 levels</strong><small class="i18n" data-en="mute · low · mid · high" data-ru="тихо · низко · средне · громко">mute · low · mid · high</small></button>
             </div>
           </div>
         </div>
@@ -381,18 +404,18 @@
 
       <div class="agent-grid sub">
         <div>
-          <div class="section-label">02.2 · built for agents</div>
+          <div class="section-label i18n" data-en="02.2 · built for agents" data-ru="02.2 · для агентов">02.2 · built for agents</div>
           <h2 class="i18n" data-en="a keyboard tool with a machine-readable contract." data-ru="клавиатурный инструмент с машиночитаемым контрактом.">a keyboard tool with a machine-readable contract.</h2>
           <p class="agent-copy i18n" data-en="agents get deterministic conversion, readiness checks, stable capabilities and useful exit status. conversion returns the requested text; diagnostic receipts contain no typed content." data-ru="агенты получают детерминированную конвертацию, проверку готовности, стабильные capabilities и полезные exit status. команда конвертации возвращает запрошенный текст; диагностические receipts не содержат введённый текст.">agents get deterministic conversion, readiness checks, stable capabilities and useful exit status. conversion returns the requested text; diagnostic receipts contain no typed content.</p>
           <div class="agent-points">
-            <div class="agent-point"><b>deterministic</b><span>the same key map produces the same output on every run.</span></div>
-            <div class="agent-point"><b>inspectable</b><span>doctor and capabilities report readiness before automation starts.</span></div>
-            <div class="agent-point"><b>composable</b><span>json fits shell scripts, launch agents and local agent workflows.</span></div>
-            <div class="agent-point"><b>private</b><span>conversion happens on the mac. diagnostics retain no typed text.</span></div>
+            <div class="agent-point"><b class="i18n" data-en="deterministic" data-ru="детерминированно">deterministic</b><span class="i18n" data-en="the same key map produces the same output on every run." data-ru="одна карта клавиш даёт один и тот же результат при каждом запуске.">the same key map produces the same output on every run.</span></div>
+            <div class="agent-point"><b class="i18n" data-en="inspectable" data-ru="проверяемо">inspectable</b><span class="i18n" data-en="doctor and capabilities report readiness before automation starts." data-ru="doctor и capabilities сообщают готовность до старта автоматизации.">doctor and capabilities report readiness before automation starts.</span></div>
+            <div class="agent-point"><b class="i18n" data-en="composable" data-ru="составляемо">composable</b><span class="i18n" data-en="json fits shell scripts, launch agents and local agent workflows." data-ru="json встраивается в shell-скрипты, launch agents и локальные агентные процессы.">json fits shell scripts, launch agents and local agent workflows.</span></div>
+            <div class="agent-point"><b class="i18n" data-en="private" data-ru="приватно">private</b><span class="i18n" data-en="conversion happens on the mac. diagnostics retain no typed text." data-ru="конвертация идёт на mac. диагностика не хранит набранный текст.">conversion happens on the mac. diagnostics retain no typed text.</span></div>
           </div>
         </div>
         <div class="terminal">
-          <div class="terminal-head"><span>language-relay · schema 1</span><span class="signal">■ ready</span></div>
+          <div class="terminal-head"><span>language-relay · schema 1</span><span class="signal i18n" data-en="■ ready" data-ru="■ готов">■ ready</span></div>
           <pre><code><span class="signal">$</span> language-relay convert ghbdtn
 {"sourceID":"…US","targetID":"…RussianWin","text":"привет"}
 
@@ -405,7 +428,7 @@
       </div>
 
         <div class="sub">
-          <div class="section-label">02.3 · relay signals</div>
+          <div class="section-label i18n" data-en="02.3 · relay signals" data-ru="02.3 · сигналы relay">02.3 · relay signals</div>
           <h2 class="i18n" data-en="eight short signals. one clear receipt." data-ru="восемь коротких сигналов. один ясный результат.">eight short signals. one clear receipt.</h2>
         <div class="sound-grid" id="sound-grid">
           <button class="sound-pad" data-sound="pulse" aria-pressed="false"><small>01 · 110ms</small><span class="wave"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span><strong>pulse</strong></button>
@@ -421,7 +444,7 @@
       </section>
 
       <section class="install-section" id="install">
-        <div class="section-label">03 · install</div>
+        <div class="section-label i18n" data-en="03 · install" data-ru="03 · установка">03 · install</div>
         <h2 class="i18n" data-en="one command. ready for the next word." data-ru="одна команда. готово к следующему слову.">one command. ready for the next word.</h2>
         <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
         <ol class="install-steps">
@@ -430,33 +453,41 @@
           <li class="i18n" data-en="type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet." data-ru="набери ghbdtn в любом поле и нажми двойной shift. знак в строке меню покажет активный алфавит.">type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet.</li>
         </ol>
         <div class="install-links">
-          <a class="button i18n" href="https://github.com/aPoWall/language-relay/releases/latest" data-en="github release · v2.3.6" data-ru="релиз на github · v2.3.6">github release · v2.3.6</a>
-          <a class="button i18n" href="https://github.com/aPoWall/language-relay/blob/main/CHANGELOG.md" data-en="what changed" data-ru="что изменилось">what changed</a>
+          <a class="button primary i18n" href="Language-Relay-2.3.7-arm64.zip" download data-en="download v2.3.7 · zip ↓" data-ru="скачать v2.3.7 · zip ↓">download v2.3.7 · zip ↓</a>
+          <a class="button i18n" href="https://github.com/aPoWall/language-relay/releases/tag/v2.3.7" data-en="github release · v2.3.7" data-ru="релиз на github · v2.3.7">github release · v2.3.7</a>
+          <a class="button" href="#whats-new"><span class="i18n" data-en="what's new" data-ru="что нового">what's new</span> ↓</a>
         </div>
-        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.6 · <span class="i18n" data-en="update an existing install: make test && ./install-runtime.sh update-background" data-ru="обновление установленной версии: make test && ./install-runtime.sh update-background">update an existing install: make test && ./install-runtime.sh update-background</span></div>
+        <div class="download-meta"><span>2026-09-14 · 540 KB · apple silicon</span><span>sha-256 <code>0acdf079b5e30673da691101f1d590691d706a7adddc17392f4e84bcd1dd4a75</code> · <a href="SHA256SUMS.txt">SHA256SUMS.txt</a></span></div>
+        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.7 · <span class="i18n" data-en="update an existing install: make test && ./install-runtime.sh update-background" data-ru="обновление установленной версии: make test && ./install-runtime.sh update-background">update an existing install: make test && ./install-runtime.sh update-background</span></div>
       </section>
 
-      <section class="privacy-grid">
+      <section class="whats-new" id="whats-new">
+        <div class="section-label i18n" data-en="03.1 · what's new" data-ru="03.1 · что нового">03.1 · what's new</div>
+        <h2 class="i18n" data-en="what's new" data-ru="что нового">what's new</h2>
+        <div class="release-list" id="release-list" aria-live="polite"><p class="release-fallback"><a href="release-notes.txt">release-notes.txt</a> <span class="i18n" data-en="· five latest entries load here" data-ru="· пять последних записей появятся здесь">· five latest entries load here</span></p></div>
+      </section>
+
+      <section class="privacy" id="privacy">
         <div>
-          <div class="section-label">04 · privacy · local by design</div>
+          <div class="section-label i18n" data-en="04 · privacy · local by design" data-ru="04 · приватность · локально по замыслу">04 · privacy · local by design</div>
           <h2 class="i18n" data-en="your text stays on your mac." data-ru="твой текст остаётся на mac.">your text stays on your mac.</h2>
           <p class="privacy-copy i18n" data-en="language relay runs as a small native menu bar app. it needs accessibility access to repair the focused field. there is no account, advertising surface, analytics sdk or cloud processing path." data-ru="language relay работает как маленькое нативное приложение в меню. accessibility нужен для исправления активного поля. здесь нет аккаунта, рекламной поверхности, analytics sdk и облачной обработки.">language relay runs as a small native menu bar app. it needs accessibility access to repair the focused field. there is no account, advertising surface, analytics sdk or cloud processing path.</p>
         </div>
         <div class="privacy-ledger">
-          <div class="privacy-item is-signal"><strong>on your mac</strong><span>conversion + settings</span></div>
-          <div class="privacy-item"><strong>0 accounts</strong><span>install and start writing</span></div>
-          <div class="privacy-item"><strong>0 ads</strong><span>no promotional runtime surface</span></div>
-          <div class="privacy-item"><strong>0 telemetry</strong><span>no analytics sdk or text log</span></div>
-          <div class="privacy-item"><strong>open source</strong><span>inspect the app and bridge</span></div>
-          <div class="privacy-item"><strong>u.s. ⇄ ru–pc</strong><span>current deterministic pair</span></div>
+          <div class="privacy-item is-signal"><strong class="i18n" data-en="on your mac" data-ru="на твоём mac">on your mac</strong><span class="i18n" data-en="conversion + settings" data-ru="конвертация + настройки">conversion + settings</span></div>
+          <div class="privacy-item"><strong class="i18n" data-en="0 accounts" data-ru="0 аккаунтов">0 accounts</strong><span class="i18n" data-en="install and start writing" data-ru="установи и пиши">install and start writing</span></div>
+          <div class="privacy-item"><strong class="i18n" data-en="0 ads" data-ru="0 рекламы">0 ads</strong><span class="i18n" data-en="no promotional runtime surface" data-ru="никаких рекламных поверхностей">no promotional runtime surface</span></div>
+          <div class="privacy-item"><strong class="i18n" data-en="0 telemetry" data-ru="0 телеметрии">0 telemetry</strong><span class="i18n" data-en="no analytics sdk or text log" data-ru="без analytics sdk и журнала текста">no analytics sdk or text log</span></div>
+          <div class="privacy-item"><strong class="i18n" data-en="open source" data-ru="открытый код">open source</strong><span class="i18n" data-en="inspect the app and bridge" data-ru="проверь приложение и мост">inspect the app and bridge</span></div>
+          <div class="privacy-item"><strong>u.s. ⇄ ru–pc</strong><span class="i18n" data-en="current deterministic pair" data-ru="текущая детерминированная пара">current deterministic pair</span></div>
           <p class="pair-note i18n" data-en="current release: u.s. ⇄ russian–pc. the engine uses explicit verified layout pairs, so every future language pair can ship with its own deterministic map and tests." data-ru="текущая версия: u.s. ⇄ russian–pc. движок использует явные проверенные пары раскладок, поэтому каждая следующая языковая пара получит собственную детерминированную карту и тесты.">current release: u.s. ⇄ russian–pc. the engine uses explicit verified layout pairs, so every future language pair can ship with its own deterministic map and tests.</p>
         </div>
       </section>
     </main>
 
     <footer>
-      <div class="signature"><small>ai mindset apps · built by alexander povaliaev</small><strong>language relay</strong><small>apowall instruments · lisbon · 2026</small></div>
-      <div class="footer-links"><a href="https://apps.aimindset.org/">all apps ↗</a><a href="https://github.com/aPoWall">author ↗</a><a href="https://github.com/aPoWall/language-relay">source ↗</a><a href="https://github.com/aPoWall/language-relay/blob/main/SECURITY.md">privacy ↗</a></div>
+      <div class="signature"><small>ai mindset apps · built by alexander povaliaev</small><strong>language relay</strong><small class="i18n" data-en="apowall instruments · lisbon · 2026" data-ru="инструменты apowall · лиссабон · 2026">apowall instruments · lisbon · 2026</small></div>
+      <div class="footer-links"><a class="i18n" href="https://apps.aimindset.org/" data-en="all apps ↗" data-ru="все приложения ↗">all apps ↗</a><a class="i18n" href="https://github.com/aPoWall" data-en="author ↗" data-ru="автор ↗">author ↗</a><a class="i18n" href="https://github.com/aPoWall/language-relay" data-en="source ↗" data-ru="исходники ↗">source ↗</a><a class="i18n" href="https://github.com/aPoWall/language-relay/blob/main/SECURITY.md" data-en="privacy ↗" data-ru="приватность ↗">privacy ↗</a></div>
     </footer>
   </div>
 
@@ -468,13 +499,49 @@
     const stage = document.getElementById('relay-mark');
     const mountMark = () => {
       if (!window.AIMVoxel || !stage) return;
-      fetch('design/voxel-models.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(doc => {
+      fetch('../assets/voxel-models.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(doc => {
         const model = doc.models && doc.models.relay;
         if (!model) return;
         AIMVoxel.render(stage, model, { unit: 9, animate: 'assemble', duration: 1600, interactive: true, whenVisible: false });
       }).catch(() => {});
     };
     if (window.AIMVoxel) mountMark(); else window.addEventListener('load', mountMark, { once: true });
+
+    /* what's new · release-notes.txt (written by release-app.mjs) · five latest entries · heading through aim-i18n */
+    const releaseList = document.getElementById('release-list');
+    const renderReleases = (text) => {
+      const entries = [];
+      let current = null;
+      text.split('\n').forEach((line) => {
+        const head = line.match(/^Language Relay (\d+\.\d+\.\d+)(?: \(build (\d+)\))? – (\d{4}-\d{2}-\d{2})$/);
+        if (head) { current = { version: head[1], build: head[2] || '', date: head[3], items: [] }; entries.push(current); return; }
+        const item = line.match(/^- (.+)$/);
+        if (item && current) current.items.push(item[1]);
+      });
+      if (!entries.length) return false;
+      releaseList.textContent = '';
+      entries.slice(0, 5).forEach((entry, index) => {
+        const article = document.createElement('article');
+        article.className = 'release';
+        const head = document.createElement('div');
+        const h3 = document.createElement('h3');
+        h3.textContent = 'v' + entry.version + (index === 0 ? ' · current' : '');
+        const time = document.createElement('time');
+        time.dateTime = entry.date;
+        time.textContent = entry.date + (entry.build ? ' · build ' + entry.build : '');
+        head.append(h3, time);
+        const ul = document.createElement('ul');
+        entry.items.forEach((text) => { const li = document.createElement('li'); li.textContent = text; ul.appendChild(li); });
+        article.append(head, ul);
+        releaseList.appendChild(article);
+      });
+      return true;
+    };
+    if (releaseList && window.location.protocol !== 'file:') {
+      fetch('release-notes.txt', { cache: 'no-cache' }).then((r) => { if (!r.ok) throw new Error(String(r.status)); return r.text(); })
+        .then((text) => { if (!renderReleases(text)) throw new Error('empty'); })
+        .catch(() => { /* the fallback link to release-notes.txt stays in place */ });
+    }
 
     document.querySelectorAll('.copy').forEach(button => button.addEventListener('click', async () => {
       try { await navigator.clipboard.writeText(button.dataset.copy); } catch (_) {}
