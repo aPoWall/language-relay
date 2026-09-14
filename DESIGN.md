@@ -1,6 +1,6 @@
 # N1 · native white
 
-Language Relay 2.3.6 adopts the generated N1 profile. Its SSOT is
+Language Relay 2.3.7 adopts the generated N1 profile. Its SSOT is
 `ai-mindset-org/lab-sites`, `internal-sites/aim-product-system/mini-apps.tokens.json`.
 `native/AIMMiniAppTokens.swift`, `native/AIMVoxelModels.swift` and `native/AIMVoxelView.swift` are byte-identical exports. `native/NativeWhite.swift`
 maps its semantic roles into AppKit colors, geometry, font registration and controls.
@@ -25,12 +25,23 @@ panel. The menu glyph remains a system template image for light/dark menu bars.
 
 ## Live mark · 2026-09-14
 
-The relay voxel character (52 voxels, one red signal) is the dynamic product mark.
-`AIMVoxelView` draws it in the panel header at 44 pt next to the name, inside the same
-420×488 shell (the identity column narrowed from 252 to 201 pt). Hover shifts cubes by
-depth up to ±3 pt; click, Space or Return runs scatter → assemble once, 1.6 s at 16 ticks
-per second, only while the popover is visible. Reduce Motion keeps the still frame and a
-click only moves the red signal to a neighbouring cell. The menu bar shows the same
+The relay voxel character v2 (36 voxels, two light arrows, one red tip) is the dynamic
+product mark. `AIMVoxelView` draws it in the panel header at 40 pt next to the name,
+inside the same 420×488 shell. The first drawn frame is the assembled character; the
+appear run (0.7 s, 6–8 depth steps, cubic-out) starts after that frame, so the popover
+never shows an empty header. Hover lifts the figure 2 pt in 0.16 s with a ±2 pt depth
+parallax; click, Space or Return runs scatter 0.25 s → assemble 0.55 s and swaps the two
+arrows (the relay gesture, mirror on z). The 1/16 s timer exists only during a run and
+only while the popover is visible. Reduce Motion keeps the still frame and a click only
+performs the gesture.
+
+## Window contract · 2026-09-14
+
+Header on one 40 pt line: live mark · `language relay` + `local · vX.Y.Z` · `settings`
+(78×28, the status item's right-click actions) · `×` (28×28). Escape closes as well.
+Footer, pinned 16 pt above the bottom edge: `⇧⇧ ⌥ · repair · esc close · vX.Y.Z · status`
+in 11 pt Plex 500 muted. Content padding 16, gaps 8; every row starts on the header's left
+edge. The panel is laid out before the popover shows; only the mark moves. The menu bar shows the same
 character as an 18 pt template image (`AIMVoxelView.image(model:size:mono:)`) beside the
 active alphabet cell; the 54×18 template glyph size is unchanged. The app icon is not
 redrawn in this wave.

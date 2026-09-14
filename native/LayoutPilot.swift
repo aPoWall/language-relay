@@ -1148,7 +1148,12 @@ private final class DoubleShiftMonitor {
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 420
     static let height: CGFloat = 488
-    static let contentWidth: CGFloat = 388
+    /// window contract (AIM-APPS-RULES 21–26): 16 pt grid, 40 pt live mark, 28 pt header buttons, 11 pt footer
+    static let grid: CGFloat = 16
+    static let contentWidth: CGFloat = width - 2 * grid
+    static let markSize: CGFloat = 40
+    static let headerButton: CGFloat = 28
+    static let footerHeight: CGFloat = 16
 }
 
 private enum PanelHealth {
@@ -1479,37 +1484,63 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         root.spacing = 8
         root.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(root)
+        // footer, one structure for every AIM window: keys · esc close · version/status (11 pt Plex 500, muted), pinned to the 16 pt grid
+        let footer = label(
+            "⇧⇧ ⌥ · repair · esc close · v\(AppIdentity.version) · \(panelHealthLabel)",
+            size: 11,
+            weight: .medium,
+            color: RelayStyle.muted,
+            height: LayoutPilotPanelMetrics.footerHeight
+        )
+        footer.identifier = NSUserInterfaceItemIdentifier("panel-footer")
+        content.addSubview(footer)
+        let grid = LayoutPilotPanelMetrics.grid
         NSLayoutConstraint.activate([
-            root.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: 16),
-            root.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -16),
-            root.topAnchor.constraint(equalTo: content.topAnchor, constant: 16),
-            root.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor, constant: -8),
+            root.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: grid),
+            root.trailingAnchor.constraint(equalTo: content.trailingAnchor, constant: -grid),
+            root.topAnchor.constraint(equalTo: content.topAnchor, constant: grid),
+            footer.leadingAnchor.constraint(equalTo: content.leadingAnchor, constant: grid),
+            footer.bottomAnchor.constraint(equalTo: content.bottomAnchor, constant: -grid),
+            root.bottomAnchor.constraint(lessThanOrEqualTo: footer.topAnchor, constant: -8),
         ])
 
+        // header by the window contract: live mark 40 pt · name · version · settings · × (esc closes too)
+        let markSize = LayoutPilotPanelMetrics.markSize
         let header = NSStackView()
         header.orientation = .horizontal
         header.alignment = .centerY
         header.spacing = 8
         header.translatesAutoresizingMaskIntoConstraints = false
         header.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
-        header.heightAnchor.constraint(equalToConstant: 44).isActive = true
-        // live product mark: the relay character reacts to the cursor and to a click, inside the fixed 420×488 shell
-        let liveMark = AIMVoxelView(model: AIMVoxelModels.relay, frame: NSRect(x: 0, y: 0, width: 44, height: 44))
+        header.heightAnchor.constraint(equalToConstant: markSize).isActive = true
+        // live product mark: the relay character assembles once in 0.7 s after the first drawn frame,
+        // answers the cursor with a 2 pt lift and a click with scatter → assemble → the arrows swap places
+        let liveMark = AIMVoxelView(model: AIMVoxelModels.relay, frame: NSRect(x: 0, y: 0, width: markSize, height: markSize))
         liveMark.translatesAutoresizingMaskIntoConstraints = false
-        liveMark.widthAnchor.constraint(equalToConstant: 44).isActive = true
-        liveMark.heightAnchor.constraint(equalToConstant: 44).isActive = true
+        liveMark.widthAnchor.constraint(equalToConstant: markSize).isActive = true
+        liveMark.heightAnchor.constraint(equalToConstant: markSize).isActive = true
         liveMark.identifier = NSUserInterfaceItemIdentifier("live-mark")
-        liveMark.toolTip = "relay · click to reassemble"
+        liveMark.toolTip = "relay · click to swap the arrows"
         header.addArrangedSubview(liveMark)
         let identity = NSStackView()
         identity.orientation = .vertical
         identity.alignment = .leading
         identity.spacing = 0
-        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: 201, height: 23))
-        identity.addArrangedSubview(label("local · v\(AppIdentity.version)", size: 8.3, weight: .semibold, color: RelayStyle.muted, width: 201, height: 12))
+        let identityWidth = LayoutPilotPanelMetrics.contentWidth - markSize - 8 - 8 - 78 - 8 - LayoutPilotPanelMetrics.headerButton
+        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: identityWidth, height: 23))
+        identity.addArrangedSubview(label("local · v\(AppIdentity.version)", size: 9, weight: .medium, color: RelayStyle.muted, width: identityWidth, height: 13))
         header.addArrangedSubview(identity)
         header.addArrangedSubview(flexSpacer())
-        header.addArrangedSubview(stateReadout(panelHealthLabel, width: 118, height: 28, textSize: 10))
+        let settings = squareButton("settings", action: #selector(showSettingsMenu(_:)), width: 78, height: LayoutPilotPanelMetrics.headerButton)
+        settings.toolTip = "setup details · switch layout · quit"
+        settings.setAccessibilityHelp("Setup details, layout switch and quit")
+        header.addArrangedSubview(settings)
+        let close = RelayButton("×", target: self, action: #selector(closePanel), width: LayoutPilotPanelMetrics.headerButton, height: LayoutPilotPanelMetrics.headerButton, lowercase: false)
+        close.identifier = NSUserInterfaceItemIdentifier("close-panel")
+        close.setAccessibilityLabel("close")
+        close.setAccessibilityHelp("Close the panel (Escape does the same)")
+        close.toolTip = "close · esc"
+        header.addArrangedSubview(close)
         root.addArrangedSubview(header)
         root.addArrangedSubview(hairLine(width: LayoutPilotPanelMetrics.contentWidth))
 
@@ -1607,14 +1638,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         root.addArrangedSubview(feedbackRow)
 
         root.addArrangedSubview(setupDisclosure())
-
-        root.addArrangedSubview(label(
-            "⇧⇧ / clean ⌥ · repair       esc · close",
-            size: 8.0,
-            weight: .semibold,
-            color: RelayStyle.muted,
-            height: 13
-        ))
         return content
     }
 
@@ -1795,9 +1818,26 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       panel.window == nil, validate(panel) else { return false }
                 guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")),
                       RelayFocus.target(in: panel, identifier: .init("toggleSetupDisclosure")) is RelayButton else { return false }
+                let m = LayoutPilotPanelMetrics.markSize
                 guard let mark = RelayFocus.target(in: panel, identifier: .init("live-mark")) as? AIMVoxelView,
-                      mark.frame.size == NSSize(width: 44, height: 44), mark.accessibilityLabel() == AIMVoxelModels.relay.label else {
+                      mark.frame.size == NSSize(width: m, height: m), mark.accessibilityLabel() == AIMVoxelModels.relay.label,
+                      mark.currentVoxels.count == AIMVoxelModels.relay.count else {
                     fputs("FAIL: live mark missing in panel header\n", stderr); return false
+                }
+                // window contract: settings + × in the header on the same line as the name, footer keys · esc close · version/status
+                let b = LayoutPilotPanelMetrics.headerButton
+                guard let settings = RelayFocus.target(in: panel, identifier: .init("showSettingsMenu:")) as? RelayButton,
+                      let close = RelayFocus.target(in: panel, identifier: .init("close-panel")) as? RelayButton,
+                      settings.frame.height == b, close.frame.size == NSSize(width: b, height: b),
+                      close.accessibilityLabel() == "close",
+                      abs(close.convert(close.bounds, to: panel).midY - mark.convert(mark.bounds, to: panel).midY) < 1,
+                      close.convert(close.bounds, to: panel).maxX == LayoutPilotPanelMetrics.width - LayoutPilotPanelMetrics.grid else {
+                    fputs("FAIL: header settings / close buttons\n", stderr); return false
+                }
+                guard let footer = RelayFocus.target(in: panel, identifier: .init("panel-footer")) as? NSTextField,
+                      footer.font?.pointSize == 11, footer.stringValue.contains("esc close"), footer.stringValue.contains("v\(AppIdentity.version)"),
+                      abs(footer.convert(footer.bounds, to: panel).minY - LayoutPilotPanelMetrics.grid) < 0.5 else {
+                    fputs("FAIL: panel footer\n", stderr); return false
                 }
                 RelayMotion.reveal(disclosure, reducedMotion: true)
                 guard disclosure.layer?.animation(forKey: "relay-state") == nil else { return false }
@@ -1864,6 +1904,24 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         guard usesHammerspoonBridge else { return }
         _ = HammerspoonIPC.run("return tostring(layoutPilotReloadSettings())")
     }
+
+    /// header `settings`: the same three actions as the status item's right-click menu, plus the setup disclosure
+    @objc private func showSettingsMenu(_ sender: RelayButton) {
+        let menu = NSMenu()
+        let setup = NSMenuItem(title: setupExpanded ? "setup · hide details" : "setup · show details", action: #selector(toggleSetupDisclosure), keyEquivalent: "")
+        setup.target = self
+        menu.addItem(setup)
+        let toggle = NSMenuItem(title: "switch layout", action: #selector(toggleLayout), keyEquivalent: "")
+        toggle.target = self
+        menu.addItem(toggle)
+        menu.addItem(.separator())
+        let quit = NSMenuItem(title: "quit language relay", action: #selector(quitLanguageRelay), keyEquivalent: "")
+        quit.target = self
+        menu.addItem(quit)
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
+    }
+
+    @objc private func closePanel() { popover?.performClose(nil) }
 
     @objc private func openPanelFromMenu() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in self?.showPopover() }
@@ -2079,7 +2137,8 @@ private struct LayoutPilotMain {
                 "schemaVersion": 1, "app": AppIdentity.name, "version": AppIdentity.version,
                 "profile": "N1", "tokenVersion": AIMMiniAppTokens.version,
                 "tokenSourceSHA256": AIMMiniAppTokens.sourceSHA256,
-                "liveMark": "relay", "voxelModelsVersion": AIMVoxelModels.version,
+                "liveMark": "relay", "markSize": Int(LayoutPilotPanelMetrics.markSize), "windowContract": "AIM-APPS-RULES 21-26",
+                "voxelModelsVersion": AIMVoxelModels.version,
                 "voxelModelsSHA256": AIMVoxelModels.sourceSHA256, "voxelCount": AIMVoxelModels.relay.count,
                 "panelWidth": Int(LayoutPilotPanelMetrics.width), "panelHeight": Int(LayoutPilotPanelMetrics.height),
                 "reducedMotion": RelayStyle.reduceMotion,
@@ -2132,7 +2191,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 44pt, menu 18pt template); panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + x 28pt, footer 11pt, 16pt grid; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {
