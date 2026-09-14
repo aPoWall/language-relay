@@ -1157,6 +1157,15 @@ private enum LayoutPilotPanelMetrics {
 }
 
 private enum PanelHealth {
+    static func keys(shift: Bool, option: Bool) -> String {
+        switch (shift, option) {
+        case (true, true): return "⇧⇧ ⌥ · repair"
+        case (true, false): return "⇧⇧ · repair"
+        case (false, true): return "⌥ · repair"
+        case (false, false): return "gestures off"
+        }
+    }
+
     static func label(bridge: HammerspoonHealth?, nativeTrusted: Bool, competingOwner: Bool) -> String {
         if competingOwner { return "paused · owner" }
         if let bridge {
@@ -1171,12 +1180,28 @@ private final class LayoutPilotRootView: NSView {
 
     override var acceptsFirstResponder: Bool { true }
 
+    /// Escape closes the panel (window contract, rule 21).
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 {
             closeAction?()
             return
         }
         super.keyDown(with: event)
+    }
+
+    /// Command-W closes the panel too (rule 21); the accessory app has no main menu to carry the key equivalent.
+    override func performKeyEquivalent(with event: NSEvent) -> Bool {
+        if LayoutPilotRootView.isCloseEquivalent(event) {
+            closeAction?()
+            return true
+        }
+        return super.performKeyEquivalent(with: event)
+    }
+
+    static func isCloseEquivalent(_ event: NSEvent) -> Bool {
+        event.type == .keyDown
+            && event.modifierFlags.intersection([.command, .option, .control, .shift]) == [.command]
+            && (event.keyCode == 13 || event.charactersIgnoringModifiers?.lowercased() == "w")
     }
 }
 
@@ -1421,8 +1446,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         guard let popover, let button = statusItem.button else { return }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         if let root = popover.contentViewController?.view {
-            root.window?.makeFirstResponder(root)
+            AppDelegate.installKeyLoop(root)
         }
+    }
+
+    /// Explicit Tab order for the popover window (rule 16): the popover window does not recalculate its key view loop
+    /// on its own, and an open-ended loop hands focus back to the status bar window, which closes a transient popover.
+    private static func installKeyLoop(_ root: NSView) {
+        guard let window = root.window else { return }
+        window.autorecalculatesKeyViewLoop = true
+        window.recalculateKeyViewLoop()
+        window.initialFirstResponder = root
+        window.makeFirstResponder(root)
     }
 
     private func buildPopover() {
@@ -1450,6 +1485,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let next = makePanelContent()
         popover?.contentViewController?.view = next
         next.layoutSubtreeIfNeeded()
+        AppDelegate.installKeyLoop(next)
         if let focusedID, let target = RelayFocus.target(in: next, identifier: focusedID) {
             next.window?.makeFirstResponder(target)
         } else {
@@ -1486,7 +1522,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         content.addSubview(root)
         // footer, one structure for every AIM window: keys · esc close · version/status (11 pt Plex 500, muted), pinned to the 16 pt grid
         let footer = label(
-            "⇧⇧ ⌥ · repair · esc close · v\(AppIdentity.version) · \(panelHealthLabel)",
+            "\(footerKeysLabel) · esc close · v\(AppIdentity.version) · \(panelHealthLabel)",
             size: 11,
             weight: .medium,
             color: RelayStyle.muted,
@@ -1643,6 +1679,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     private var panelHealthLabel: String {
         PanelHealth.label(bridge: panelBridgeHealth, nativeTrusted: fixer.hasAccessibilityPermission, competingOwner: carambaRunning)
+    }
+
+    /// footer keys: only the gestures that are switched on; none on → says so instead of promising a key
+    private var footerKeysLabel: String {
+        PanelHealth.keys(shift: shiftEnabled, option: optionEnabled)
     }
 
     private func setupDisclosure() -> NSView {
@@ -1853,6 +1894,25 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             }
         }
         setupExpanded = false
+        // rule 21: Command-W closes like Escape; rule 16: every RelayButton stays in the key view loop without Full Keyboard Access
+        var closed = 0
+        let rootProbe = LayoutPilotRootView(frame: NSRect(x: 0, y: 0, width: 10, height: 10))
+        rootProbe.closeAction = { closed += 1 }
+        let commandW = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0,
+            windowNumber: 0, context: nil, characters: "w", charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13)!
+        let plainW = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
+            windowNumber: 0, context: nil, characters: "w", charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13)!
+        let shiftCommandW = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command, .shift], timestamp: 0,
+            windowNumber: 0, context: nil, characters: "W", charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13)!
+        guard rootProbe.performKeyEquivalent(with: commandW), closed == 1,
+              !LayoutPilotRootView.isCloseEquivalent(plainW), !LayoutPilotRootView.isCloseEquivalent(shiftCommandW),
+              RelayButton("probe", target: nil, action: nil, width: 40).canBecomeKeyView,
+              PanelHealth.keys(shift: true, option: true) == "⇧⇧ ⌥ · repair",
+              PanelHealth.keys(shift: false, option: true) == "⌥ · repair",
+              PanelHealth.keys(shift: true, option: false) == "⇧⇧ · repair",
+              PanelHealth.keys(shift: false, option: false) == "gestures off" else {
+            fputs("FAIL: command-w close, key view reach or footer keys\n", stderr); return false
+        }
         let glyph = LayoutPilotStatusGlyph.make(russianActive: false)
         let mark = AIMVoxelView.image(model: AIMVoxelModels.relay, size: 18, mono: true)
         guard AIMVoxelModels.relay.count <= 200, AIMVoxelModels.relay.signals.count == 1,
@@ -1863,10 +1923,51 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             && glyph.isTemplate
     }
 
+    /// debug: the Tab order of the panel in an offscreen window (`--key-loop`)
+    func dumpKeyLoop() {
+        _ = NSApplication.shared
+        _ = RelayStyle.mono(11)
+        let panel = makePanelContent()
+        let window = NSWindow(contentRect: panel.bounds, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.contentView = panel
+        panel.layoutSubtreeIfNeeded()
+        window.recalculateKeyViewLoop()
+        window.makeFirstResponder(panel)
+        func name(_ r: NSResponder?) -> String {
+            guard let v = r as? NSView else { return r.map { String(describing: type(of: $0)) } ?? "nil" }
+            return "\(type(of: v))#\(v.identifier?.rawValue ?? "-") key=\(v.canBecomeKeyView)"
+        }
+        print("initial:", name(window.firstResponder), "autorecalc=\(window.autorecalculatesKeyViewLoop)")
+        var seen = 0
+        for i in 1...40 {
+            window.selectNextKeyView(nil)
+            print("tab \(i):", name(window.firstResponder))
+            if window.firstResponder === window || window.firstResponder === panel { seen += 1; if seen > 1 { break } }
+        }
+        print("walk from panel:", terminator: " ")
+        var v: NSView? = panel.nextValidKeyView; var n = 0
+        while let x = v, n < 40 { print(x.identifier?.rawValue ?? String(describing: type(of: x)), terminator: " → "); v = x.nextValidKeyView; n += 1; if x === panel { break } }
+        print()
+    }
+
     func renderBackgroundUIPreview(to url: URL) -> Bool {
         _ = RelayStyle.mono(11)
-        setupExpanded = CommandLine.arguments.contains("--expanded")
-        let panel = makePanelContent()
+        let arguments = CommandLine.arguments
+        setupExpanded = arguments.contains("--expanded")
+        var health: HammerspoonHealth?
+        if let index = arguments.firstIndex(of: "--health"), arguments.indices.contains(index + 1) {
+            switch arguments[index + 1] {
+            case "ready":
+                health = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: "ready", timedOut: false)
+            case "denied":
+                health = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: false, inputTapEnabled: false, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: nil, timedOut: false)
+            case "unavailable":
+                health = HammerspoonHealth(ipcAvailable: false, executableFound: true, accessibilityTrusted: nil, inputTapEnabled: false, bridgeVersion: nil, lastStatus: nil, timedOut: true)
+            default:
+                return false
+            }
+        }
+        let panel = makePanelContent(bridgeHealth: health)
         panel.layoutSubtreeIfNeeded()
         guard let bitmap = panel.bitmapImageRepForCachingDisplay(in: panel.bounds) else { return false }
         panel.cacheDisplay(in: panel.bounds, to: bitmap)
@@ -2200,7 +2301,11 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + x 28pt, footer 11pt, 16pt grid; gesture=arrows swap; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + x 28pt, footer 11pt, 16pt grid; gesture=arrows swap; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            exit(0)
+        }
+        if arguments.contains("--key-loop") {
+            AppDelegate(core: core).dumpKeyLoop()
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {

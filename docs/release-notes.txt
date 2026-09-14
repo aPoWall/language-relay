@@ -1,3 +1,11 @@
+Language Relay 2.3.8 (build 13) – 2026-09-14
+
+- Command-W closes the panel like Escape and ×; the root view carries the key equivalent because the accessory app has no main menu
+- Tab and Shift-Tab reach every button with the 2 px focus ring even when macOS Full Keyboard Access is off; the popover gets an explicit key view loop
+- the footer names only the repair gestures that are switched on: ⇧⇧ ⌥ · repair, ⇧⇧ · repair, ⌥ · repair or gestures off
+- --render-ui out.png [--expanded] [--health ready|denied|unavailable] renders the bridge and permission states offscreen; --key-loop prints the Tab order
+- QA table with 40 checks in docs/QA-2026-09-14.md; the UI self-test covers the Command-W equivalent, the key view reach and the footer keys
+
 Language Relay 2.3.7 (build 12) – 2026-09-14
 
 - one window contract: header live mark 40 pt · name · version · settings · × on one line; footer keys · esc close · version · status, 11 pt on the 16 pt grid

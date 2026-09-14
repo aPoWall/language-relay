@@ -76,10 +76,18 @@ final class RelayButton: NSButton {
     }
     required init?(coder: NSCoder) { fatalError() }
     override var acceptsFirstResponder: Bool { isEnabled }
+    /// Tab reaches every button even when macOS Full Keyboard Access is off (NSButton drops out of the loop otherwise).
+    override var canBecomeKeyView: Bool { isEnabled && !isHiddenOrHasHiddenAncestor }
     override func isAccessibilitySelected() -> Bool { isActive }
-    override func becomeFirstResponder() -> Bool { needsDisplay = true; return true }
-    override func resignFirstResponder() -> Bool { needsDisplay = true; return true }
+    override func becomeFirstResponder() -> Bool { needsDisplay = true; return super.becomeFirstResponder() }
+    override func resignFirstResponder() -> Bool { needsDisplay = true; return super.resignFirstResponder() }
     override func keyDown(with event: NSEvent) {
+        // Tab / Shift-Tab walk the panel's key view loop here; NSButton's own path hands the event to the parent
+        // (status bar) window, which closes a transient popover.
+        if event.keyCode == 48, event.modifierFlags.intersection([.command, .option, .control]).isEmpty {
+            if event.modifierFlags.contains(.shift) { window?.selectPreviousKeyView(nil) } else { window?.selectNextKeyView(nil) }
+            return
+        }
         guard isEnabled, event.modifierFlags.intersection([.command, .option, .control, .shift]).isEmpty else {
             super.keyDown(with: event); return
         }
