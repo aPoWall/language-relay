@@ -1834,6 +1834,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       close.convert(close.bounds, to: panel).maxX == LayoutPilotPanelMetrics.width - LayoutPilotPanelMetrics.grid else {
                     fputs("FAIL: header settings / close buttons\n", stderr); return false
                 }
+                // the relay gesture: a click swaps the two arrows (mirror on z) and a second click restores them
+                let before = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
+                mark.trigger()
+                let swapped = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
+                mark.trigger()
+                let restored = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
+                guard swapped != before, restored == before, swapped.count == before.count else {
+                    fputs("FAIL: live mark gesture (arrows swap)\n", stderr); return false
+                }
                 guard let footer = RelayFocus.target(in: panel, identifier: .init("panel-footer")) as? NSTextField,
                       footer.font?.pointSize == 11, footer.stringValue.contains("esc close"), footer.stringValue.contains("v\(AppIdentity.version)"),
                       abs(footer.convert(footer.bounds, to: panel).minY - LayoutPilotPanelMetrics.grid) < 0.5 else {
@@ -2191,7 +2200,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + x 28pt, footer 11pt, 16pt grid; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + x 28pt, footer 11pt, 16pt grid; gesture=arrows swap; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if let index = arguments.firstIndex(of: "--render-ui"), arguments.indices.contains(index + 1) {
