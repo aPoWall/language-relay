@@ -3,7 +3,7 @@
   "version": "2026.09.13-n1",
   "source": "internal-sites/aim-product-system/mini-apps.tokens.json",
   "sourceSHA256": "057f940f65b14a27cb72bffc6a21cb313bb576a49c04cb2b7678cbe326af8f78",
-  "generatorSHA256": "11c85660214ebced91fccb7f7c44a1ebb28b374047c233ebf6e153065d4bc5a0",
+  "generatorSHA256": "942f9ec552962dad2838c87fb56cab036494be475bdf48c28476c3a4a1d4a55b",
   "artifacts": {
     "aim-mini-apps.css": "7e254d7d60dc060d41634703270b8b945cc65255b4d39cc4e58ca29b9b3e8b5e",
     "aim-mini-apps.tokens.json": "057f940f65b14a27cb72bffc6a21cb313bb576a49c04cb2b7678cbe326af8f78",
@@ -13,9 +13,11 @@
     "aim-plex-600.woff2": "438885a4c355d5713f004d0b46225d9ba9558bbf86f3273e9d43511b90b5710e",
     "aim-plex-LICENSE.txt": "3ac523a33b08ba56283e0f111d0f4f8426af0beb9e17d466c840d01c0e9cedad",
     "aim-app-marks.svg": "3ce99d0c9702a62bf07e1cea5eb8894a1076e097100d78b42338d82c170d7f25",
-    "AIMVoxelModels.swift": "5c2c9c83993a714fa2a1844959fe409c531df5c867cca33c07c2aae91ecc96a3",
-    "AIMVoxelView.swift": "ee7319eeea3b4ad282aeb9a2ea53d6c1486922df4324ad6d845a6b2e98571e31"
+    "AIMVoxelModels.swift": "df4eaf56eab0512e070a6f765fb0607aea4aaa443c08134978df96df642dd53c",
+    "AIMVoxelView.swift": "9d301d847ec040797a71a7163419b75b553ee825d6f98387affb94e66e87e41c",
+    "aim-voxel.js": "3b82eb53545533e41cf3ed272109a916586ad1637ad907923004af41f461fcb8",
+    "aim-i18n.js": "544d9941da4a56b7fcbaf371bedac061c1d2311dd5e80b32d7cbed1703fd476e"
   },
-  "voxelModelsSHA256": "346273caa96e33223b18c9d30ed1d56692cf7e3981d656a0f8e88aedfb2e3ce1",
+  "voxelModelsSHA256": "f4f53444a20fe547fa328b08013217cbd010712b5a46349ad6827233596dc283",
   "nativeRuntimeAdoption": false
 }

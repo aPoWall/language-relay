@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.3.7 – 2026-09-14
+
+- one window contract for the AIM mini apps (AIM-APPS-RULES 21–26): the panel header is live mark 40 pt · name · version · `settings` · `×` 28 pt on one line, the footer reads keys · `esc close` · version · status in 11 pt Plex 500 muted and sits on the 16 pt grid;
+- `settings` opens the same three actions as the status item's right-click menu (setup details, switch layout, quit); `×` and Escape both close the panel;
+- vendored the light relay character v2 (36 voxels, two light arrows, red tip): assembles in 0.7 s after the first drawn frame, lifts 2 pt on hover, and on click scatters 0.25 s, reassembles 0.55 s and swaps the arrows; the panel content is drawn before the popover shows, nothing else moves;
+- the 1/16 s timer runs only during a run and only while the popover is visible; layout switch, cue playback and the gesture leave the app at or below 2 % CPU with the panel open;
+- `language-relay design` reports `markSize` and `windowContract`; the UI self-test checks the header buttons, the footer and the mark size;
+- product page: `what's new` from `release-notes.txt` (five entries, EN/RU heading), the real panel screenshot in the hero, the N1 social card with the character, download of the zip with SHA-256 and date.
+
 ## 2.3.6 – 2026-09-14
 
 - added the live product mark: the relay voxel character sits in the panel header (44 pt, inside the unchanged 420×488 shell), follows the cursor with a ±3 pt depth parallax and reassembles on click, Space or Return in one finite 1.6 s sequence; Reduce Motion keeps the still frame;
