@@ -1670,15 +1670,26 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         root.spacing = 8
         root.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(root)
-        // footer, one structure for every AIM window: keys · esc close · version/status (11 pt Plex 500, muted), pinned to the 16 pt grid
-        let footer = label(
-            "\(footerKeysLabel) · esc close · v\(AppIdentity.version) · \(panelHealthLabel)",
-            size: 11,
-            weight: .medium,
-            color: RelayStyle.muted,
-            height: LayoutPilotPanelMetrics.footerHeight
-        )
+        // footer, one structure for every AIM window (rule 22): three nodes keys · esc close · version/status,
+        // 11 pt Plex 500 muted, the same split MEM PRISM and Calendar Control expose, pinned to the 16 pt grid
+        let hintKeys = label(footerKeysLabel, size: 11, weight: .medium, color: RelayStyle.muted,
+                             width: 100, height: LayoutPilotPanelMetrics.footerHeight)
+        hintKeys.identifier = NSUserInterfaceItemIdentifier("hint-keys")
+        let hintEsc = label("esc close", size: 11, weight: .medium, color: RelayStyle.muted,
+                            width: 72, height: LayoutPilotPanelMetrics.footerHeight, centered: true)
+        hintEsc.identifier = NSUserInterfaceItemIdentifier("hint-esc")
+        let hintStatus = label("v\(AppIdentity.version) · \(panelHealthLabel)", size: 11, weight: .medium,
+                               color: RelayStyle.muted, width: 170, height: LayoutPilotPanelMetrics.footerHeight)
+        hintStatus.alignment = .right
+        hintStatus.identifier = NSUserInterfaceItemIdentifier("hint-status")
+        let footer = NSStackView(views: [hintKeys, flexSpacer(), hintEsc, flexSpacer(), hintStatus])
+        footer.orientation = .horizontal
+        footer.alignment = .centerY
+        footer.spacing = 0
+        footer.translatesAutoresizingMaskIntoConstraints = false
         footer.identifier = NSUserInterfaceItemIdentifier("panel-footer")
+        footer.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
+        footer.heightAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.footerHeight).isActive = true
         content.addSubview(footer)
         let grid = LayoutPilotPanelMetrics.grid
         NSLayoutConstraint.activate([
@@ -1708,16 +1719,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         liveMark.identifier = NSUserInterfaceItemIdentifier("live-mark")
         liveMark.toolTip = "relay · click to mirror the arch"
         header.addArrangedSubview(liveMark)
-        let identity = NSStackView()
-        identity.orientation = .vertical
-        identity.alignment = .leading
-        identity.spacing = 0
-        let identityWidth = LayoutPilotPanelMetrics.contentWidth - markSize - 8 - 8 - 78 - 8 - 2 * (LayoutPilotPanelMetrics.headerButton + 8)
-        identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: identityWidth, height: 23))
-        identity.addArrangedSubview(label("local · v\(AppIdentity.version)", size: 9, weight: .medium, color: RelayStyle.muted, width: identityWidth, height: 13))
-        header.addArrangedSubview(identity)
-        header.addArrangedSubview(flexSpacer())
-        let settings = squareButton("settings", action: #selector(showSettingsMenu(_:)), width: 78, height: LayoutPilotPanelMetrics.headerButton)
+        // rule 32, one order on the right edge: version · settings · pin · ×
+        let settingsWidth: CGFloat = 64
+        let versionWidth: CGFloat = 40
+        let nameWidth = LayoutPilotPanelMetrics.contentWidth - markSize - versionWidth - settingsWidth
+            - 2 * LayoutPilotPanelMetrics.headerButton - 5 * 8
+        header.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: nameWidth, height: 23))
+        let version = label("v\(AppIdentity.version)", size: 9, weight: .medium, color: RelayStyle.muted, width: versionWidth, height: 13)
+        version.alignment = .right
+        version.identifier = NSUserInterfaceItemIdentifier("panel-version")
+        header.addArrangedSubview(version)
+        let settings = squareButton("settings", action: #selector(showSettingsMenu(_:)), identifier: "settings", width: settingsWidth, height: LayoutPilotPanelMetrics.headerButton)
         settings.toolTip = "setup details · switch layout · quit"
         settings.setAccessibilityHelp("Setup details, layout switch and quit")
         header.addArrangedSubview(settings)
@@ -1746,7 +1758,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             ? "a ⇄ [ру] · russian – pc"
             : "[a] ⇄ ру · u.s."
         let state = stateReadout(currentLabel, width: 340, height: 36, textSize: 10.4)
-        let toggle = squareButton("⇄", action: #selector(toggleLayout), width: 42, height: 36)
+        let toggle = squareButton("⇄", action: #selector(toggleLayout), identifier: "layout-switch", width: 42, height: 36)
         toggle.toolTip = "switch input source"
         toggle.setAccessibilityHelp("Switch between U.S. and Russian – PC")
         layoutRow.addArrangedSubview(state)
@@ -1790,10 +1802,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let triggerRow = NSStackView()
         triggerRow.orientation = .horizontal
         triggerRow.spacing = 6
-        let shift = squareButton("⇧⇧ · double shift", action: #selector(toggleShift), width: 191, height: 30)
+        let shift = squareButton("⇧⇧ · double shift", action: #selector(toggleShift), identifier: "gesture-shift", width: 191, height: 30)
         shift.isActive = shiftEnabled
         shift.setAccessibilityHelp("Enable or disable Double Shift repair")
-        let option = squareButton("⌥ · clean option", action: #selector(toggleOption), width: 191, height: 30)
+        let option = squareButton("⌥ · clean option", action: #selector(toggleOption), identifier: "gesture-option", width: 191, height: 30)
         option.isActive = optionEnabled
         option.setAccessibilityHelp("Enable or disable clean Option repair")
         triggerRow.addArrangedSubview(shift)
@@ -1805,7 +1817,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         feedbackRow.orientation = .horizontal
         feedbackRow.spacing = 6
         let cueLabel = soundEnabled ? "cue · \(soundName) · ▾" : "cue · muted · ▾"
-        let cue = squareButton(cueLabel, action: #selector(showSoundMenu(_:)), width: 191, height: 32)
+        let cue = squareButton(cueLabel, action: #selector(showSoundMenu(_:)), identifier: "sound", width: 191, height: 32)
         cue.setAccessibilityHelp("Choose one of eight feedback cues")
         feedbackRow.addArrangedSubview(cue)
         let levelIndex: Int = switch soundLevel {
@@ -1852,7 +1864,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
         if !setupExpanded {
             let suffix = panelHealthLabel.contains("required") || carambaRunning ? "action · show" : "ready · show"
-            let button = squareButton("setup · \(suffix)", action: #selector(toggleSetupDisclosure), width: LayoutPilotPanelMetrics.contentWidth, height: 32)
+            let button = squareButton("setup · \(suffix)", action: #selector(toggleSetupDisclosure), identifier: "setup", width: LayoutPilotPanelMetrics.contentWidth, height: 32)
             button.setAccessibilityHelp("Show setup and blocker details")
             host.addSubview(button)
             button.topAnchor.constraint(equalTo: host.topAnchor).isActive = true
@@ -1895,9 +1907,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         stack.addArrangedSubview(detail)
         stack.addArrangedSubview(flexSpacer())
         if (usesHammerspoonBridge ? panelBridgeHealth?.accessibilityTrusted == false : !fixer.hasAccessibilityPermission) && !carambaRunning {
-            stack.addArrangedSubview(squareButton("open", action: #selector(openAccessibility), width: 54, height: 28))
+            stack.addArrangedSubview(squareButton("open", action: #selector(openAccessibility), identifier: "open-accessibility", width: 54, height: 28))
         }
-        let hide = squareButton("hide", action: #selector(toggleSetupDisclosure), width: 54, height: 28)
+        let hide = squareButton("hide", action: #selector(toggleSetupDisclosure), identifier: "setup", width: 54, height: 28)
         hide.setAccessibilityHelp("Hide setup and blocker details")
         stack.addArrangedSubview(hide)
         return host
@@ -1923,9 +1935,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         return field
     }
 
-    private func squareButton(_ title: String, action: Selector, width: CGFloat, height: CGFloat) -> RelayButton {
+    /// Accessibility identifiers are contract names (rule 34), never Objective-C selectors: a driver selector
+    /// written for one product resolves in the next one.
+    private func squareButton(_ title: String, action: Selector, identifier: String? = nil, width: CGFloat, height: CGFloat) -> RelayButton {
         let button = RelayButton(title, target: self, action: action, width: width, height: height)
-        button.identifier = NSUserInterfaceItemIdentifier(NSStringFromSelector(action))
+        button.identifier = NSUserInterfaceItemIdentifier(identifier ?? NSStringFromSelector(action))
         return button
     }
 
@@ -2023,7 +2037,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 guard panel.frame.size == NSSize(width: LayoutPilotPanelMetrics.width, height: LayoutPilotPanelMetrics.height),
                       panel.window == nil, validate(panel) else { return false }
                 guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")),
-                      RelayFocus.target(in: panel, identifier: .init("toggleSetupDisclosure")) is RelayButton else { return false }
+                      RelayFocus.target(in: panel, identifier: .init("setup")) is RelayButton else { return false }
                 let m = LayoutPilotPanelMetrics.markSize
                 guard let mark = RelayFocus.target(in: panel, identifier: .init("live-mark")) as? AIMVoxelView,
                       mark.frame.size == NSSize(width: m, height: m), mark.accessibilityLabel() == AIMVoxelModels.relay.label,
@@ -2032,7 +2046,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 }
                 // window contract: settings + × in the header on the same line as the name, footer keys · esc close · version/status
                 let b = LayoutPilotPanelMetrics.headerButton
-                guard let settings = RelayFocus.target(in: panel, identifier: .init("showSettingsMenu:")) as? RelayButton,
+                guard let settings = RelayFocus.target(in: panel, identifier: .init("settings")) as? RelayButton,
                       let pin = RelayFocus.target(in: panel, identifier: .init("pin-panel")) as? RelayButton,
                       let close = RelayFocus.target(in: panel, identifier: .init("close-panel")) as? RelayButton,
                       settings.frame.height == b, close.frame.size == NSSize(width: b, height: b),
@@ -2052,10 +2066,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 guard swapped != before, restored == before, swapped.count == before.count else {
                     fputs("FAIL: live mark gesture (arch mirrors, landing foot swaps sides)\n", stderr); return false
                 }
-                guard let footer = RelayFocus.target(in: panel, identifier: .init("panel-footer")) as? NSTextField,
-                      footer.font?.pointSize == 11, footer.stringValue.contains("esc close"), footer.stringValue.contains("v\(AppIdentity.version)"),
+                // rule 22: three separate nodes in the bottom line, keys · esc close · version/status
+                guard let footer = RelayFocus.target(in: panel, identifier: .init("panel-footer")) as? NSStackView,
+                      let keys = RelayFocus.target(in: panel, identifier: .init("hint-keys")) as? NSTextField,
+                      let esc = RelayFocus.target(in: panel, identifier: .init("hint-esc")) as? NSTextField,
+                      let status = RelayFocus.target(in: panel, identifier: .init("hint-status")) as? NSTextField,
+                      keys.font?.pointSize == 11, esc.stringValue == "esc close",
+                      status.stringValue.contains("v\(AppIdentity.version)"),
                       abs(footer.convert(footer.bounds, to: panel).minY - LayoutPilotPanelMetrics.grid) < 0.5 else {
                     fputs("FAIL: panel footer\n", stderr); return false
+                }
+                // rule 32: version sits at the header right edge, before settings
+                guard let versionLabel = RelayFocus.target(in: panel, identifier: .init("panel-version")) as? NSTextField,
+                      versionLabel.stringValue == "v\(AppIdentity.version)",
+                      versionLabel.convert(versionLabel.bounds, to: panel).maxX <= settings.convert(settings.bounds, to: panel).minX else {
+                    fputs("FAIL: header version slot\n", stderr); return false
                 }
                 RelayMotion.reveal(disclosure, reducedMotion: true)
                 guard disclosure.layer?.animation(forKey: "relay-state") == nil else { return false }
