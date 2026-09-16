@@ -1,5 +1,26 @@
 # Changelog
 
+## 2.4.1 build 17 – 2026-09-16
+
+- shell from `AIMAppShell.swift` (rule 34, level L2): `AIMAppHeader`, `AIMFooterLine`, `AIMPinButton` and
+  `AIMSurface` replace the hand-built header row, footer stack, pin button and popover plumbing. The product
+  now declares name, version and body; the chrome is drawn once, in the file three apps share;
+- one mark, one source (rule 39): `RelayMarkGlyph` is deleted. The menu bar icon is
+  `AIMAppMarkView.image(.relay, size: 18, mono: true)` and the header mark is `AIMAppMarkView` at 40 pt, both
+  resolved from `aim-app-marks.svg` (`sourceSHA256 a2c988fa`). The 80-voxel character stays an illustration on
+  the product page and in the hint card; it no longer sits in the header, so the bar and the header cannot drift;
+- one close (rule 33): Escape, Command-W, `×`, the menu bar item, `--testbed hide` and a click outside all reach
+  `AIMSurface.close(reason:)`. The product keeps no second monitor and no second close path; the reason is
+  printed by `language-relay design` as `closeReasons`;
+- header right edge on a 420 pt panel (rule 32): the version slot is left empty and the order
+  settings · pin · × is kept. 2.4.0 put `v2.4.0` there and the label was squeezed to a 4 pt sliver between the
+  name and `settings`; the version is printed in the bottom line beside the health state (rule 22);
+- pin is `AIMPinButton` with identifier `pin-panel`, one tooltip and an accessibility name that follows the
+  state (`pin panel open` / `unpin panel`), off by default under the 2.4.0 migration key;
+- `--design-json` reports `mark`, `markSourceSHA256`, `menuBarMarkSize`, `shell` and `closeReasons`;
+- every control was driven on the testbed and every one changes something observable (rule 38): the table is in
+  `README.md`, section `Build and QA`.
+
 ## 2.4.0 build 16 – 2026-09-16
 
 - header right edge in the family order (rule 32): the version moves out from under the product name to the

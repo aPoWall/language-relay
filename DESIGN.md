@@ -2,7 +2,9 @@
 
 Language Relay 2.3.8 adopts the generated N1 profile. Its SSOT is
 `ai-mindset-org/lab-sites`, `internal-sites/aim-product-system/mini-apps.tokens.json`.
-`native/AIMMiniAppTokens.swift`, `native/AIMVoxelModels.swift` and `native/AIMVoxelView.swift` are byte-identical exports. `native/NativeWhite.swift`
+`native/AIMMiniAppTokens.swift`, `native/AIMVoxelModels.swift`, `native/AIMVoxelView.swift`,
+`native/AIMHintCard.swift`, `native/AIMAppMarks.swift`, `native/AIMAppMarkView.swift` and
+`native/AIMAppShell.swift` are byte-identical exports, hashed in the receipt. `native/NativeWhite.swift`
 maps its semantic roles into AppKit colors, geometry, font registration and controls.
 Vendored and shared ShaperKit remain unchanged.
 

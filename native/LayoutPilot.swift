@@ -1176,14 +1176,15 @@ private enum PanelHealth {
 }
 
 private final class LayoutPilotRootView: NSView {
-    var closeAction: (() -> Void)?
+    /// Rule 33: every key entrance reports its reason to the one `close(reason:)` of AIMSurface.
+    var closeAction: ((AIMSurface.CloseReason) -> Void)?
 
     override var acceptsFirstResponder: Bool { true }
 
     /// Escape closes the panel (window contract, rule 21).
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 {
-            closeAction?()
+            closeAction?(.escape)
             return
         }
         super.keyDown(with: event)
@@ -1192,7 +1193,7 @@ private final class LayoutPilotRootView: NSView {
     /// Command-W closes the panel too (rule 21); the accessory app has no main menu to carry the key equivalent.
     override func performKeyEquivalent(with event: NSEvent) -> Bool {
         if LayoutPilotRootView.isCloseEquivalent(event) {
-            closeAction?()
+            closeAction?(.commandW)
             return true
         }
         return super.performKeyEquivalent(with: event)
@@ -1205,39 +1206,12 @@ private final class LayoutPilotRootView: NSView {
     }
 }
 
-/// The relay symbol of aim-app-marks.svg drawn as a template image: square 38 in a 48 grid at x5 y5, rx 8, 2 px stroke;
-/// the two arrows with the red tip; the 6 x 4 signal at x32 y5 filled. Used at 18 pt in the menu bar (rule 26):
-/// the 18 px mono voxel character reads as a block at that size, so the bar carries the line glyph.
-enum RelayMarkGlyph {
-    static func mark(size: CGFloat) -> NSImage {
-        let img = NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
-            let s = rect.width / 48
-            let stroke = max(1, 2 * s)
-            NSColor.black.setStroke(); NSColor.black.setFill()
-            let frame = NSBezierPath(roundedRect: NSRect(x: 5 * s, y: 5 * s, width: 38 * s, height: 38 * s), xRadius: 8 * s, yRadius: 8 * s)
-            frame.lineWidth = stroke; frame.stroke()
-            func pt(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * s, y: y * s) }
-            let g = NSBezierPath(); g.lineWidth = stroke; g.lineJoinStyle = .round; g.lineCapStyle = .round
-            g.move(to: pt(14, 35))
-            g.line(to: pt(14, 25))
-            g.appendArc(from: pt(14, 15), to: pt(34, 15), radius: 10 * s)
-            g.line(to: pt(34, 35))
-            g.move(to: pt(30, 31)); g.line(to: pt(34, 35)); g.line(to: pt(38, 31))
-            g.stroke()
-            NSBezierPath(rect: NSRect(x: 32 * s, y: 5 * s, width: 6 * s, height: 4 * s)).fill()
-            return true
-        }
-        img.isTemplate = true
-        img.accessibilityDescription = "language relay"
-        return img
-    }
-}
-
 private enum LayoutPilotStatusGlyph {
     static func make(russianActive: Bool) -> NSImage {
         let size = NSSize(width: 54, height: 18)
-        // rule 26: the bar carries the mark glyph, not the mono voxel character
-        let mark = RelayMarkGlyph.mark(size: 18)
+        // rules 26, 39: the bar icon is the product mark drawn by AIMAppMarkView from aim-app-marks.svg,
+        // the same component and the same source the panel header uses; the voxel character stays inside the surface
+        let mark = AIMAppMarkView.image(.relay, size: AIMAppMarkView.menuBarSize, mono: true)
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.black.setStroke()
             NSColor.black.setFill()
@@ -1325,8 +1299,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         defaults.set(true, forKey: pinMigrationKey)
     }
     private var pinned: Bool = AppDelegate.pinDefault
-    private var pinButton: RelayButton?
-    private var outsideClickMonitor: Any?
+    private var pinButton: AIMPinButton?
+    private var settingsButton: AIMShellButton?
+    /// Rule 33: one surface owns show, the read-only outside-click monitor and `close(reason:)`.
+    private var surface: AIMSurface?
+    private(set) var lastCloseReason: AIMSurface.CloseReason?
+    /// Rule 33: every entrance Relay offers, all of them ending in the one `AIMSurface.close(reason:)`.
+    static let closeReasons: [AIMSurface.CloseReason] = [.escape, .commandW, .closeButton, .menuBarItem, .route, .outsideClick, .host]
     private var previewSound: NSSound?
     private var lastObservedInputID: String?
     private var setupExpanded = false
@@ -1424,18 +1403,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     @objc private func handleTestbedNotification(_ notification: Notification) {
         switch (notification.userInfo?["action"] as? String ?? "show").lowercased() {
         case "show", "open": showTestbed()
-        case "hide", "close": popover?.performClose(nil)
-        case "toggle": popover?.isShown == true ? popover?.performClose(nil) : showTestbed()
+        case "hide", "close": surface?.close(reason: .route)
+        case "toggle": surface?.isShown == true ? surface?.close(reason: .route) : showTestbed()
         // `pin` / `unpin`: the same path as the header button, so an agent can hold the panel open on a busy Mac
         // (an outside click by the user closes a transient panel, rule 29) and check the pinned state without a click
-        case "pin": if !pinned { togglePin() }
-        case "unpin": if pinned { togglePin() }
+        case "pin": if !pinned { setPinned(true) }
+        case "unpin": if pinned { setPinned(false) }
         default: break
         }
     }
 
     private func showTestbed() {
-        if popover?.isShown == true { popover?.performClose(nil) }
+        if surface?.isShown == true { surface?.close(reason: .route) }
         let screen = NSScreen.main?.visibleFrame ?? NSScreen.screens.first?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let inset: CGFloat = 24
         let anchor = testbedAnchor ?? {
@@ -1454,51 +1433,21 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         anchor.orderFrontRegardless()
         testbedActive = true
         buildPopover()
-        guard let popover, let anchorView = anchor.contentView else { return }
-        // the agent path takes no transition: the first captured frame is the finished panel (rule 27)
-        popover.animates = false
-        popover.contentViewController?.view.layoutSubtreeIfNeeded()
-        // no activation, no key focus: the panel is on screen for an agent, the user keeps their app
-        popover.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .maxY)
-        installOutsideClickMonitor()
+        guard let anchorView = anchor.contentView else { return }
+        // no activation, no key focus: the panel is on screen for an agent, the user keeps their app.
+        // The show, the appear token and the outside-click monitor are the shared surface (rules 28, 29, 33).
+        surface?.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .maxY)
     }
 
-    // MARK: Closing contract (rule 29)
+    // MARK: Closing contract (rules 29, 31, 33)
 
-    /// An outside click closes an unpinned panel. The transient NSPopover already does this while the popover window
-    /// is key; the non-activating testbed presentation never becomes key, so the global monitor reads the click
-    /// (left or right mouse down in another app) and closes the panel. The event is read, never changed or re-sent.
-    private func installOutsideClickMonitor() {
-        removeOutsideClickMonitor()
-        guard !pinned else { return }
-        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
-            guard let self, let popover = self.popover, popover.isShown else { return }
-            if let frame = popover.contentViewController?.view.window?.frame, frame.contains(NSEvent.mouseLocation) { return }
-            popover.performClose(nil)
-        }
-    }
-
-    private func removeOutsideClickMonitor() {
-        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
-        outsideClickMonitor = nil
-    }
-
-    @objc private func togglePin() {
-        pinned.toggle()
+    /// Rule 31: one pin, one component, one stored key. The surface re-arms its read-only outside-click monitor.
+    private func setPinned(_ value: Bool) {
+        pinned = value
         defaults.set(pinned, forKey: Self.pinKey)
         popover?.behavior = pinned ? .applicationDefined : .transient
-        if popover?.isShown == true { installOutsideClickMonitor() }
-        if let pinButton { Self.decoratePinButton(pinButton, pinned: pinned) }
-    }
-
-    /// ◉ = pinned (outside click keeps the panel), ○ = transient (outside click closes it); the same glyphs as MEM PRISM.
-    private static func decoratePinButton(_ button: RelayButton, pinned: Bool) {
-        button.title = ""
-        button.setLabel(pinned ? "◉" : "○")
-        button.isActive = pinned
-        button.setAccessibilityLabel("pin panel open")
-        button.setAccessibilityHelp(pinned ? "Pinned: an outside click keeps the panel open" : "Transient: an outside click closes the panel")
-        button.toolTip = pinned ? "pinned · outside click keeps the panel" : "transient · outside click closes the panel"
+        surface?.pinned = pinned
+        pinButton?.setPinned(pinned)
     }
 
     private func dismissTestbedAnchor() {
@@ -1515,8 +1464,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     /// Every close path ends here: ×, Escape, Command-W, the bar click, the testbed `hide` route and the outside click.
     func popoverDidClose(_ notification: Notification) {
         lastPopoverCloseAt = Date()
-        removeOutsideClickMonitor()
+        // A close the surface did not start (the transient popover, a system dismissal) still ends in `close(reason:)`.
+        surface?.close(reason: .host)
         pinButton = nil
+        settingsButton = nil
         dismissTestbedAnchor()
     }
 
@@ -1579,8 +1530,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             showNativeMenu()
             return
         }
-        if popover?.isShown == true {
-            popover?.performClose(nil)
+        if surface?.isShown == true {
+            surface?.close(reason: .menuBarItem)
             return
         }
         guard Date().timeIntervalSince(lastPopoverCloseAt) > 0.35 else { return }
@@ -1591,11 +1542,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         dismissTestbedAnchor()
         buildPopover()
         guard let popover, let button = statusItem.button else { return }
-        popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
+        surface?.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         if let root = popover.contentViewController?.view {
             AppDelegate.installKeyLoop(root)
         }
-        installOutsideClickMonitor()
     }
 
     /// Explicit Tab order for the popover window (rule 16): the popover window does not recalculate its key view loop
@@ -1626,6 +1576,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         next.contentViewController = controller
         next.delegate = self
         popover = next
+        let host = AIMSurface(host: .popover(next), pinned: pinned)
+        host.onClose = { [weak self] reason in self?.lastCloseReason = reason }
+        surface = host
     }
 
     private func rebuildPopoverContent(animateDisclosure: Bool = false) {
@@ -1647,13 +1600,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func makePanelContent(bridgeHealth: HammerspoonHealth? = nil) -> NSView {
+        _ = RelayShellFont.install
         let content = LayoutPilotRootView(frame: NSRect(
             x: 0,
             y: 0,
             width: LayoutPilotPanelMetrics.width,
             height: LayoutPilotPanelMetrics.height
         ))
-        content.closeAction = { [weak self] in self?.popover?.performClose(nil) }
+        content.closeAction = { [weak self] reason in self?.surface?.close(reason: reason) }
         content.wantsLayer = true
         content.layer?.backgroundColor = RelayStyle.bg.cgColor
         content.layer?.borderColor = RelayStyle.hair.cgColor
@@ -1670,26 +1624,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         root.spacing = 8
         root.translatesAutoresizingMaskIntoConstraints = false
         content.addSubview(root)
-        // footer, one structure for every AIM window (rule 22): three nodes keys · esc close · version/status,
-        // 11 pt Plex 500 muted, the same split MEM PRISM and Calendar Control expose, pinned to the 16 pt grid
-        let hintKeys = label(footerKeysLabel, size: 11, weight: .medium, color: RelayStyle.muted,
-                             width: 100, height: LayoutPilotPanelMetrics.footerHeight)
-        hintKeys.identifier = NSUserInterfaceItemIdentifier("hint-keys")
-        let hintEsc = label("esc close", size: 11, weight: .medium, color: RelayStyle.muted,
-                            width: 72, height: LayoutPilotPanelMetrics.footerHeight, centered: true)
-        hintEsc.identifier = NSUserInterfaceItemIdentifier("hint-esc")
-        let hintStatus = label("v\(AppIdentity.version) · \(panelHealthLabel)", size: 11, weight: .medium,
-                               color: RelayStyle.muted, width: 170, height: LayoutPilotPanelMetrics.footerHeight)
-        hintStatus.alignment = .right
-        hintStatus.identifier = NSUserInterfaceItemIdentifier("hint-status")
-        let footer = NSStackView(views: [hintKeys, flexSpacer(), hintEsc, flexSpacer(), hintStatus])
-        footer.orientation = .horizontal
-        footer.alignment = .centerY
-        footer.spacing = 0
-        footer.translatesAutoresizingMaskIntoConstraints = false
+        // footer, one component for every AIM app (rules 22, 34): keys, esc close, version and status,
+        // 11 pt Plex 500 muted, the same AIMFooterLine MEM PRISM and Calendar Control carry
+        let footer = AIMFooterLine(keys: footerKeysLabel,
+                                   status: "v\(AppIdentity.version) \u{00B7} \(panelHealthLabel)",
+                                   width: LayoutPilotPanelMetrics.contentWidth)
         footer.identifier = NSUserInterfaceItemIdentifier("panel-footer")
-        footer.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
-        footer.heightAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.footerHeight).isActive = true
+        footer.keysLabel.identifier = NSUserInterfaceItemIdentifier("hint-keys")
+        footer.statusLabel.identifier = NSUserInterfaceItemIdentifier("hint-status")
         content.addSubview(footer)
         let grid = LayoutPilotPanelMetrics.grid
         NSLayoutConstraint.activate([
@@ -1701,50 +1643,23 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             root.bottomAnchor.constraint(lessThanOrEqualTo: footer.topAnchor, constant: -8),
         ])
 
-        // header by the window contract: live mark 40 pt · name · version · settings · × (esc closes too)
-        let markSize = LayoutPilotPanelMetrics.markSize
-        let header = NSStackView()
-        header.orientation = .horizontal
-        header.alignment = .centerY
-        header.spacing = 8
-        header.translatesAutoresizingMaskIntoConstraints = false
-        header.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
-        header.heightAnchor.constraint(equalToConstant: markSize).isActive = true
-        // live product mark: the relay character assembles once in 0.7 s after the first drawn frame,
-        // answers the cursor with a 2 pt lift and a click with scatter → assemble → the arch mirrors and the landing foot changes side
-        let liveMark = AIMVoxelView(model: AIMVoxelModels.relay, frame: NSRect(x: 0, y: 0, width: markSize, height: markSize))
-        liveMark.translatesAutoresizingMaskIntoConstraints = false
-        liveMark.widthAnchor.constraint(equalToConstant: markSize).isActive = true
-        liveMark.heightAnchor.constraint(equalToConstant: markSize).isActive = true
-        liveMark.identifier = NSUserInterfaceItemIdentifier("live-mark")
-        liveMark.toolTip = "relay · click to mirror the arrows"
-        header.addArrangedSubview(liveMark)
-        // rule 32, one order on the right edge: version · settings · pin · ×
-        let settingsWidth: CGFloat = 64
-        let versionWidth: CGFloat = 40
-        let nameWidth = LayoutPilotPanelMetrics.contentWidth - markSize - versionWidth - settingsWidth
-            - 2 * LayoutPilotPanelMetrics.headerButton - 5 * 8
-        header.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: nameWidth, height: 23))
-        let version = label("v\(AppIdentity.version)", size: 9, weight: .medium, color: RelayStyle.muted, width: versionWidth, height: 13)
-        version.alignment = .right
-        version.identifier = NSUserInterfaceItemIdentifier("panel-version")
-        header.addArrangedSubview(version)
-        let settings = squareButton("settings", action: #selector(showSettingsMenu(_:)), identifier: "settings", width: settingsWidth, height: LayoutPilotPanelMetrics.headerButton)
-        settings.toolTip = "setup details · switch layout · quit"
-        settings.setAccessibilityHelp("Setup details, layout switch and quit")
-        header.addArrangedSubview(settings)
-        // pin ◉/○ (rule 29): transient by default, the same glyphs and wording as MEM PRISM
-        let pin = RelayButton(pinned ? "◉" : "○", target: self, action: #selector(togglePin), width: LayoutPilotPanelMetrics.headerButton, height: LayoutPilotPanelMetrics.headerButton, lowercase: false)
-        pin.identifier = NSUserInterfaceItemIdentifier("pin-panel")
-        Self.decoratePinButton(pin, pinned: pinned)
+        // header, one component for every AIM app (rules 21, 32, 34, 39): the mark is the product mark
+        // AIMAppMarkView draws from aim-app-marks.svg, the same drawing the menu bar carries at 18 pt.
+        let pin = AIMPinButton(pinned: pinned) { [weak self] value in self?.setPinned(value) }
         pinButton = pin
-        header.addArrangedSubview(pin)
-        let close = RelayButton("×", target: self, action: #selector(closePanel), width: LayoutPilotPanelMetrics.headerButton, height: LayoutPilotPanelMetrics.headerButton, lowercase: false)
-        close.identifier = NSUserInterfaceItemIdentifier("close-panel")
-        close.setAccessibilityLabel("close")
-        close.setAccessibilityHelp("Close the panel (Escape does the same)")
-        close.toolTip = "close · esc"
-        header.addArrangedSubview(close)
+        // Rule 32: the version slot is left empty. A 420 pt header holds the name, settings, pin and x at full
+        // width and nothing more; the version is printed in the bottom line beside the health state (rule 22).
+        let header = AIMAppHeader(mark: .relay,
+                                  name: "language relay",
+                                  width: LayoutPilotPanelMetrics.contentWidth,
+                                  onSettings: { [weak self] in self?.showSettingsMenu() },
+                                  pin: pin,
+                                  onClose: { [weak self] in self?.surface?.close(reason: .closeButton) })
+        header.markView.identifier = NSUserInterfaceItemIdentifier("product-mark")
+        header.markView.toolTip = "language relay"
+        header.settingsButton?.toolTip = "setup details \u{00B7} switch layout \u{00B7} quit"
+        header.settingsButton?.setAccessibilityHelp("Setup details, layout switch and quit")
+        settingsButton = header.settingsButton
         root.addArrangedSubview(header)
         root.addArrangedSubview(hairLine(width: LayoutPilotPanelMetrics.contentWidth))
 
@@ -1975,6 +1890,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     func runBackgroundUISelfTest() -> Bool {
         _ = RelayStyle.mono(11)
+        _ = RelayShellFont.install
         guard RelayStyle.radius == 8, RelayStyle.contentRadius == 16,
               RelayStyle.stateDuration(reducedMotion: false) == 0.16,
               RelayStyle.stateDuration(reducedMotion: true) == 0 else { return false }
@@ -2038,49 +1954,49 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       panel.window == nil, validate(panel) else { return false }
                 guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")),
                       RelayFocus.target(in: panel, identifier: .init("setup")) is RelayButton else { return false }
+                // rule 39: the header carries the product mark, the same drawing and source as the menu bar icon
                 let m = LayoutPilotPanelMetrics.markSize
-                guard let mark = RelayFocus.target(in: panel, identifier: .init("live-mark")) as? AIMVoxelView,
-                      mark.frame.size == NSSize(width: m, height: m), mark.accessibilityLabel() == AIMVoxelModels.relay.label,
-                      mark.currentVoxels.count == AIMVoxelModels.relay.count else {
-                    fputs("FAIL: live mark missing in panel header\n", stderr); return false
+                guard let mark = RelayFocus.target(in: panel, identifier: .init("product-mark")) as? AIMAppMarkView,
+                      mark.frame.size == NSSize(width: m, height: m), mark.mark == .relay,
+                      mark.accessibilityLabel() == AIMAppMark.relay.label, m == AIMAppMarkView.headerSize else {
+                    fputs("FAIL: product mark missing in panel header\n", stderr); return false
                 }
                 // window contract: settings + × in the header on the same line as the name, footer keys · esc close · version/status
                 let b = LayoutPilotPanelMetrics.headerButton
-                guard let settings = RelayFocus.target(in: panel, identifier: .init("settings")) as? RelayButton,
-                      let pin = RelayFocus.target(in: panel, identifier: .init("pin-panel")) as? RelayButton,
-                      let close = RelayFocus.target(in: panel, identifier: .init("close-panel")) as? RelayButton,
+                guard let shellHeader = RelayFocus.target(in: panel, identifier: .init("product-mark"))?.superview?.superview as? AIMAppHeader,
+                      let settings = RelayFocus.target(in: panel, identifier: .init("settings")) as? AIMShellButton,
+                      let pin = RelayFocus.target(in: panel, identifier: .init("pin-panel")) as? AIMPinButton,
+                      let close = RelayFocus.target(in: panel, identifier: .init("close-panel")) as? AIMShellButton,
+                      shellHeader.trailingIdentifiers == ["settings", "pin-panel", "close-panel"],
                       settings.frame.height == b, close.frame.size == NSSize(width: b, height: b),
-                      pin.frame.size == NSSize(width: b, height: b), pin.caption == "○", !pin.isActive,
-                      pin.accessibilityLabel() == "pin panel open",
-                      close.accessibilityLabel() == "close",
+                      pin.frame.size == NSSize(width: b, height: b), pin.captionText == "○", !pin.pinned, !pin.isActive,
+                      pin.accessibilityLabel() == AIMPinPolicy.accessibilityDescription(false),
+                      close.accessibilityLabel() == "close panel",
                       abs(close.convert(close.bounds, to: panel).midY - mark.convert(mark.bounds, to: panel).midY) < 1,
                       close.convert(close.bounds, to: panel).maxX == LayoutPilotPanelMetrics.width - LayoutPilotPanelMetrics.grid else {
-                    fputs("FAIL: header settings / close buttons\n", stderr); return false
+                    fputs("FAIL: header order settings / pin / close (rule 32)\n", stderr); return false
                 }
-                // the relay gesture: a click mirrors the arch on x, so the red landing foot changes side; a second click restores it
-                let before = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
-                mark.trigger()
-                let swapped = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
-                mark.trigger()
-                let restored = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
-                guard swapped != before, restored == before, swapped.count == before.count else {
-                    fputs("FAIL: live mark gesture (arch mirrors, landing foot swaps sides)\n", stderr); return false
+                // rule 21: the product name is printed in full, the 420 pt header never truncates it
+                guard shellHeader.nameLabel.frame.width + 0.5 >= shellHeader.nameLabel.intrinsicContentSize.width else {
+                    fputs("FAIL: header name truncated (\(shellHeader.nameLabel.frame.width) < \(shellHeader.nameLabel.intrinsicContentSize.width))\n", stderr)
+                    return false
                 }
                 // rule 22: three separate nodes in the bottom line, keys · esc close · version/status
-                guard let footer = RelayFocus.target(in: panel, identifier: .init("panel-footer")) as? NSStackView,
+                guard let footer = RelayFocus.target(in: panel, identifier: .init("panel-footer")) as? AIMFooterLine,
                       let keys = RelayFocus.target(in: panel, identifier: .init("hint-keys")) as? NSTextField,
                       let esc = RelayFocus.target(in: panel, identifier: .init("hint-esc")) as? NSTextField,
                       let status = RelayFocus.target(in: panel, identifier: .init("hint-status")) as? NSTextField,
-                      keys.font?.pointSize == 11, esc.stringValue == "esc close",
+                      keys.font?.pointSize == AIMAppShellStyle.footerSize, esc.stringValue == "esc close",
                       status.stringValue.contains("v\(AppIdentity.version)"),
                       abs(footer.convert(footer.bounds, to: panel).minY - LayoutPilotPanelMetrics.grid) < 0.5 else {
                     fputs("FAIL: panel footer\n", stderr); return false
                 }
-                // rule 32: version sits at the header right edge, before settings
-                guard let versionLabel = RelayFocus.target(in: panel, identifier: .init("panel-version")) as? NSTextField,
-                      versionLabel.stringValue == "v\(AppIdentity.version)",
-                      versionLabel.convert(versionLabel.bounds, to: panel).maxX <= settings.convert(settings.bounds, to: panel).minX else {
-                    fputs("FAIL: header version slot\n", stderr); return false
+                // rule 32: the version slot is empty and the order holds; the version is in the bottom line (rule 22).
+                // Nothing in the header may be squeezed to a sliver: a label narrower than its text is a defect.
+                guard shellHeader.versionLabel == nil,
+                      RelayFocus.target(in: panel, identifier: .init("panel-version")) == nil,
+                      status.stringValue.hasPrefix("v\(AppIdentity.version) ") else {
+                    fputs("FAIL: header version slot / footer version\n", stderr); return false
                 }
                 RelayMotion.reveal(disclosure, reducedMotion: true)
                 guard disclosure.layer?.animation(forKey: "relay-state") == nil else { return false }
@@ -2088,16 +2004,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         }
         setupExpanded = false
         // rule 21: Command-W closes like Escape; rule 16: every RelayButton stays in the key view loop without Full Keyboard Access
-        var closed = 0
+        var closed: [AIMSurface.CloseReason] = []
         let rootProbe = LayoutPilotRootView(frame: NSRect(x: 0, y: 0, width: 10, height: 10))
-        rootProbe.closeAction = { closed += 1 }
+        rootProbe.closeAction = { reason in closed.append(reason) }
         let commandW = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command], timestamp: 0,
             windowNumber: 0, context: nil, characters: "w", charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13)!
         let plainW = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [], timestamp: 0,
             windowNumber: 0, context: nil, characters: "w", charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13)!
         let shiftCommandW = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.command, .shift], timestamp: 0,
             windowNumber: 0, context: nil, characters: "W", charactersIgnoringModifiers: "w", isARepeat: false, keyCode: 13)!
-        guard rootProbe.performKeyEquivalent(with: commandW), closed == 1,
+        guard rootProbe.performKeyEquivalent(with: commandW), closed == [.commandW],
               !LayoutPilotRootView.isCloseEquivalent(plainW), !LayoutPilotRootView.isCloseEquivalent(shiftCommandW),
               RelayButton("probe", target: nil, action: nil, width: 40).canBecomeKeyView,
               PanelHealth.keys(shift: true, option: true) == "⇧⇧ ⌥ · repair",
@@ -2122,11 +2038,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             }
         }
         let glyph = LayoutPilotStatusGlyph.make(russianActive: false)
-        // rule 26: the bar carries the mark glyph of aim-app-marks.svg as an 18 pt template image, not the mono voxel
-        let barMark = RelayMarkGlyph.mark(size: 18)
+        // rules 26, 39: the bar carries the product mark AIMAppMarkView draws, one component and one source
+        // (aim-app-marks.svg) for the menu bar and the panel header
+        let barMark = AIMAppMarkView.image(.relay, size: AIMAppMarkView.menuBarSize, mono: true)
         guard AIMVoxelModels.relay.count <= 110, AIMVoxelModels.relay.signals.count == 1,
-              AIMVoxelModels.sourceSHA256.count == 64, barMark.isTemplate, barMark.size == NSSize(width: 18, height: 18) else {
-            fputs("FAIL: live mark model or menu mark glyph\n", stderr); return false
+              AIMVoxelModels.sourceSHA256.count == 64, barMark.isTemplate, barMark.size == NSSize(width: 18, height: 18),
+              AIMAppMark.relay.symbol == "relay-arch", AIMAppMark.sourceSHA256.count == 64,
+              AIMAppMark.canvas == 48, AIMAppMark.strokeWidth == 2 else {
+            fputs("FAIL: menu bar mark, one source with the header mark\n", stderr); return false
         }
         return glyph.size == NSSize(width: 54, height: 18)
             && glyph.isTemplate
@@ -2225,7 +2144,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     /// header `settings`: the same three actions as the status item's right-click menu, plus the setup disclosure
-    @objc private func showSettingsMenu(_ sender: RelayButton) {
+    private func showSettingsMenu() {
+        guard let sender = settingsButton else { return }
         let menu = NSMenu()
         let setup = NSMenuItem(title: setupExpanded ? "setup · hide details" : "setup · show details", action: #selector(toggleSetupDisclosure), keyEquivalent: "")
         setup.target = self
@@ -2240,7 +2160,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
     }
 
-    @objc private func closePanel() { popover?.performClose(nil) }
 
     @objc private func openPanelFromMenu() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.08) { [weak self] in self?.showPopover() }
@@ -2464,7 +2383,10 @@ private struct LayoutPilotMain {
                 "schemaVersion": 1, "app": AppIdentity.name, "version": AppIdentity.version,
                 "profile": "N1", "tokenVersion": AIMMiniAppTokens.version,
                 "tokenSourceSHA256": AIMMiniAppTokens.sourceSHA256,
-                "liveMark": "relay", "markSize": Int(LayoutPilotPanelMetrics.markSize), "windowContract": "AIM-APPS-RULES 21-26",
+                "mark": AIMAppMark.relay.symbol, "markSize": Int(LayoutPilotPanelMetrics.markSize),
+                "markSourceSHA256": AIMAppMark.sourceSHA256, "menuBarMarkSize": Int(AIMAppMarkView.menuBarSize),
+                "shell": ["AIMAppHeader", "AIMFooterLine", "AIMPinButton", "AIMSurface"],
+                "windowContract": "AIM-APPS-RULES 21-26",
                 "voxelModelsVersion": AIMVoxelModels.version,
                 "voxelModelsSHA256": AIMVoxelModels.sourceSHA256, "voxelCount": AIMVoxelModels.relay.count,
                 "panelWidth": Int(LayoutPilotPanelMetrics.width), "panelHeight": Int(LayoutPilotPanelMetrics.height),
@@ -2475,7 +2397,8 @@ private struct LayoutPilotMain {
                 "windowAppearShift": RelayStyle.windowAppearShift(reducedMotion: RelayStyle.reduceMotion),
                 "pinDefault": AppDelegate.pinDefault,
                 "pinned": UserDefaults.standard.object(forKey: AppDelegate.pinKey) == nil ? AppDelegate.pinDefault : UserDefaults.standard.bool(forKey: AppDelegate.pinKey),
-                "closeContract": "AIM-APPS-RULES 29",
+                "closeContract": "AIM-APPS-RULES 29, 33",
+                "closeReasons": AppDelegate.closeReasons.map(\.rawValue),
             ])
             exit(0)
         }
@@ -2524,7 +2447,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay arrows (header 40pt voxel, menu 18pt mark glyph); window contract: settings + pin + x 28pt, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); gesture=arrows mirror on x; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; rule 39 one mark source (header 40pt AIMAppMarkView, menu bar 18pt template, relay-arch); header order settings + pin + x 28pt, name untruncated, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {

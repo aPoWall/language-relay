@@ -46,6 +46,14 @@ enum RelayStyle {
     }
 }
 
+/// The shared shell (AIMAppShell) asks the product for its typeface. Language Relay ships IBM Plex Mono inside
+/// the bundle and registers it in-process, so the hook points at `RelayStyle.mono` once, before the first header.
+enum RelayShellFont {
+    static let install: Void = {
+        AIMAppShellStyle.font = { size, weight in RelayStyle.mono(size, weight: weight) }
+    }()
+}
+
 enum RelayFocus {
     static func target(in view: NSView, identifier: NSUserInterfaceItemIdentifier) -> NSView? {
         if view.identifier == identifier { return view }

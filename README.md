@@ -100,7 +100,7 @@ Direct native surface:
 
 Panel appear and close (2.3.9, rules 28–29): the popover animates over the shared token `motion-panel-appear` (200 ms; 0 under Reduce Motion); the panel is transient by default and an outside click closes it, the header pin `◉/○` keeps it open (`defaults write dev.alex.layout-pilot dev.alex.layout-pilot.pinned -bool true` does the same); `×`, Escape, Command-W, the status-item click and `--testbed hide` close it the same way.
 
-Mark and character (2.4.0, rules 4 and 26): the product mark is the arch `relay-arch` of `aim-app-marks.svg`, the menu bar draws it as an 18 pt template image, and the live character is the 80-voxel arch whose click mirrors it on `x` so the red landing foot changes side. Variants and the reason for the choice: `docs/design/relay-mark-2.4.0.md`. A pin left on by 2.3.9 goes off once under `migratedPinToTransient.2.4.0`.
+Mark (2.4.1, rules 4, 26 and 39): the product mark is the arch `relay-arch` of `aim-app-marks.svg`, and one component draws it in both places. `AIMAppMarkView.image(.relay, size: 18, mono: true)` is the menu bar template image, `AIMAppMarkView` at 40 pt is the mark in the panel header, so the bar and the header show the same lines from the same source (`sourceSHA256 a2c988fa`). The local `RelayMarkGlyph` copy is gone. The voxel character stays an illustration of the same idea and lives on the product page and in `AIMHintCard`, not in the header and not in the bar. Variants and the reason for the choice: `docs/design/relay-mark-2.4.0.md`. A pin left on by 2.3.9 goes off once under `migratedPinToTransient.2.4.0`.
 
 The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename. Version 2.3.3 migrates the old phrase default to Last Word once; choose Last Phrase in the panel when you want the longer tail.
 
@@ -118,9 +118,11 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
-Native version 2.4.0 uses the generated N1 native-white profile: a fixed 420×488 panel,
-bundled IBM Plex Mono, inline setup details and the shared AIM window contract
-(header: live mark 40 pt · name · version · settings · ×; footer: keys · esc close · version · status). The bridge protocol remains
+Native version 2.4.1 uses the generated N1 native-white profile: a fixed 420×488 panel,
+bundled IBM Plex Mono, inline setup details and the shared shell `AIMAppShell.swift`
+(`AIMAppHeader`: mark 40 pt · name · version slot · settings · pin · ×; `AIMFooterLine`: keys · esc close · version and status;
+`AIMPinButton`; `AIMSurface` for show, the read-only outside-click monitor and one `close(reason:)`).
+On a 420 pt header the version slot is left empty by rule 32 and the version is printed in the bottom line. The bridge protocol remains
 2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.
 
 The runtime version comes from the bundle's `Info.plist`. `language-relay design`
@@ -128,9 +130,31 @@ reports the installed app version and exact N1 token source digest. The controls
 keep keyboard focus when settings or setup details refresh; Left/Right chooses
 adjacent segments and Space/Return activates a focused control.
 
-The panel header and the menu bar carry the live product mark, the relay voxel
-character from the shared `AIMVoxelView.swift` / `AIMVoxelModels.swift` exports
-(cursor parallax, one finite reassemble on click, still frame under Reduce Motion).
+The panel header and the menu bar carry one drawing of the product mark, `AIMAppMarkView`
+over the generated `AIMAppMarks.swift` (rule 39): 40 pt with the red signal in the header,
+18 pt as a template image in the bar. `language-relay design` prints `mark`, `markSourceSHA256`,
+`menuBarMarkSize`, the shell components and the close reasons.
+
+Control table (rule 38, 2.4.1 build 17, driven through `internal-sites/aim-product-system/testbed/bin/axdrive`
+against the installed build; window by id, no synthetic clicks, cursor and focus untouched):
+
+| control | identifier | press | what changed |
+| --- | --- | --- | --- |
+| layout switch | `layout-switch` | AXPress | readout `[a] ⇄ ру · u.s.` → `a ⇄ [ру] · russian – pc`, and the bar cell follows |
+| last word / last phrase | `last word`, `last phrase` | AXPress | `fixMode` `lastWord` ⇄ `phrase`, red underline moves to the pressed segment |
+| letter case | `aA preserve`, `Aa sentence`, `AA upper`, `aa lower` | AXPress | `capitalizationMode` takes the pressed value, one segment stays active |
+| double shift | `gesture-shift` | AXPress | `shiftEnabled` flips, bottom line `gestures off` → `⇧⇧ · repair` |
+| clean option | `gesture-option` | AXPress | `optionEnabled` flips, bottom line `⇧⇧ · repair` → `⇧⇧ ⌥ · repair` |
+| volume 00 / 25 / 55 / 82 | `00`, `25`, `55`, `82` | AXPress | `soundLevel` `silent` / `quiet` / `balanced` / `full`, the cue button reads `cue · muted · ▾` at 00 |
+| cue | `sound` | AXPress | opens the cue NSMenu as its own window (layer 101, 101×159), no AX reply by design |
+| setup | `setup` | AXPress | disclosure opens: the bridge state line appears and the button becomes `hide` |
+| pin | `pin-panel` | AXPress | glyph ○ ⇄ ◉, accessibility name `pin panel open` ⇄ `unpin panel`, `dev.alex.layout-pilot.pinned` follows |
+| close | `close-panel` | AXPress | the panel leaves through `AIMSurface.close(reason: .closeButton)`, `wait gone` ok |
+| product mark | `product-mark` | none | `AXImage`, not a control: it has no click consequence and takes no focus (rule 38) |
+
+Every row was rerun until it showed a change, and the settings the table moved were put back to the values
+they had before the pass. `./check.sh run relay` from the same folder is the short form: show, tree, capture,
+press `settings`, hide, `wait gone`, frontmost and cursor compared before and after.
 
 `make design-check` verifies vendored design assets against their receipt.
 To update them, run `node scripts/sync-design-tokens.mjs <export-directory>` with
