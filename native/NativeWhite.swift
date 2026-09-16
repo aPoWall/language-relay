@@ -192,7 +192,14 @@ final class RelaySegmentedControl: NSStackView {
         selectedIndex = sender.tag; onSelection?(sender.tag)
     }
     private func updateSelection() {
-        for (index, button) in segmentButtons.enumerated() { button.isActive = index == selectedIndex }
+        for (index, button) in segmentButtons.enumerated() {
+            let selected = index == selectedIndex
+            button.isActive = selected
+            // rule 31: the name follows the state. The red underline is the only visible mark of the active item,
+            // so the accessibility name carries the same reading and a driver sees the press change something.
+            button.setAccessibilityLabel(selected ? "\(button.caption), selected" : button.caption)
+            button.setAccessibilityValue(selected ? 1 : 0)
+        }
     }
 }
 

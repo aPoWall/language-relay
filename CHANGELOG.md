@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.4.1 build 17 – 2026-09-16
+## 2.4.1 build 21 – 2026-09-16
 
 - shell from `AIMAppShell.swift` (rule 34, level L2): `AIMAppHeader`, `AIMFooterLine`, `AIMPinButton` and
   `AIMSurface` replace the hand-built header row, footer stack, pin button and popover plumbing. The product
@@ -12,9 +12,18 @@
 - one close (rule 33): Escape, Command-W, `×`, the menu bar item, `--testbed hide` and a click outside all reach
   `AIMSurface.close(reason:)`. The product keeps no second monitor and no second close path; the reason is
   printed by `language-relay design` as `closeReasons`;
-- header right edge on a 420 pt panel (rule 32): the version slot is left empty and the order
-  settings · pin · × is kept. 2.4.0 put `v2.4.0` there and the label was squeezed to a 4 pt sliver between the
-  name and `settings`; the version is printed in the bottom line beside the health state (rule 22);
+- the header prints the version again (rule 21), on the status line under the name: `2.4.1 · build 21`, the same
+  reading Calendar Control and MEM PRISM show. The right-edge slot of rule 32 stays empty and the order
+  settings · pin · × is kept: the 388 pt content row is already filled by mark, name and the three buttons, so a
+  right-edge label would be squeezed to a sliver, which is how 2.4.0 lost it; the bottom line keeps version and
+  health (rule 22);
+- one popover for the life of the app: `--testbed show` on a panel that is already there returns instead of
+  building a second surface, and a hide/show cycle refills the same instance. Two shows used to leave two extra
+  windows allocated offscreen; the count is now flat (MEM PRISM has behaved this way since b12);
+- a menu opened from the panel (`settings`, the feedback cue) leaves with the panel: the close path cancels its
+  tracking, so a menu no longer survives a close and return on the next show;
+- the segmented rows (correction scope, letter case, volume) report their selection to Accessibility: the active
+  item reads `last word, selected` with AXValue 1, the way the pin name follows its state (rule 31);
 - pin is `AIMPinButton` with identifier `pin-panel`, one tooltip and an accessibility name that follows the
   state (`pin panel open` / `unpin panel`), off by default under the 2.4.0 migration key;
 - `--design-json` reports `mark`, `markSourceSHA256`, `menuBarMarkSize`, `shell` and `closeReasons`;
