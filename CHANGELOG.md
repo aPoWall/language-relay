@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.4.0 build 16 – 2026-09-16
+
+- new product mark (rule 4, new idea = new symbol id): `aim-app-marks.svg` gains `relay-arch`, an arch with a
+  landing chevron – the run leaves one alphabet, crosses the bridge and lands in the other; the old `relay` id
+  stays in the file with the same paths so every shipped reference keeps resolving. Three variants (arch, key
+  caps, exchange ring) and the reason for the choice: `docs/design/relay-mark-2.4.0.md`, contact list
+  `docs/design/relay-mark-contacts.svg`;
+- live character rebuilt under the new mark: 80 voxels (was 36), a stepped arch two sheets deep, mid apex,
+  light body, ink feet, one red voxel on the landing foot; the gesture is `mirror` on `x`, so a click moves the
+  landing foot to the other leg (on `z` two identical bars swapped and the click looked dead);
+- menu bar carries the mark glyph, not the mono voxel block (rule 26): `RelayMarkGlyph.mark(size: 18)` draws
+  frame, arch and signal as a template image, the alphabet cell and the status arrow keep their places (54 × 18);
+- pin migrates once to transient (rule 29): `migratedPinToTransient.2.4.0` sets `pinned` back to off for an
+  install that had it on, a later choice survives; the UI self-test covers both runs;
+- vendored N1 exports `2026.09.16-n1` with the new models (`AIMVoxelModels.swift`, `docs/design/voxel-models.json`,
+  `docs/voxel-relay.svg`); `make design-check` and the product-system `check.mjs` pass.
+
 ## 2.3.9 build 15 – 2026-09-16
 
 - one appear transition for the AIM mini apps (AIM-APPS-RULES rule 28): the popover animates over the shared token `motion-panel-appear` (200 ms, the system popover fade), `RelayStyle` also exposes `motion-window-appear` (180 ms) and `motion-window-appear-shift` (6 pt) for framed windows; Reduce Motion turns every value into 0 and shows the finished frame at once; `language-relay design` reports `panelAppear`, `windowAppear`, `windowAppearShift`;

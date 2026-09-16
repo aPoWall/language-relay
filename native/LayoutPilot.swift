@@ -1205,10 +1205,39 @@ private final class LayoutPilotRootView: NSView {
     }
 }
 
+/// The relay symbol of aim-app-marks.svg drawn as a template image: square 38 in a 48 grid at x5 y5, rx 8, 2 px stroke;
+/// the arch with its landing chevron; the 6 x 4 signal at x32 y5 filled. Used at 18 pt in the menu bar (rule 26):
+/// the 18 px mono voxel character reads as a block at that size, so the bar carries the line glyph.
+enum RelayMarkGlyph {
+    static func mark(size: CGFloat) -> NSImage {
+        let img = NSImage(size: NSSize(width: size, height: size), flipped: true) { rect in
+            let s = rect.width / 48
+            let stroke = max(1, 2 * s)
+            NSColor.black.setStroke(); NSColor.black.setFill()
+            let frame = NSBezierPath(roundedRect: NSRect(x: 5 * s, y: 5 * s, width: 38 * s, height: 38 * s), xRadius: 8 * s, yRadius: 8 * s)
+            frame.lineWidth = stroke; frame.stroke()
+            func pt(_ x: CGFloat, _ y: CGFloat) -> NSPoint { NSPoint(x: x * s, y: y * s) }
+            let g = NSBezierPath(); g.lineWidth = stroke; g.lineJoinStyle = .round; g.lineCapStyle = .round
+            g.move(to: pt(14, 35))
+            g.line(to: pt(14, 25))
+            g.appendArc(from: pt(14, 15), to: pt(34, 15), radius: 10 * s)
+            g.line(to: pt(34, 35))
+            g.move(to: pt(30, 31)); g.line(to: pt(34, 35)); g.line(to: pt(38, 31))
+            g.stroke()
+            NSBezierPath(rect: NSRect(x: 32 * s, y: 5 * s, width: 6 * s, height: 4 * s)).fill()
+            return true
+        }
+        img.isTemplate = true
+        img.accessibilityDescription = "language relay"
+        return img
+    }
+}
+
 private enum LayoutPilotStatusGlyph {
     static func make(russianActive: Bool) -> NSImage {
         let size = NSSize(width: 54, height: 18)
-        let mark = AIMVoxelView.image(model: AIMVoxelModels.relay, size: 18, mono: true)
+        // rule 26: the bar carries the mark glyph, not the mono voxel character
+        let mark = RelayMarkGlyph.mark(size: 18)
         let image = NSImage(size: size, flipped: false) { rect in
             NSColor.black.setStroke()
             NSColor.black.setFill()
@@ -1288,6 +1317,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     // the outside click is read by a global mouse monitor (fact of a click only, nothing is sent or moved).
     static let pinKey = "dev.alex.layout-pilot.pinned"
     static let pinDefault = false
+    /// rule 29: a pin set before the shared contract migrates to off once, under its own key
+    static let pinMigrationKey = "migratedPinToTransient.2.4.0"
+    static func migratePin(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: pinMigrationKey) else { return }
+        defaults.set(pinDefault, forKey: pinKey)
+        defaults.set(true, forKey: pinMigrationKey)
+    }
     private var pinned: Bool = AppDelegate.pinDefault
     private var pinButton: RelayButton?
     private var outsideClickMonitor: Any?
@@ -1351,6 +1387,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Preferences.migrateDefaultScope(defaults: defaults)
+        Self.migratePin(defaults: defaults)
         if defaults.object(forKey: Self.pinKey) != nil { pinned = defaults.bool(forKey: Self.pinKey) }
         enforceSingleInstance()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
@@ -1663,13 +1700,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         header.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
         header.heightAnchor.constraint(equalToConstant: markSize).isActive = true
         // live product mark: the relay character assembles once in 0.7 s after the first drawn frame,
-        // answers the cursor with a 2 pt lift and a click with scatter → assemble → the arrows swap places
+        // answers the cursor with a 2 pt lift and a click with scatter → assemble → the arch mirrors and the landing foot changes side
         let liveMark = AIMVoxelView(model: AIMVoxelModels.relay, frame: NSRect(x: 0, y: 0, width: markSize, height: markSize))
         liveMark.translatesAutoresizingMaskIntoConstraints = false
         liveMark.widthAnchor.constraint(equalToConstant: markSize).isActive = true
         liveMark.heightAnchor.constraint(equalToConstant: markSize).isActive = true
         liveMark.identifier = NSUserInterfaceItemIdentifier("live-mark")
-        liveMark.toolTip = "relay · click to swap the arrows"
+        liveMark.toolTip = "relay · click to mirror the arch"
         header.addArrangedSubview(liveMark)
         let identity = NSStackView()
         identity.orientation = .vertical
@@ -2006,14 +2043,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       close.convert(close.bounds, to: panel).maxX == LayoutPilotPanelMetrics.width - LayoutPilotPanelMetrics.grid else {
                     fputs("FAIL: header settings / close buttons\n", stderr); return false
                 }
-                // the relay gesture: a click swaps the two arrows (mirror on z) and a second click restores them
+                // the relay gesture: a click mirrors the arch on x, so the red landing foot changes side; a second click restores it
                 let before = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
                 mark.trigger()
                 let swapped = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
                 mark.trigger()
                 let restored = mark.currentVoxels.map { "\($0.x),\($0.y),\($0.z),\($0.c)" }.sorted()
                 guard swapped != before, restored == before, swapped.count == before.count else {
-                    fputs("FAIL: live mark gesture (arrows swap)\n", stderr); return false
+                    fputs("FAIL: live mark gesture (arch mirrors, landing foot swaps sides)\n", stderr); return false
                 }
                 guard let footer = RelayFocus.target(in: panel, identifier: .init("panel-footer")) as? NSTextField,
                       footer.font?.pointSize == 11, footer.stringValue.contains("esc close"), footer.stringValue.contains("v\(AppIdentity.version)"),
@@ -2044,11 +2081,27 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
               PanelHealth.keys(shift: false, option: false) == "gestures off" else {
             fputs("FAIL: command-w close, key view reach or footer keys\n", stderr); return false
         }
+        // rule 29 migration: a pin left on by an earlier build goes off once, and a later choice survives
+        let suite = "dev.alex.layout-pilot.selftest"
+        if let probe = UserDefaults(suiteName: suite) {
+            probe.removePersistentDomain(forName: suite)
+            probe.set(true, forKey: AppDelegate.pinKey)
+            AppDelegate.migratePin(defaults: probe)
+            let migrated = probe.bool(forKey: AppDelegate.pinKey) == false && probe.bool(forKey: AppDelegate.pinMigrationKey)
+            probe.set(true, forKey: AppDelegate.pinKey)
+            AppDelegate.migratePin(defaults: probe)
+            let kept = probe.bool(forKey: AppDelegate.pinKey)
+            probe.removePersistentDomain(forName: suite)
+            guard migrated, kept else {
+                fputs("FAIL: pin migration to transient\n", stderr); return false
+            }
+        }
         let glyph = LayoutPilotStatusGlyph.make(russianActive: false)
-        let mark = AIMVoxelView.image(model: AIMVoxelModels.relay, size: 18, mono: true)
-        guard AIMVoxelModels.relay.count <= 200, AIMVoxelModels.relay.signals.count == 1,
-              AIMVoxelModels.sourceSHA256.count == 64, mark.isTemplate, mark.size == NSSize(width: 18, height: 18) else {
-            fputs("FAIL: live mark model or menu image\n", stderr); return false
+        // rule 26: the bar carries the mark glyph of aim-app-marks.svg as an 18 pt template image, not the mono voxel
+        let barMark = RelayMarkGlyph.mark(size: 18)
+        guard AIMVoxelModels.relay.count <= 110, AIMVoxelModels.relay.signals.count == 1,
+              AIMVoxelModels.sourceSHA256.count == 64, barMark.isTemplate, barMark.size == NSSize(width: 18, height: 18) else {
+            fputs("FAIL: live mark model or menu mark glyph\n", stderr); return false
         }
         return glyph.size == NSSize(width: 54, height: 18)
             && glyph.isTemplate
@@ -2446,7 +2499,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + pin + x 28pt, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient); gesture=arrows swap; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay arch (header 40pt voxel, menu 18pt mark glyph); window contract: settings + pin + x 28pt, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); gesture=arch mirrors on x; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {

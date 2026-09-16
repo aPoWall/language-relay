@@ -1,3 +1,10 @@
+Language Relay 2.4.0 (build 16) – 2026-09-16
+
+- new product mark: the arch relay-arch, one idea and four strokes, chosen out of three variants (docs/design/relay-mark-2.4.0.md)
+- live character rebuilt: 80 voxels, stepped arch, ink feet and a red landing foot; a click mirrors it on x and the foot changes side
+- menu bar carries the mark glyph as an 18 pt template image (rule 26) instead of the mono voxel block
+- pin migrates once to transient (rule 29); appear and close stay on the shared tokens
+
 Language Relay 2.3.9 (build 15) – 2026-09-16
 
 - one appear transition from the shared token motion-panel-appear (200 ms, 0 under Reduce Motion); language-relay design reports panelAppear, windowAppear, windowAppearShift
