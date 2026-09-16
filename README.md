@@ -98,6 +98,8 @@ Direct native surface:
 
 `--testbed show|hide|toggle` (build 14, AIM-APPS-RULES rule 27) tells the running instance to present the panel without activation, anchored to an invisible 2 pt window in the bottom-right corner of the main screen (24 pt inset); the user's app stays frontmost, the cursor does not move, key focus is not taken. Driver and rules: `lab-sites/internal-sites/aim-product-system/testbed/`.
 
+Panel appear and close (2.3.9, rules 28–29): the popover animates over the shared token `motion-panel-appear` (200 ms; 0 under Reduce Motion); the panel is transient by default and an outside click closes it, the header pin `◉/○` keeps it open (`defaults write dev.alex.layout-pilot dev.alex.layout-pilot.pinned -bool true` does the same); `×`, Escape, Command-W, the status-item click and `--testbed hide` close it the same way.
+
 The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename. Version 2.3.3 migrates the old phrase default to Last Word once; choose Last Phrase in the panel when you want the longer tail.
 
 Use `language-relay quit` or the menu-bar Quit item to stop both the menu app and the Hammerspoon repair bridge. Running `language-relay install` starts them again.

@@ -1,8 +1,12 @@
 # Changelog
 
-## 2.3.8 build 14 – 2026-09-16 (branch codex/hint-appear-2.3.9, unreleased)
+## 2.3.9 build 15 – 2026-09-16
 
-- `--testbed show|hide|toggle`: the running instance presents the panel without activation, anchored in the bottom-right corner of the main screen (24 pt inset), for agent checks through `axdrive` (AIM-APPS-RULES rule 27); the user's app stays frontmost, the cursor does not move; the anchor window is dropped when the popover closes.
+- one appear transition for the AIM mini apps (AIM-APPS-RULES rule 28): the popover animates over the shared token `motion-panel-appear` (200 ms, the system popover fade), `RelayStyle` also exposes `motion-window-appear` (180 ms) and `motion-window-appear-shift` (6 pt) for framed windows; Reduce Motion turns every value into 0 and shows the finished frame at once; `language-relay design` reports `panelAppear`, `windowAppear`, `windowAppearShift`;
+- closing contract (rule 29): the panel is transient by default, an outside click closes it; the header gets a pin button `◉/○` (28 pt, between `settings` and `×`, the same glyphs and wording as MEM PRISM, `dev.alex.layout-pilot.pinned`, default off); `×`, Escape, Command-W, the bar click, the outside click and the testbed `hide` route all end in `popoverDidClose`; for the non-activating testbed presentation the outside click is read by a global mouse-down monitor (fact of the click only, nothing is sent, nothing moves);
+- vendored the N1 exports `2026.09.16-n1` byte for byte: `AIMMiniAppTokens.swift` (motion-panel-appear, motion-window-appear, hint-border, hint-radius) and the new shared `AIMHintCard.swift` (compiled into the app so the receipt hash and the typecheck cover it; the panel does not show a hint card yet);
+- `--testbed show|hide|toggle` (build 14): the running instance presents the panel without activation, anchored in the bottom-right corner of the main screen (24 pt inset), for agent checks through `axdrive` (rule 27); the user's app stays frontmost, the cursor does not move; the anchor window is dropped when the popover closes;
+- the UI self-test asserts the appear tokens, the pin default and the pin button in the header; QA table in `docs/QA-2026-09-16.md`, run on the testbed without a synthetic click.
 
 ## 2.3.8 – 2026-09-14
 

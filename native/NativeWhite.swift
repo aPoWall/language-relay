@@ -20,6 +20,18 @@ enum RelayStyle {
     static func stateDuration(reducedMotion: Bool) -> TimeInterval {
         AIMMiniAppTokens.seconds(tokens["motion-state"]!, reducedMotion: reducedMotion)
     }
+    /// One appear transition for the AIM mini apps (AIM-APPS-RULES rule 28): the panel popover animates over
+    /// `motion-panel-appear` (system NSPopover, ≈200 ms), a framed window over `motion-window-appear` (180 ms)
+    /// with a `motion-window-appear-shift` (6 pt) rise. Reduce Motion turns every value into 0.
+    static func panelAppearDuration(reducedMotion: Bool) -> TimeInterval {
+        AIMMiniAppTokens.seconds(tokens["motion-panel-appear"]!, reducedMotion: reducedMotion)
+    }
+    static func windowAppearDuration(reducedMotion: Bool) -> TimeInterval {
+        AIMMiniAppTokens.seconds(tokens["motion-window-appear"]!, reducedMotion: reducedMotion)
+    }
+    static func windowAppearShift(reducedMotion: Bool) -> CGFloat {
+        reducedMotion ? 0 : CGFloat(AIMMiniAppTokens.number(tokens["motion-window-appear-shift"]!) ?? 0)
+    }
     private static let registered: Void = {
         for weight in [400, 500, 600] {
             if let url = Bundle.main.url(forResource: "plex-mono-\(weight)", withExtension: "ttf") {
@@ -58,8 +70,10 @@ enum RelayMotion {
 final class RelayButton: NSButton {
     var isActive = false { didSet { state = isActive ? .on : .off; needsDisplay = true } }
     var moveSelection: ((Int) -> Void)?
-    private let caption: String
+    private(set) var caption: String
     private var hovering = false { didSet { needsDisplay = true } }
+    /// Glyph-only buttons (pin ◉/○) change their caption in place; the identifier and the VoiceOver name stay as set by the host.
+    func setLabel(_ title: String) { caption = title; needsDisplay = true }
     init(_ title: String, target: AnyObject?, action: Selector?, width: CGFloat, height: CGFloat = 32, lowercase: Bool = true) {
         caption = lowercase ? title.lowercased() : title
         super.init(frame: .zero)

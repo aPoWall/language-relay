@@ -1,6 +1,6 @@
 {
   "schema": "aim.mini-apps/v1",
-  "version": "2026.09.13-n1",
+  "version": "2026.09.16-n1",
   "defaultProfile": "n1",
   "primitives": {
     "white": "#ffffff",
@@ -39,6 +39,9 @@
     "ease": "cubic-bezier(.2,.8,.2,1)",
     "panel": "180ms",
     "hide": "140ms",
+    "panelAppear": "200ms",
+    "windowAppear": "180ms",
+    "windowAppearShift": "6px",
     "gray300": "#c9cbd1"
   },
   "profiles": {
@@ -74,6 +77,9 @@
       "motion-ease": "{primitive.ease}",
       "motion-panel": "{primitive.panel}",
       "motion-hide": "{primitive.hide}",
+      "motion-panel-appear": "{primitive.panelAppear}",
+      "motion-window-appear": "{primitive.windowAppear}",
+      "motion-window-appear-shift": "{primitive.windowAppearShift}",
       "text-disabled": "{primitive.gray300}"
     },
     "web": {
@@ -108,6 +114,9 @@
       "motion-ease": "{primitive.ease}",
       "motion-panel": "{primitive.panel}",
       "motion-hide": "{primitive.hide}",
+      "motion-panel-appear": "{primitive.panelAppear}",
+      "motion-window-appear": "{primitive.windowAppear}",
+      "motion-window-appear-shift": "{primitive.windowAppearShift}",
       "text-disabled": "{primitive.gray300}"
     }
   },
@@ -131,6 +140,8 @@
     "receipt-unobserved": "{semantic.neutral}",
     "hint-text": "{semantic.text}",
     "hint-background": "{semantic.surface}",
+    "hint-border": "{semantic.divider}",
+    "hint-radius": "{semantic.radius-content}",
     "logo-ink": "{semantic.text}",
     "logo-signal": "{semantic.selection}",
     "companion-attention": "{semantic.warning}"
@@ -360,6 +371,30 @@
       "reduced": "Immediate hide",
       "sources": [
         "Calendar:hide140"
+      ]
+    },
+    {
+      "id": "panel-appear",
+      "label": "Panel appear",
+      "duration": 200,
+      "trigger": "disclosure",
+      "purpose": "NSPopover panels of the mini apps enter with the system transition (animates = !reduceMotion); content is laid out before the show",
+      "reduced": "Immediate panel",
+      "sources": [
+        "MEM PRISM:popover",
+        "Language Relay:popover"
+      ]
+    },
+    {
+      "id": "window-appear",
+      "label": "Window and card appear",
+      "duration": 180,
+      "trigger": "disclosure",
+      "purpose": "Windows and hint cards fade alpha 0 to 1 with a 6 pt rise (motion-window-appear-shift); the live mark assembles 700 ms after the first frame",
+      "reduced": "Immediate window, mark static",
+      "sources": [
+        "Calendar:window",
+        "AIMHintCard:appear"
       ]
     },
     {

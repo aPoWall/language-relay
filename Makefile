@@ -43,7 +43,7 @@ $(ICON_FILE): $(ICON_SOURCE)
 	"$(ICON_RENDERER)" "$(ICONSET)"
 	iconutil -c icns "$(ICONSET)" -o "$(ICON_FILE)"
 
-VOXEL_SOURCES := native/AIMVoxelModels.swift native/AIMVoxelView.swift
+VOXEL_SOURCES := native/AIMVoxelModels.swift native/AIMVoxelView.swift native/AIMHintCard.swift
 
 $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift native/AIMMiniAppTokens.swift $(VOXEL_SOURCES) $(FONT_FILES) Info.plist $(ICON_FILE) $(SOUND_FILES)
 	@test "$(words $(SOUND_FILES))" = "8" || (echo "expected exactly eight feedback sounds" >&2; exit 1)

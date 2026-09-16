@@ -1283,6 +1283,14 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var testbedAnchor: NSWindow?
     private var testbedActive = false
     private var lastPopoverCloseAt = Date.distantPast
+    // Closing contract (AIM-APPS-RULES rule 29): the panel is transient by default, an outside click closes it;
+    // `pin` (◉/○ in the header, same glyphs as MEM PRISM) keeps it open. For the non-activating testbed presentation
+    // the outside click is read by a global mouse monitor (fact of a click only, nothing is sent or moved).
+    static let pinKey = "dev.alex.layout-pilot.pinned"
+    static let pinDefault = false
+    private var pinned: Bool = AppDelegate.pinDefault
+    private var pinButton: RelayButton?
+    private var outsideClickMonitor: Any?
     private var previewSound: NSSound?
     private var lastObservedInputID: String?
     private var setupExpanded = false
@@ -1343,6 +1351,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Preferences.migrateDefaultScope(defaults: defaults)
+        if defaults.object(forKey: Self.pinKey) != nil { pinned = defaults.bool(forKey: Self.pinKey) }
         enforceSingleInstance()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
             self?.enforceSingleInstance()
@@ -1380,6 +1389,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         case "show", "open": showTestbed()
         case "hide", "close": popover?.performClose(nil)
         case "toggle": popover?.isShown == true ? popover?.performClose(nil) : showTestbed()
+        // `pin` / `unpin`: the same path as the header button, so an agent can hold the panel open on a busy Mac
+        // (an outside click by the user closes a transient panel, rule 29) and check the pinned state without a click
+        case "pin": if !pinned { togglePin() }
+        case "unpin": if pinned { togglePin() }
         default: break
         }
     }
@@ -1405,10 +1418,50 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         testbedActive = true
         buildPopover()
         guard let popover, let anchorView = anchor.contentView else { return }
+        // the agent path takes no transition: the first captured frame is the finished panel (rule 27)
         popover.animates = false
         popover.contentViewController?.view.layoutSubtreeIfNeeded()
         // no activation, no key focus: the panel is on screen for an agent, the user keeps their app
         popover.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .maxY)
+        installOutsideClickMonitor()
+    }
+
+    // MARK: Closing contract (rule 29)
+
+    /// An outside click closes an unpinned panel. The transient NSPopover already does this while the popover window
+    /// is key; the non-activating testbed presentation never becomes key, so the global monitor reads the click
+    /// (left or right mouse down in another app) and closes the panel. The event is read, never changed or re-sent.
+    private func installOutsideClickMonitor() {
+        removeOutsideClickMonitor()
+        guard !pinned else { return }
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(matching: [.leftMouseDown, .rightMouseDown]) { [weak self] event in
+            guard let self, let popover = self.popover, popover.isShown else { return }
+            if let frame = popover.contentViewController?.view.window?.frame, frame.contains(NSEvent.mouseLocation) { return }
+            popover.performClose(nil)
+        }
+    }
+
+    private func removeOutsideClickMonitor() {
+        if let outsideClickMonitor { NSEvent.removeMonitor(outsideClickMonitor) }
+        outsideClickMonitor = nil
+    }
+
+    @objc private func togglePin() {
+        pinned.toggle()
+        defaults.set(pinned, forKey: Self.pinKey)
+        popover?.behavior = pinned ? .applicationDefined : .transient
+        if popover?.isShown == true { installOutsideClickMonitor() }
+        if let pinButton { Self.decoratePinButton(pinButton, pinned: pinned) }
+    }
+
+    /// ◉ = pinned (outside click keeps the panel), ○ = transient (outside click closes it); the same glyphs as MEM PRISM.
+    private static func decoratePinButton(_ button: RelayButton, pinned: Bool) {
+        button.title = ""
+        button.setLabel(pinned ? "◉" : "○")
+        button.isActive = pinned
+        button.setAccessibilityLabel("pin panel open")
+        button.setAccessibilityHelp(pinned ? "Pinned: an outside click keeps the panel open" : "Transient: an outside click closes the panel")
+        button.toolTip = pinned ? "pinned · outside click keeps the panel" : "transient · outside click closes the panel"
     }
 
     private func dismissTestbedAnchor() {
@@ -1422,8 +1475,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         refreshTimer?.invalidate()
     }
 
+    /// Every close path ends here: ×, Escape, Command-W, the bar click, the testbed `hide` route and the outside click.
     func popoverDidClose(_ notification: Notification) {
         lastPopoverCloseAt = Date()
+        removeOutsideClickMonitor()
+        pinButton = nil
         dismissTestbedAnchor()
     }
 
@@ -1502,6 +1558,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         if let root = popover.contentViewController?.view {
             AppDelegate.installKeyLoop(root)
         }
+        installOutsideClickMonitor()
     }
 
     /// Explicit Tab order for the popover window (rule 16): the popover window does not recalculate its key view loop
@@ -1523,8 +1580,10 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         )
 
         let next = NSPopover()
-        next.behavior = .transient
-        next.animates = !RelayStyle.reduceMotion
+        // rule 29: transient unless pinned; rule 28: the appear transition comes from the shared token
+        // (`motion-panel-appear`, the system popover fade), Reduce Motion shows the finished frame at once
+        next.behavior = pinned ? .applicationDefined : .transient
+        next.animates = RelayStyle.panelAppearDuration(reducedMotion: RelayStyle.reduceMotion) > 0
         next.appearance = NSAppearance(named: .aqua)
         next.contentSize = controller.preferredContentSize
         next.contentViewController = controller
@@ -1616,7 +1675,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         identity.orientation = .vertical
         identity.alignment = .leading
         identity.spacing = 0
-        let identityWidth = LayoutPilotPanelMetrics.contentWidth - markSize - 8 - 8 - 78 - 8 - LayoutPilotPanelMetrics.headerButton
+        let identityWidth = LayoutPilotPanelMetrics.contentWidth - markSize - 8 - 8 - 78 - 8 - 2 * (LayoutPilotPanelMetrics.headerButton + 8)
         identity.addArrangedSubview(label("language relay", size: 17, weight: .semibold, color: RelayStyle.ink, width: identityWidth, height: 23))
         identity.addArrangedSubview(label("local · v\(AppIdentity.version)", size: 9, weight: .medium, color: RelayStyle.muted, width: identityWidth, height: 13))
         header.addArrangedSubview(identity)
@@ -1625,6 +1684,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         settings.toolTip = "setup details · switch layout · quit"
         settings.setAccessibilityHelp("Setup details, layout switch and quit")
         header.addArrangedSubview(settings)
+        // pin ◉/○ (rule 29): transient by default, the same glyphs and wording as MEM PRISM
+        let pin = RelayButton(pinned ? "◉" : "○", target: self, action: #selector(togglePin), width: LayoutPilotPanelMetrics.headerButton, height: LayoutPilotPanelMetrics.headerButton, lowercase: false)
+        pin.identifier = NSUserInterfaceItemIdentifier("pin-panel")
+        Self.decoratePinButton(pin, pinned: pinned)
+        pinButton = pin
+        header.addArrangedSubview(pin)
         let close = RelayButton("×", target: self, action: #selector(closePanel), width: LayoutPilotPanelMetrics.headerButton, height: LayoutPilotPanelMetrics.headerButton, lowercase: false)
         close.identifier = NSUserInterfaceItemIdentifier("close-panel")
         close.setAccessibilityLabel("close")
@@ -1862,6 +1927,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         guard RelayStyle.radius == 8, RelayStyle.contentRadius == 16,
               RelayStyle.stateDuration(reducedMotion: false) == 0.16,
               RelayStyle.stateDuration(reducedMotion: true) == 0 else { return false }
+        // rule 28: one appear transition from the shared tokens (panel 200 ms, window 180 ms + 6 pt), zero under Reduce Motion
+        guard RelayStyle.panelAppearDuration(reducedMotion: false) == 0.2,
+              RelayStyle.windowAppearDuration(reducedMotion: false) == 0.18,
+              RelayStyle.windowAppearShift(reducedMotion: false) == 6,
+              RelayStyle.panelAppearDuration(reducedMotion: true) == 0,
+              RelayStyle.windowAppearShift(reducedMotion: true) == 0,
+              AppDelegate.pinDefault == false else {
+            fputs("FAIL: appear tokens or pin default\n", stderr); return false
+        }
         var choices: [Int] = []
         let keyboardGroup = RelaySegmentedControl(items: [.init("one", help: "One"), .init("two", help: "Two")], selectedIndex: 0, width: 180) { choices.append($0) }
         func arrow(_ code: UInt16) -> NSEvent {
@@ -1922,8 +1996,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 // window contract: settings + × in the header on the same line as the name, footer keys · esc close · version/status
                 let b = LayoutPilotPanelMetrics.headerButton
                 guard let settings = RelayFocus.target(in: panel, identifier: .init("showSettingsMenu:")) as? RelayButton,
+                      let pin = RelayFocus.target(in: panel, identifier: .init("pin-panel")) as? RelayButton,
                       let close = RelayFocus.target(in: panel, identifier: .init("close-panel")) as? RelayButton,
                       settings.frame.height == b, close.frame.size == NSSize(width: b, height: b),
+                      pin.frame.size == NSSize(width: b, height: b), pin.caption == "○", !pin.isActive,
+                      pin.accessibilityLabel() == "pin panel open",
                       close.accessibilityLabel() == "close",
                       abs(close.convert(close.bounds, to: panel).midY - mark.convert(mark.bounds, to: panel).midY) < 1,
                       close.convert(close.bounds, to: panel).maxX == LayoutPilotPanelMetrics.width - LayoutPilotPanelMetrics.grid else {
@@ -2276,7 +2353,7 @@ private struct LayoutPilotMain {
             exit(RuntimeShutdown.run())
         }
         if let index = arguments.firstIndex(of: "--testbed") {
-            // `LanguageRelay --testbed show|hide|toggle`: tell the running instance and exit; nothing is activated
+            // `LanguageRelay --testbed show|hide|toggle|pin|unpin`: tell the running instance and exit; nothing is activated
             let action = arguments.indices.contains(index + 1) ? arguments[index + 1] : "show"
             DistributedNotificationCenter.default().postNotificationName(
                 AppDelegate.testbedNotification, object: nil, userInfo: ["action": action], deliverImmediately: true)
@@ -2315,6 +2392,12 @@ private struct LayoutPilotMain {
                 "panelWidth": Int(LayoutPilotPanelMetrics.width), "panelHeight": Int(LayoutPilotPanelMetrics.height),
                 "reducedMotion": RelayStyle.reduceMotion,
                 "stateDuration": RelayStyle.stateDuration(reducedMotion: RelayStyle.reduceMotion),
+                "panelAppear": RelayStyle.panelAppearDuration(reducedMotion: RelayStyle.reduceMotion),
+                "windowAppear": RelayStyle.windowAppearDuration(reducedMotion: RelayStyle.reduceMotion),
+                "windowAppearShift": RelayStyle.windowAppearShift(reducedMotion: RelayStyle.reduceMotion),
+                "pinDefault": AppDelegate.pinDefault,
+                "pinned": UserDefaults.standard.object(forKey: AppDelegate.pinKey) == nil ? AppDelegate.pinDefault : UserDefaults.standard.bool(forKey: AppDelegate.pinKey),
+                "closeContract": "AIM-APPS-RULES 29",
             ])
             exit(0)
         }
@@ -2363,7 +2446,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + x 28pt, footer 11pt, 16pt grid; gesture=arrows swap; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay (header 40pt, menu 18pt template); window contract: settings + pin + x 28pt, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient); gesture=arrows swap; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {
