@@ -1,3 +1,11 @@
+Language Relay 2.3.9 (build 15) – 2026-09-16
+
+- one appear transition from the shared token motion-panel-appear (200 ms, 0 under Reduce Motion); language-relay design reports panelAppear, windowAppear, windowAppearShift
+- the panel is transient by default: an outside click closes it, the header pin ◉/○ (between settings and ×, same glyphs as MEM PRISM) keeps it open; ×, Escape, Command-W, the bar click and --testbed hide close it the same way
+- N1 exports 2026.09.16-n1 vendored byte for byte, the shared AIMHintCard.swift compiled in and covered by the design receipt
+- --testbed show|hide|toggle presents the panel for agent checks without activation, in the bottom-right corner; the user's app stays frontmost, the cursor does not move
+- UI self-test asserts the appear tokens, the pin default and the pin button; QA table docs/QA-2026-09-16.md run on the testbed without a synthetic click
+
 Language Relay 2.3.8 (build 13) – 2026-09-14
 
 - Command-W closes the panel like Escape and ×; the root view carries the key equivalent because the accessory app has no main menu
