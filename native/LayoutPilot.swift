@@ -1206,7 +1206,7 @@ private final class LayoutPilotRootView: NSView {
 }
 
 /// The relay symbol of aim-app-marks.svg drawn as a template image: square 38 in a 48 grid at x5 y5, rx 8, 2 px stroke;
-/// the arch with its landing chevron; the 6 x 4 signal at x32 y5 filled. Used at 18 pt in the menu bar (rule 26):
+/// the two arrows with the red tip; the 6 x 4 signal at x32 y5 filled. Used at 18 pt in the menu bar (rule 26):
 /// the 18 px mono voxel character reads as a block at that size, so the bar carries the line glyph.
 enum RelayMarkGlyph {
     static func mark(size: CGFloat) -> NSImage {
@@ -1717,7 +1717,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         liveMark.widthAnchor.constraint(equalToConstant: markSize).isActive = true
         liveMark.heightAnchor.constraint(equalToConstant: markSize).isActive = true
         liveMark.identifier = NSUserInterfaceItemIdentifier("live-mark")
-        liveMark.toolTip = "relay · click to mirror the arch"
+        liveMark.toolTip = "relay · click to mirror the arrows"
         header.addArrangedSubview(liveMark)
         // rule 32, one order on the right edge: version · settings · pin · ×
         let settingsWidth: CGFloat = 64
@@ -2524,7 +2524,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay arch (header 40pt voxel, menu 18pt mark glyph); window contract: settings + pin + x 28pt, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); gesture=arch mirrors on x; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; live mark=relay arrows (header 40pt voxel, menu 18pt mark glyph); window contract: settings + pin + x 28pt, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); gesture=arrows mirror on x; command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {
