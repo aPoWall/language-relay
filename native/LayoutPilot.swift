@@ -7,6 +7,10 @@ import Foundation
 private enum AppIdentity {
     static let name = "Language Relay"
     static let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "unbundled"
+    static let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    /// The header line under the product name (rule 21): the same `version · build N` reading Calendar Control
+    /// and MEM PRISM print, so the three headers carry one text.
+    static var versionLine: String { "\(version) \u{00B7} build \(build)" }
     static let bridgeVersion = "2.3.3"
     static let bundleID = "dev.alex.layout-pilot"
     static let launchAgentLabel = "dev.alex.layout-pilot"
@@ -1414,7 +1418,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func showTestbed() {
-        if surface?.isShown == true { surface?.close(reason: .route) }
         let screen = NSScreen.main?.visibleFrame ?? NSScreen.screens.first?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
         let inset: CGFloat = 24
         let anchor = testbedAnchor ?? {
@@ -1431,6 +1434,25 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         // the popover opens above the anchor, centred on it: right edge = screen right − 24, bottom = screen bottom + 24
         anchor.setFrameOrigin(NSPoint(x: screen.maxX - inset - LayoutPilotPanelMetrics.width / 2 - 1, y: screen.minY + inset - 2))
         anchor.orderFrontRegardless()
+        // rule 33, one surface: `show` only brings the panel on screen, it never doubles as a toggle and never
+        // builds a second popover over the one already there. A repeated `show` on a panel that is already in the
+        // testbed corner keeps it and returns (the MEM PRISM b12 behaviour), so the window count stays flat and a
+        // check never depends on the parity of earlier calls; only `hide`, `×` or an outside click closes.
+        if surface?.isShown == true, testbedActive { return }
+        if surface?.isShown == true {
+            // the panel is up in its menu bar presentation: let the close transition finish, then bring the panel
+            // back on the testbed anchor. The state after this call is always "shown".
+            testbedActive = true
+            surface?.close(reason: .route)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) { [weak self] in
+                guard let self, let anchorView = self.testbedAnchor?.contentView else { return }
+                self.testbedActive = true
+                self.testbedAnchor?.orderFrontRegardless()
+                self.buildPopover()
+                self.surface?.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .maxY)
+            }
+            return
+        }
         testbedActive = true
         buildPopover()
         guard let anchorView = anchor.contentView else { return }
@@ -1464,11 +1486,15 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     /// Every close path ends here: ×, Escape, Command-W, the bar click, the testbed `hide` route and the outside click.
     func popoverDidClose(_ notification: Notification) {
         lastPopoverCloseAt = Date()
+        openMenu?.cancelTracking()
+        openMenu = nil
         // A close the surface did not start (the transient popover, a system dismissal) still ends in `close(reason:)`.
         surface?.close(reason: .host)
         pinButton = nil
         settingsButton = nil
         dismissTestbedAnchor()
+        // The popover itself stays: `buildPopover` refills the one instance on the next show, so the window count
+        // stays flat instead of growing by one per show (the closed content view goes when the next one replaces it).
     }
 
     private func enforceSingleInstance() {
@@ -1559,6 +1585,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func buildPopover() {
+        // One popover for the life of the app (rule 33): AppKit keeps a window per NSPopover instance, so a new
+        // instance per show leaves the old window allocated offscreen and the count grows with every show and every
+        // show/hide cycle. The panel that is already there gets fresh content and the current pin behaviour instead.
+        if let existing = popover, existing.isShown == false {
+            existing.behavior = pinned ? .applicationDefined : .transient
+            existing.animates = RelayStyle.panelAppearDuration(reducedMotion: RelayStyle.reduceMotion) > 0
+            existing.contentViewController?.view = makePanelContent()
+            existing.contentSize = NSSize(width: LayoutPilotPanelMetrics.width, height: LayoutPilotPanelMetrics.height)
+            surface?.pinned = pinned
+            return
+        }
+        if popover?.isShown == true { return }
         let controller = NSViewController()
         controller.view = makePanelContent()
         controller.preferredContentSize = NSSize(
@@ -1647,15 +1685,19 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         // AIMAppMarkView draws from aim-app-marks.svg, the same drawing the menu bar carries at 18 pt.
         let pin = AIMPinButton(pinned: pinned) { [weak self] value in self?.setPinned(value) }
         pinButton = pin
-        // Rule 32: the version slot is left empty. A 420 pt header holds the name, settings, pin and x at full
-        // width and nothing more; the version is printed in the bottom line beside the health state (rule 22).
+        // Rule 21: the header prints the version. The 388 pt content row has no room for the right-edge version
+        // label (name 168 pt + mark 40 + settings 72 + pin 28 + x 28 + gaps 40 already fills 376), so the reading
+        // goes on the status line under the name, where Calendar Control and MEM PRISM put their own second line.
+        // The right-edge slot of rule 32 stays empty and the order settings · pin · x holds.
         let header = AIMAppHeader(mark: .relay,
                                   name: "language relay",
+                                  status: AppIdentity.versionLine,
                                   width: LayoutPilotPanelMetrics.contentWidth,
                                   onSettings: { [weak self] in self?.showSettingsMenu() },
                                   pin: pin,
                                   onClose: { [weak self] in self?.surface?.close(reason: .closeButton) })
         header.markView.identifier = NSUserInterfaceItemIdentifier("product-mark")
+        header.statusLabel?.identifier = NSUserInterfaceItemIdentifier("product-version")
         header.markView.toolTip = "language relay"
         header.settingsButton?.toolTip = "setup details \u{00B7} switch layout \u{00B7} quit"
         header.settingsButton?.setAccessibilityHelp("Setup details, layout switch and quit")
@@ -1913,8 +1955,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         keyboardGroup.segmentButtons[0].keyDown(with: arrow(124))
         keyboardGroup.segmentButtons[1].keyDown(with: arrow(124))
         keyboardGroup.segmentButtons[1].keyDown(with: arrow(123))
+        // rule 31: the accessibility name follows the state, so a press on an already active item still reads as a
+        // state and a press that moves the selection changes two names, not only the red underline.
         guard choices == [1, 0], keyboardGroup.segmentButtons[0].isAccessibilitySelected(),
-              keyboardGroup.segmentButtons.filter({ $0.isActive }).count == 1 else { return false }
+              keyboardGroup.segmentButtons.filter({ $0.isActive }).count == 1,
+              keyboardGroup.segmentButtons[0].accessibilityLabel() == "one, selected",
+              keyboardGroup.segmentButtons[1].accessibilityLabel() == "two" else { return false }
         let healthy = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: "ready", timedOut: false)
         let denied = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: false, inputTapEnabled: false, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: nil, timedOut: false)
         let unavailable = HammerspoonHealth(ipcAvailable: false, executableFound: true, accessibilityTrusted: nil, inputTapEnabled: false, bridgeVersion: nil, lastStatus: nil, timedOut: true)
@@ -1991,12 +2037,16 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       abs(footer.convert(footer.bounds, to: panel).minY - LayoutPilotPanelMetrics.grid) < 0.5 else {
                     fputs("FAIL: panel footer\n", stderr); return false
                 }
-                // rule 32: the version slot is empty and the order holds; the version is in the bottom line (rule 22).
-                // Nothing in the header may be squeezed to a sliver: a label narrower than its text is a defect.
-                guard shellHeader.versionLabel == nil,
-                      RelayFocus.target(in: panel, identifier: .init("panel-version")) == nil,
+                // rule 21: the header prints the version. On the 388 pt content row the right-edge label has no room,
+                // so the reading sits on the status line under the name and is never squeezed to a sliver; the rule 32
+                // slot stays empty and the order settings · pin · x holds. The bottom line keeps version and health.
+                guard let headerVersion = RelayFocus.target(in: panel, identifier: .init("product-version")) as? NSTextField,
+                      headerVersion === shellHeader.statusLabel,
+                      headerVersion.stringValue == AppIdentity.versionLine,
+                      headerVersion.frame.width + 0.5 >= headerVersion.intrinsicContentSize.width,
+                      shellHeader.versionLabel == nil,
                       status.stringValue.hasPrefix("v\(AppIdentity.version) ") else {
-                    fputs("FAIL: header version slot / footer version\n", stderr); return false
+                    fputs("FAIL: header version line / footer version\n", stderr); return false
                 }
                 RelayMotion.reveal(disclosure, reducedMotion: true)
                 guard disclosure.layer?.animation(forKey: "relay-state") == nil else { return false }
@@ -2144,6 +2194,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     /// header `settings`: the same three actions as the status item's right-click menu, plus the setup disclosure
+    /// The menu opened from the panel, settings or the feedback cue (rule 33): it leaves with the panel, otherwise
+    /// its tracking session survives a close and the menu returns on the next show. Escape posted to a process that
+    /// is not frontmost never reaches a menu, so the close path cancels the tracking itself.
+    private weak var openMenu: NSMenu?
+
     private func showSettingsMenu() {
         guard let sender = settingsButton else { return }
         let menu = NSMenu()
@@ -2157,6 +2212,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         let quit = NSMenuItem(title: "quit language relay", action: #selector(quitLanguageRelay), keyEquivalent: "")
         quit.target = self
         menu.addItem(quit)
+        openMenu = menu
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
     }
 
@@ -2212,6 +2268,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             item.state = soundEnabled && soundName == choice.0.rawValue ? .on : .off
             menu.addItem(item)
         }
+        openMenu = menu
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
     }
     @objc private func setSoundPulse() { selectSound(.pulse) }
@@ -2447,7 +2504,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; rule 39 one mark source (header 40pt AIMAppMarkView, menu bar 18pt template, relay-arch); header order settings + pin + x 28pt, name untruncated, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; rule 39 one mark source (header 40pt AIMAppMarkView, menu bar 18pt template, relay-arch); header order settings + pin + x 28pt, name untruncated, version line under the name, segment names follow selection, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {
