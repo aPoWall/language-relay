@@ -1276,6 +1276,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private var monitor: DoubleShiftMonitor!
     private var refreshTimer: Timer?
     private var popover: NSPopover?
+    // Testbed (AIM-APPS-RULES 27): `LanguageRelay --testbed show|hide|toggle` tells the running instance to present
+    // the panel without activation, anchored to an invisible 2 pt window in the bottom-right corner of the main
+    // screen (24 pt inset). The user's app stays frontmost, the cursor does not move, key focus is not taken.
+    static let testbedNotification = Notification.Name("dev.alex.layout-pilot.testbed")
+    private var testbedAnchor: NSWindow?
+    private var testbedActive = false
     private var lastPopoverCloseAt = Date.distantPast
     private var previewSound: NSSound?
     private var lastObservedInputID: String?
@@ -1363,6 +1369,52 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         if !usesHammerspoonBridge, !fixer.hasAccessibilityPermission {
             fixer.requestAccessibilityPermission()
         }
+        DistributedNotificationCenter.default().addObserver(
+            self, selector: #selector(handleTestbedNotification(_:)), name: Self.testbedNotification, object: nil)
+    }
+
+    // MARK: Testbed route
+
+    @objc private func handleTestbedNotification(_ notification: Notification) {
+        switch (notification.userInfo?["action"] as? String ?? "show").lowercased() {
+        case "show", "open": showTestbed()
+        case "hide", "close": popover?.performClose(nil)
+        case "toggle": popover?.isShown == true ? popover?.performClose(nil) : showTestbed()
+        default: break
+        }
+    }
+
+    private func showTestbed() {
+        if popover?.isShown == true { popover?.performClose(nil) }
+        let screen = NSScreen.main?.visibleFrame ?? NSScreen.screens.first?.visibleFrame ?? NSRect(x: 0, y: 0, width: 1440, height: 900)
+        let inset: CGFloat = 24
+        let anchor = testbedAnchor ?? {
+            let w = NSPanel(contentRect: NSRect(x: 0, y: 0, width: 2, height: 2),
+                            styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+            w.isReleasedWhenClosed = false; w.isOpaque = false; w.backgroundColor = .clear; w.hasShadow = false
+            w.alphaValue = 0.01; w.ignoresMouseEvents = true; w.level = .statusBar
+            w.collectionBehavior = [.moveToActiveSpace, .ignoresCycle, .transient]
+            w.hidesOnDeactivate = false
+            w.contentView = NSView(frame: NSRect(x: 0, y: 0, width: 2, height: 2))
+            testbedAnchor = w
+            return w
+        }()
+        // the popover opens above the anchor, centred on it: right edge = screen right − 24, bottom = screen bottom + 24
+        anchor.setFrameOrigin(NSPoint(x: screen.maxX - inset - LayoutPilotPanelMetrics.width / 2 - 1, y: screen.minY + inset - 2))
+        anchor.orderFrontRegardless()
+        testbedActive = true
+        buildPopover()
+        guard let popover, let anchorView = anchor.contentView else { return }
+        popover.animates = false
+        popover.contentViewController?.view.layoutSubtreeIfNeeded()
+        // no activation, no key focus: the panel is on screen for an agent, the user keeps their app
+        popover.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .maxY)
+    }
+
+    private func dismissTestbedAnchor() {
+        guard testbedActive else { return }
+        testbedActive = false
+        testbedAnchor?.orderOut(nil)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -1372,6 +1424,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     func popoverDidClose(_ notification: Notification) {
         lastPopoverCloseAt = Date()
+        dismissTestbedAnchor()
     }
 
     private func enforceSingleInstance() {
@@ -1442,6 +1495,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func showPopover() {
+        dismissTestbedAnchor()
         buildPopover()
         guard let popover, let button = statusItem.button else { return }
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
@@ -2220,6 +2274,14 @@ private struct LayoutPilotMain {
         }
         if arguments.contains("--quit") {
             exit(RuntimeShutdown.run())
+        }
+        if let index = arguments.firstIndex(of: "--testbed") {
+            // `LanguageRelay --testbed show|hide|toggle`: tell the running instance and exit; nothing is activated
+            let action = arguments.indices.contains(index + 1) ? arguments[index + 1] : "show"
+            DistributedNotificationCenter.default().postNotificationName(
+                AppDelegate.testbedNotification, object: nil, userInfo: ["action": action], deliverImmediately: true)
+            print("language relay: testbed \(action) sent")
+            exit(0)
         }
         if arguments.contains("--status") {
             print("input=\(InputSources.currentID() ?? "unknown")")

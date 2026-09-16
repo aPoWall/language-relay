@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.3.8 build 14 – 2026-09-16 (branch codex/hint-appear-2.3.9, unreleased)
+
+- `--testbed show|hide|toggle`: the running instance presents the panel without activation, anchored in the bottom-right corner of the main screen (24 pt inset), for agent checks through `axdrive` (AIM-APPS-RULES rule 27); the user's app stays frontmost, the cursor does not move; the anchor window is dropped when the popover closes.
+
 ## 2.3.8 – 2026-09-14
 
 - Command-W closes the panel like Escape and the `×` button (window contract, rule 21); the root view handles the key equivalent because the accessory app carries no main menu;
