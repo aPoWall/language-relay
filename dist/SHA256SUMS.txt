@@ -1,3 +1,4 @@
 0acdf079b5e30673da691101f1d590691d706a7adddc17392f4e84bcd1dd4a75  Language-Relay-2.3.7-arm64.zip
 fa70a65207fc011c1e8752e71265b01bc5d5a2edcc6205fbe51c5775f2cc7653  Language-Relay-2.3.8-arm64.zip
 ed0792cbf770c5dce4002734899da4c6938f27a8dc3c6025cb8c7f12a8cb0364  Language-Relay-2.3.9-arm64.zip
+e80c292a290ee9b5b13a6e2ccec43a24341b01703dbe9fc5278f9c4ce29f62eb  Language-Relay-2.4.0-arm64.zip

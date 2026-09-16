@@ -100,6 +100,8 @@ Direct native surface:
 
 Panel appear and close (2.3.9, rules 28–29): the popover animates over the shared token `motion-panel-appear` (200 ms; 0 under Reduce Motion); the panel is transient by default and an outside click closes it, the header pin `◉/○` keeps it open (`defaults write dev.alex.layout-pilot dev.alex.layout-pilot.pinned -bool true` does the same); `×`, Escape, Command-W, the status-item click and `--testbed hide` close it the same way.
 
+Mark and character (2.4.0, rules 4 and 26): the product mark is the arch `relay-arch` of `aim-app-marks.svg`, the menu bar draws it as an 18 pt template image, and the live character is the 80-voxel arch whose click mirrors it on `x` so the red landing foot changes side. Variants and the reason for the choice: `docs/design/relay-mark-2.4.0.md`. A pin left on by 2.3.9 goes off once under `migratedPinToTransient.2.4.0`.
+
 The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename. Version 2.3.3 migrates the old phrase default to Last Word once; choose Last Phrase in the panel when you want the longer tail.
 
 Use `language-relay quit` or the menu-bar Quit item to stop both the menu app and the Hammerspoon repair bridge. Running `language-relay install` starts them again.
@@ -116,7 +118,7 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
-Native version 2.3.9 uses the generated N1 native-white profile: a fixed 420×488 panel,
+Native version 2.4.0 uses the generated N1 native-white profile: a fixed 420×488 panel,
 bundled IBM Plex Mono, inline setup details and the shared AIM window contract
 (header: live mark 40 pt · name · version · settings · ×; footer: keys · esc close · version · status). The bridge protocol remains
 2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.

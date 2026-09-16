@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>language relay – fix the wrong layout in one tap</title>
+  <title class="i18n" data-en="language relay – fix the wrong layout in one tap" data-ru="language relay – исправь неверную раскладку в одно нажатие">language relay – fix the wrong layout in one tap</title>
   <meta name="description" content="turn ghbdtn into привет with one gesture. a local macos layout repair tool with precise controls and a deterministic json cli for agents.">
   <meta name="theme-color" content="#ffffff">
   <meta property="og:title" content="language relay – fix the wrong layout in one tap">
   <meta property="og:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta property="og:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=4">
+  <meta property="og:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=5">
   <meta property="og:image:width" content="1200">
   <meta property="og:image:height" content="630">
   <meta property="og:image:alt" content="language relay converts ghbdtn into привет locally on macos">
@@ -19,7 +19,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="language relay – fix the wrong layout in one tap">
   <meta name="twitter:description" content="type ghbdtn. get привет. one gesture, zero cloud, a deterministic cli for agents.">
-  <meta name="twitter:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=4">
+  <meta name="twitter:image" content="https://apps.aimindset.org/language-relay/language-relay-social.png?v=5">
   <link rel="canonical" href="https://apps.aimindset.org/language-relay/">
   <link rel="icon" href="favicon.svg?v=20260912" type="image/svg+xml">
   <link rel="icon" href="favicon-32.png" sizes="32x32" type="image/png">
@@ -262,7 +262,7 @@
       <a class="wordmark" href="#top" aria-label="language relay home"><img src="voxel-relay.svg" alt="" width="42" height="42"><span>language relay</span></a>
       <div class="nav-actions">
         <a class="family mini-apps-link" href="https://apps.aimindset.org/">ai mindset apps</a>
-        <span class="head-version">v2.3.9</span>
+        <span class="head-version">v2.4.0</span>
         <button class="micro-button" id="lang-toggle" aria-label="switch website language">en ⇄ ру</button>
         <a class="text-link i18n" href="#install" data-en="install ↗" data-ru="установить ↗">install ↗</a>
         <a class="text-link" href="https://github.com/aPoWall/language-relay">github ↗</a>
@@ -272,18 +272,18 @@
     <main>
       <section class="hero" id="hero">
         <div>
-          <div class="eyebrow"><svg class="hero-mark" aria-hidden="true" viewBox="0 0 48 48"><use href="../assets/aim-app-marks.svg#relay"/></svg><span class="i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · открытый код">macos utility · local by design · open source</span></div>
+          <div class="eyebrow"><svg class="hero-mark" aria-hidden="true" viewBox="0 0 48 48"><use href="../assets/aim-app-marks.svg#relay-arch"/></svg><span class="i18n" data-en="macos utility · local by design · open source" data-ru="утилита для macos · локально · открытый код">macos utility · local by design · open source</span></div>
           <h1 class="i18n" data-en="typed in the wrong layout? don't retype it." data-ru="набрал не в той раскладке? не перепечатывай.">typed in the wrong layout? don't retype it.</h1>
           <p class="lead i18n" data-en="double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready." data-ru="двойной shift превращает ghbdtn в привет прямо в текущем поле. language relay по умолчанию исправляет последнее слово, фразовый режим включается отдельно, раскладка меняется сама.">double shift turns ghbdtn into привет right where you typed it. language relay repairs the last word by default, keeps phrase repair explicit, switches the input source and leaves the cursor ready.</p>
-          <p class="small-line i18n" data-en="double shift or clean option · last word by default · one window contract · v2.3.9" data-ru="двойной shift или чистый option · последнее слово по умолчанию · единый контракт окна · v2.3.9">double shift or clean option · last word by default · one window contract · v2.3.9</p>
+          <p class="small-line i18n" data-en="double shift or clean option · last word by default · one window contract · v2.4.0" data-ru="двойной shift или чистый option · последнее слово по умолчанию · единый контракт окна · v2.4.0">double shift or clean option · last word by default · one window contract · v2.4.0</p>
           <div class="actions">
-            <a class="button primary i18n" href="Language-Relay-2.3.9-arm64.zip" download data-en="download v2.3.9 ↓" data-ru="скачать v2.3.9 ↓">download v2.3.9 ↓</a>
+            <a class="button primary i18n" href="Language-Relay-2.4.0-arm64.zip" download data-en="download v2.4.0 ↓" data-ru="скачать v2.4.0 ↓">download v2.4.0 ↓</a>
             <a class="button i18n" href="#live-demo" data-en="try it here ↓" data-ru="попробовать здесь ↓">try it here ↓</a>
           </div>
           <div class="install-rail"><code>npx github:aPoWall/language-relay install</code><button class="copy" data-copy="npx github:aPoWall/language-relay install" aria-label="copy install command">copy</button></div>
           <div class="hero-proof">
-            <div class="suite-voxel suite-hero-voxel"><div class="voxel-stage" id="relay-mark" data-voxel="relay"><img src="voxel-relay.svg" alt="relay voxel character" width="140" height="140"></div><div class="suite-caption"><span class="i18n" data-en="two alphabets · one thought · click to swap the arrows" data-ru="два алфавита · одна мысль · клик меняет стрелки местами">two alphabets · one thought · click to swap the arrows</span><b>relay</b></div></div>
-            <figure class="hero-shot"><img src="assets/window.png?v=239" alt="Language Relay 2.3.9 panel: live mark, name, version, settings and close in the header, keys and esc close in the footer" width="892" height="1030" loading="eager" decoding="async"><figcaption><span class="i18n" data-en="the real panel · 2.3.9 · 420×488" data-ru="настоящая панель · 2.3.9 · 420×488">the real panel · 2.3.9 · 420×488</span></figcaption></figure>
+            <div class="suite-voxel suite-hero-voxel"><div class="voxel-stage" id="relay-mark" data-voxel="relay"><img src="voxel-relay.svg" alt="relay voxel character" width="140" height="140"></div><div class="suite-caption"><span class="i18n" data-en="two alphabets · one bridge · click to mirror it" data-ru="два алфавита · один мост · клик отражает знак">two alphabets · one bridge · click to mirror it</span><b>relay</b></div></div>
+            <figure class="hero-shot"><img src="assets/window.png?v=240" alt="Language Relay 2.4.0 panel: live mark, name, version, settings and close in the header, keys and esc close in the footer" width="892" height="1030" loading="eager" decoding="async"><figcaption><span class="i18n" data-en="the real panel · 2.4.0 · 420×488" data-ru="настоящая панель · 2.4.0 · 420×488">the real panel · 2.4.0 · 420×488</span></figcaption></figure>
           </div>
         </div>
         <div class="demo" id="live-demo" aria-label="interactive keyboard layout relay demo">
@@ -355,7 +355,7 @@
           <article class="step"><span class="step-index i18n" data-en="01 · scope" data-ru="01 · охват">01 · scope</span><strong class="i18n" data-en="word or phrase" data-ru="слово или фраза">word or phrase</strong><p class="i18n" data-en="the last word is repaired by default. phrase repair is a visible setting in the panel." data-ru="по умолчанию исправляется последнее слово. фразовый режим включается в панели явно.">the last word is repaired by default. phrase repair is a visible setting in the panel.</p></article>
           <article class="step"><span class="step-index i18n" data-en="02 · gestures" data-ru="02 · жесты">02 · gestures</span><strong class="i18n" data-en="clean double shift or option" data-ru="чистый двойной shift или option">clean double shift or option</strong><p class="i18n" data-en="two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet." data-ru="два системных жеста, оба отключаемые, оба без открытия окна. меню показывает активный алфавит.">two system gestures, both optional, both without opening a window. the menu bar shows the active alphabet.</p></article>
           <article class="step"><span class="step-index i18n" data-en="03 · case + cues" data-ru="03 · регистр + сигналы">03 · case + cues</span><strong class="i18n" data-en="four case modes, eight cues" data-ru="четыре режима регистра, восемь сигналов">four case modes, eight cues</strong><p class="i18n" data-en="preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels." data-ru="сохранить, предложение, верхний или нижний. короткие звуковые сигналы 75–200 мс и четыре уровня громкости.">preserve, sentence, upper or lower. short sound cues 75–200 ms with four volume levels.</p></article>
-          <article class="step"><span class="step-index i18n" data-en="04 · live mark" data-ru="04 · живой знак">04 · live mark</span><strong class="i18n" data-en="the character lives in the app" data-ru="персонаж живёт в приложении">the character lives in the app</strong><p class="i18n" data-en="the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still." data-ru="воксельный relay стоит в шапке панели и в строке меню, следует за курсором и собирается заново по клику. reduce motion оставляет его неподвижным.">the relay voxel sits in the panel header and the menu bar, follows the cursor and reassembles on click. reduce motion keeps it still.</p></article>
+          <article class="step"><span class="step-index i18n" data-en="04 · live mark" data-ru="04 · живой знак">04 · live mark</span><strong class="i18n" data-en="the character lives in the app" data-ru="персонаж живёт в приложении">the character lives in the app</strong><p class="i18n" data-en="the relay arch sits in the panel header, the menu bar carries the same mark as a line glyph; the character follows the cursor and mirrors on click. reduce motion keeps it still." data-ru="арка relay стоит в шапке панели, в строке меню тот же знак линией; персонаж следует за курсором и отражается по клику. reduce motion оставляет его неподвижным.">the relay arch sits in the panel header, the menu bar carries the same mark as a line glyph; the character follows the cursor and mirrors on click. reduce motion keeps it still.</p></article>
         </div>
 
       <div class="control-grid sub">
@@ -364,7 +364,7 @@
           <h2 class="i18n" data-en="small surface. explicit behavior." data-ru="маленькая панель. точное поведение.">small surface. explicit behavior.</h2>
           <p class="i18n" data-en="the menu bar shows the active alphabet. every setting names the exact part of the correction it changes." data-ru="меню показывает активный алфавит. каждая настройка прямо называет ту часть исправления, которую меняет.">the menu bar shows the active alphabet. every setting names the exact part of the correction it changes.</p>
           <figure class="panel-frame">
-            <img src="assets/window.png?v=239" alt="Language Relay 2.3.9 native panel with the shared window contract" width="892" height="1030" loading="lazy">
+            <img src="assets/window.png?v=240" alt="Language Relay 2.4.0 native panel with the shared window contract" width="892" height="1030" loading="lazy">
             <figcaption class="panel-caption"><span class="i18n" data-en="native control surface" data-ru="нативная панель управления">native control surface</span><span>swift · appkit</span></figcaption>
           </figure>
         </div>
@@ -454,12 +454,12 @@
           <li class="i18n" data-en="type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet." data-ru="набери ghbdtn в любом поле и нажми двойной shift. знак в строке меню покажет активный алфавит.">type ghbdtn anywhere and tap double shift. the menu bar mark shows the active alphabet.</li>
         </ol>
         <div class="install-links">
-          <a class="button primary i18n" href="Language-Relay-2.3.9-arm64.zip" download data-en="download v2.3.9 · zip ↓" data-ru="скачать v2.3.9 · zip ↓">download v2.3.9 · zip ↓</a>
-          <a class="button i18n" href="https://github.com/aPoWall/language-relay/releases/tag/v2.3.9" data-en="github release · v2.3.9" data-ru="релиз на github · v2.3.9">github release · v2.3.9</a>
+          <a class="button primary i18n" href="Language-Relay-2.4.0-arm64.zip" download data-en="download v2.4.0 · zip ↓" data-ru="скачать v2.4.0 · zip ↓">download v2.4.0 · zip ↓</a>
+          <a class="button i18n" href="https://github.com/aPoWall/language-relay/releases/tag/v2.4.0" data-en="github release · v2.4.0" data-ru="релиз на github · v2.4.0">github release · v2.4.0</a>
           <a class="button" href="#whats-new"><span class="i18n" data-en="what's new" data-ru="что нового">what's new</span> ↓</a>
         </div>
-        <div class="download-meta"><span>2026-09-14 · 550 KB · apple silicon</span><span>sha-256 <code>fa70a65207fc011c1e8752e71265b01bc5d5a2edcc6205fbe51c5775f2cc7653</code> · <a href="SHA256SUMS.txt">SHA256SUMS.txt</a></span></div>
-        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.3.9 · <span class="i18n" data-en="update an existing install: make test && ./install-runtime.sh update-background" data-ru="обновление установленной версии: make test && ./install-runtime.sh update-background">update an existing install: make test && ./install-runtime.sh update-background</span></div>
+        <div class="download-meta"><span>2026-09-16 · 587 KB · apple silicon</span><span>sha-256 <code>e80c292a290ee9b5b13a6e2ccec43a24341b01703dbe9fc5278f9c4ce29f62eb</code> · <a href="SHA256SUMS.txt">SHA256SUMS.txt</a></span></div>
+        <div class="meta">macos 13+ · swift / appkit · mit · u.s. ⇄ russian–pc · v2.4.0 · <span class="i18n" data-en="update an existing install: make test && ./install-runtime.sh update-background" data-ru="обновление установленной версии: make test && ./install-runtime.sh update-background">update an existing install: make test && ./install-runtime.sh update-background</span></div>
       </section>
 
       <section class="whats-new" id="whats-new">
