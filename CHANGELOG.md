@@ -2,6 +2,13 @@
 
 ## 2.4.0 build 16 – 2026-09-16
 
+- header right edge in the family order (rule 32): the version moves out from under the product name to the
+  slot before `settings`, so relay reads version · settings · pin · × like Calendar Control and MEM PRISM;
+- bottom line as three nodes (rule 22): `hint-keys` · `hint-esc` · `hint-status` replace the single
+  `panel-footer` string, the same split the other two apps expose to a driver;
+- accessibility identifiers are contract names, never selectors (rule 34): `settings`, `sound`, `setup`,
+  `layout-switch`, `gesture-shift`, `gesture-option`, `open-accessibility`, so a selector written for one
+  product resolves in the next one;
 - new product mark (rule 4, new idea = new symbol id): `aim-app-marks.svg` gains `relay-arch`, an arch with a
   landing chevron – the run leaves one alphabet, crosses the bridge and lands in the other; the old `relay` id
   stays in the file with the same paths so every shipped reference keeps resolving. Three variants (arch, key
