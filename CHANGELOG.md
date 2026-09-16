@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.5.0 build 22 – 2026-09-17
+## 2.5.0 build 23 – 2026-09-17
 
 - rule 30, the blocker speaks through the shared hint card: the open `setup` block is now `AIMHintCard`, the
   same component the other AIM mini apps use for a state that asks for a decision. Mark 40 pt, the state as
@@ -17,6 +17,10 @@
   shown, no layout is changed, so a live layout change can be checked while the machine is being worked on.
   `make live-integration-test` stays the full keyboard run for a free Mac, since it takes the focus, the
   clipboard and the layout;
+- build 23 fixes the watch itself: a process that only sleeps keeps the input source it read at launch, so
+  the first run reported a quiet machine through two real switches. The loop turns the run loop between
+  samples (`CFRunLoopRunInMode`), and the check then reads both switches at 2.36 s and 4.43 s and the layout
+  back where it started;
 - `REQUIREMENTS.md`: every requirement that reached the product from waves 3 to 9 with its status, plus the
   two declared exceptions (the version reading under the name, the ad-hoc signature) and what is blocked;
 - the UI self-test checks the card in all six health and disclosure layouts: the title and the fact follow

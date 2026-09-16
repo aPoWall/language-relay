@@ -2505,7 +2505,9 @@ private struct LayoutPilotMain {
             var last = InputSources.currentID() ?? "unknown"
             let first = last
             while Date().timeIntervalSince(started) < seconds {
-                Thread.sleep(forTimeInterval: 0.25)
+                // The run loop has to turn between samples: a process that only sleeps keeps the input
+                // source it read at launch, and the watch would report a quiet machine through every switch.
+                CFRunLoopRunInMode(.defaultMode, 0.25, false)
                 samples += 1
                 let now = InputSources.currentID() ?? "unknown"
                 if now != last {

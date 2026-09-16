@@ -38,15 +38,15 @@ deviation with a reason · `blocked` waits for a decision or an access outside t
 | id | requirement | source | status | date |
 |----|-------------|--------|--------|------|
 | G1 | repair gestures ⇧⇧ and ⌥ switchable, the footer names only the ones that are on | wave 3, wave 4 | done · `gesture-shift`, `gesture-option`, footer keys check | 2026-09-14 |
-| G2 | panel at or below 2 % CPU during a layout switch, a cue and a gesture | wave 3 § B | done · measured 2.3.7, re-measured for 2.5.0 in `docs/QA-2026-09-17.md` | 2026-09-17 |
-| G3 | the panel reading of the active layout follows a live input source change | wave 9 § D | done · `--live-json --seconds N`, read only, samples the system source and the panel reading and reports every switch it sees | 2026-09-17 |
+| G2 | panel at or below 2 % CPU during a layout switch, a cue and a gesture | wave 3 § B | done · panel open and idle on 2.5.0: 0.2 to 0.6 per cent over six samples (`docs/QA-2026-09-17.md`); the repair, cue and gesture paths keep the 2.3.7 measurement, since firing a repair moves the input source of the working machine | 2026-09-17 |
+| G3 | the panel reading of the active layout follows a live input source change | wave 9 § D | done · `--live-json --seconds N`, read only; on an idle Mac two switches through the product's own route were read back at 2.36 s and 4.43 s with the layout restored (`docs/QA-2026-09-17.md`); the first build of the watch missed them and was fixed in build 23 | 2026-09-17 |
 | G4 | full live keyboard run (`make live-integration-test`) | repo harness | blocked by the sprint boundary · the harness activates a window and emits keys, which takes the focus and the layout of the working machine; it runs when the Mac is free, not during a wave | 2026-09-17 |
 
 ## Controls, tests and release
 
 | id | requirement | source | status | date |
 |----|-------------|--------|--------|------|
-| C1 | every control walked on the stand, table control -> press -> what changed | wave 4 § 4, wave 7 § C, rules 38, 41 | done · `docs/QA-2026-09-16-c.md`, refreshed for 2.5.0 | 2026-09-17 |
+| C1 | every control walked on the stand, table control -> press -> what changed | wave 4 § 4, wave 7 § C, rules 38, 41 | done · the full walk of every control is `docs/QA-2026-09-16-c.md`; the setup block changed in 2.5.0 and is walked again in `docs/QA-2026-09-17.md` | 2026-09-17 |
 | C2 | windows only through `--testbed`, no synthetic click, no activation, cursor untouched | wave 5 § A | done · every run in this repo goes through `--testbed` and `axdrive` | 2026-09-17 |
 | C3 | release through `release-app.mjs relay --install`, zip, SHA, release notes, page version | wave 3 § C, rule 13 | done for 2.5.0 | 2026-09-17 |
 | C4 | install through the product installer with a backup, no process killed | wave 2, wave 9 boundaries | done · `./install-runtime.sh update-background` keeps the previous bundle | 2026-09-17 |
