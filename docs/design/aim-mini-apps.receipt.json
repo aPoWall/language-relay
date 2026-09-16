@@ -3,7 +3,7 @@
   "version": "2026.09.16-n1",
   "source": "internal-sites/aim-product-system/mini-apps.tokens.json",
   "sourceSHA256": "12cfe987560961201afd48e740175201208bddbabaae863798f779c6eb25374d",
-  "generatorSHA256": "4408827f12aa1dafdf489100d305c4915818ae1abb2d2c64437f69b36e496920",
+  "generatorSHA256": "744fbfa6f52eb3912d98046e7b0caa2c917f51f4d28a14051a93a29daec14cbd",
   "artifacts": {
     "aim-mini-apps.css": "4b4f09bb487401aac5b1c116fd246ada6c11b7e1d58ff663f8aba474f03c0387",
     "aim-mini-apps.tokens.json": "12cfe987560961201afd48e740175201208bddbabaae863798f779c6eb25374d",
@@ -16,9 +16,15 @@
     "AIMVoxelModels.swift": "b474a9711c020ae19c86f2d966bbd9d8933d4779976c703dc793ed834b31dab6",
     "AIMVoxelView.swift": "9d301d847ec040797a71a7163419b75b553ee825d6f98387affb94e66e87e41c",
     "AIMHintCard.swift": "7788ee86363f7a3e284c532cc3c5988194d89a026187c94d477e86b53cc49e16",
+    "AIMAppMarks.swift": "5b7a33a5f424d8cfa3c1752dcdbaf27c85e5242f06cba3fe14174d4039faad23",
+    "AIMAppMarkView.swift": "2f659ddff3fb05dad645ef3e689d7b85b2ea3148ccfdafa0a2f237a71e7e25ab",
+    "AIMAppShell.swift": "822fb86162a135c5d269aad70380d589429622fdbd5a02a5121e4c4a3bcb165d",
     "aim-voxel.js": "3b82eb53545533e41cf3ed272109a916586ad1637ad907923004af41f461fcb8",
-    "aim-i18n.js": "544d9941da4a56b7fcbaf371bedac061c1d2311dd5e80b32d7cbed1703fd476e"
+    "aim-i18n.js": "544d9941da4a56b7fcbaf371bedac061c1d2311dd5e80b32d7cbed1703fd476e",
+    "aim-app-shell.css": "3f71c71c7e0df52839fbe3b07c602a313d8d99edb45775b90a07b0fc58c6d950",
+    "aim-app-mark.js": "93ba93330f989fe9fadd43daa5978f30e01738dd16ffcd603176c39d1abeca2c"
   },
   "voxelModelsSHA256": "0ef4cff73ab5d165f8265fa4fac2a78b903d1e82f1bdf08e9387cfe0d4eef298",
+  "markSourceSHA256": "a2c988fa38d14a63162ea5ceeb8303dff3fc7a1dc689a9bd784c37fdf69d8b6b",
   "nativeRuntimeAdoption": false
 }

@@ -1,0 +1,166 @@
+/* aim-app-shell.css · N1 · v1 · the web half of the L2 shell (AIM apps rules 21, 22, 31, 32, 34, 39).
+   Pairs with aim-mini-apps.css (tokens, loaded first) and aim-app-mark.js (the mark).
+   One header, one pin, one tab strip and one footer line for every browser surface of the family:
+   the Aside Tweaks popup, panel and palette, and the product-style page on apps.aimindset.org.
+   Values only through the generated tokens; no colour, radius or duration is written out here.
+
+     <div class="aim-shell">
+       <header class="aim-shell-head">
+         <span class="aim-shell-mark" data-aim-mark="aside"></span>
+         <span class="aim-shell-title"><b>aside tweaks</b><small>4.22.0 · this browser</small></span>
+         <span class="aim-shell-gap"></span>
+         <span class="aim-shell-version">4.22.0</span>
+         <button class="aim-shell-btn">settings</button>
+         <button class="aim-shell-btn aim-shell-pin" id="pin-panel" aria-pressed="false">○</button>
+         <button class="aim-shell-btn aim-shell-icon" data-close>×</button>
+       </header>
+       <nav class="aim-shell-tabs"><button class="aim-shell-tab" aria-selected="true">rows</button>…</nav>
+       <div class="aim-shell-body">…</div>
+       <footer class="aim-shell-foot"><span>1 rows · 2 sites</span><span>esc close</span><span>4.22.0</span></footer>
+     </div> */
+
+.aim-shell {
+  --aim-shell-inset: var(--aim-p-space16);
+  --aim-shell-gap: var(--aim-p-space8);
+  --aim-shell-control: 28px;
+  --aim-shell-mark: 40px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: var(--aim-shell-inset);
+  padding: var(--aim-shell-inset);
+  background: var(--aim-s-canvas);
+  color: var(--aim-s-text);
+  font-family: var(--aim-s-font);
+  font-size: var(--aim-s-size-meta);
+  line-height: 1.4;
+}
+.aim-shell *, .aim-shell *::before, .aim-shell *::after { box-sizing: border-box; }
+
+/* header · rule 32: mark · name · status under the name · version · settings · pin · x */
+.aim-shell-head {
+  display: flex;
+  align-items: center;
+  gap: var(--aim-shell-gap);
+  min-height: var(--aim-shell-mark);
+}
+.aim-shell-mark {
+  flex: 0 0 var(--aim-shell-mark);
+  width: var(--aim-shell-mark);
+  height: var(--aim-shell-mark);
+  color: var(--aim-c-logo-ink);
+  display: inline-flex;
+}
+.aim-shell-mark svg { width: 100%; height: 100%; display: block; }
+.aim-shell-title { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.aim-shell-title b {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aim-shell-title small {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--aim-s-text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aim-shell-gap { flex: 1 1 auto; min-width: var(--aim-shell-gap); }
+.aim-shell-version {
+  font-size: var(--aim-s-size-meta);
+  font-weight: 500;
+  color: var(--aim-s-text-secondary);
+  white-space: nowrap;
+}
+
+/* one button look for the whole shell (28 pt, 8 pt corners, hover fill, visible focus) */
+.aim-shell-btn {
+  height: var(--aim-shell-control);
+  min-width: var(--aim-shell-control);
+  padding: 0 12px;
+  border: 1px solid var(--aim-c-button-border);
+  border-radius: var(--aim-c-button-radius);
+  background: var(--aim-c-button-background);
+  color: var(--aim-s-text-secondary);
+  font: inherit;
+  font-size: var(--aim-s-size-meta);
+  font-weight: 400;
+  cursor: pointer;
+  transition: background var(--aim-s-motion-state) var(--aim-s-motion-ease), color var(--aim-s-motion-state) var(--aim-s-motion-ease);
+}
+.aim-shell-btn:hover { background: var(--aim-c-button-hover); color: var(--aim-s-text); }
+.aim-shell-btn[aria-pressed="true"], .aim-shell-btn[data-active="true"] {
+  background: var(--aim-c-button-hover);
+  color: var(--aim-s-text);
+  font-weight: 600;
+}
+.aim-shell-btn:disabled { color: var(--aim-s-text-disabled); cursor: default; }
+.aim-shell-btn:focus-visible { outline: 2px solid var(--aim-c-focus-ring); outline-offset: 2px; }
+.aim-shell-icon { padding: 0; width: var(--aim-shell-control); }
+.aim-shell-pin { padding: 0; width: var(--aim-shell-control); font-size: 12px; }
+
+/* tab strip · views only, the active view carries the one red mark */
+.aim-shell-tabs { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.aim-shell-tab {
+  position: relative;
+  height: 30px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--aim-c-button-radius);
+  background: transparent;
+  color: var(--aim-s-text-secondary);
+  font: inherit;
+  font-size: var(--aim-s-size-meta);
+  cursor: pointer;
+}
+.aim-shell-tab:hover { background: var(--aim-c-button-hover); color: var(--aim-s-text); }
+.aim-shell-tab[aria-selected="true"] { background: var(--aim-c-button-hover); color: var(--aim-s-text); font-weight: 600; }
+.aim-shell-tab[aria-selected="true"]::after {
+  content: "";
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 0;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--aim-s-selection);
+}
+.aim-shell-tab:focus-visible { outline: 2px solid var(--aim-c-focus-ring); outline-offset: 2px; }
+
+.aim-shell-body { flex: 1 1 auto; min-height: 0; }
+
+/* footer · rule 22: keys · esc close · version and status, one row, three parts */
+.aim-shell-foot {
+  display: flex;
+  align-items: center;
+  gap: var(--aim-p-space16);
+  font-size: var(--aim-s-size-meta);
+  font-weight: 500;
+  color: var(--aim-s-text-secondary);
+  white-space: nowrap;
+}
+.aim-shell-foot > :first-child { flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+.aim-shell-foot > :nth-child(2) { flex: 0 0 auto; }
+.aim-shell-foot > :last-child { flex: 1 1 auto; text-align: right; overflow: hidden; text-overflow: ellipsis; }
+
+/* appearance · rule 28: the content is laid out first, then one shared transition */
+.aim-shell[data-appear] {
+  animation: aim-shell-appear var(--aim-s-motion-window-appear) var(--aim-s-motion-ease) both;
+}
+@keyframes aim-shell-appear {
+  from { opacity: 0; transform: translateY(var(--aim-s-motion-window-appear-shift)); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .aim-shell[data-appear] { animation: none; }
+  .aim-shell-btn, .aim-shell-tab { transition: none; }
+}
+
+/* the mark · mono drops the red signal the way the menu bar template image does */
+.aim-mark { display: inline-block; color: var(--aim-c-logo-ink); }
+.aim-mark svg { width: 100%; height: 100%; display: block; }
+.aim-mark[data-mono] .aim-mark-signal { display: none; }

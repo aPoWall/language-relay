@@ -43,9 +43,10 @@ $(ICON_FILE): $(ICON_SOURCE)
 	"$(ICON_RENDERER)" "$(ICONSET)"
 	iconutil -c icns "$(ICONSET)" -o "$(ICON_FILE)"
 
+SHELL_SOURCES := native/AIMAppMarks.swift native/AIMAppMarkView.swift native/AIMAppShell.swift
 VOXEL_SOURCES := native/AIMVoxelModels.swift native/AIMVoxelView.swift native/AIMHintCard.swift
 
-$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift native/AIMMiniAppTokens.swift $(VOXEL_SOURCES) $(FONT_FILES) Info.plist $(ICON_FILE) $(SOUND_FILES)
+$(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift native/AIMMiniAppTokens.swift $(VOXEL_SOURCES) $(SHELL_SOURCES) $(FONT_FILES) Info.plist $(ICON_FILE) $(SOUND_FILES)
 	@test "$(words $(SOUND_FILES))" = "8" || (echo "expected exactly eight feedback sounds" >&2; exit 1)
 	rm -rf "$(APP_DIR)"
 	mkdir -p "$(APP_DIR)/Contents/MacOS" "$(APP_DIR)/Contents/Resources/Sounds"
@@ -53,7 +54,7 @@ $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift n
 	cp "$(ICON_FILE)" "$(APP_DIR)/Contents/Resources/LanguageRelay.icns"
 	cp $(FONT_FILES) "$(APP_DIR)/Contents/Resources/"
 	cp $(SOUND_FILES) "$(APP_DIR)/Contents/Resources/Sounds/"
-	swiftc -parse-as-library "$(SHAPERKIT)" native/AIMMiniAppTokens.swift $(VOXEL_SOURCES) native/NativeWhite.swift native/LayoutPilot.swift \
+	swiftc -parse-as-library "$(SHAPERKIT)" native/AIMMiniAppTokens.swift $(VOXEL_SOURCES) $(SHELL_SOURCES) native/NativeWhite.swift native/LayoutPilot.swift \
 		-framework AppKit \
 		-framework ApplicationServices \
 		-framework Carbon \
