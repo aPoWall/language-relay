@@ -16,16 +16,16 @@
 
    markup: <span class="aim-shell-mark" data-aim-mark="relay"></span>
            <span data-aim-mark="relay" data-aim-mark-size="18" data-mono></span>
-   names: family · relay · aside · prism · calendar. `relay` is the arch glyph `relay-arch`;
-   the first relay glyph keeps its retired id and is not a product mark (rule 4). */
+   names: family · relay · aside · prism · calendar. `relay` is the two-arrow glyph;
+   no retired glyph: the arch was dropped on the owner call 2026-09-16. */
 (function (root, doc) {
   'use strict';
   var PREFIX = 'aim-mark-';
   var HOST_ID = 'aim-mark-sprite';
   /* case name -> symbol id in aim-app-marks.svg; the same map AIMAppMark.swift is generated with */
-  var SYMBOLS = { family: 'family', relay: 'relay-arch', aside: 'aside', prism: 'prism', calendar: 'calendar' };
+  var SYMBOLS = { family: 'family', relay: 'relay', aside: 'aside', prism: 'prism', calendar: 'calendar' };
   /* symbol ids kept in the drawing by rule 4 but shipped by nothing; a reference to one is a defect */
-  var RETIRED = ['relay'];
+  var RETIRED = [];
   var LABELS = {
     family: 'ai mindset', relay: 'language relay', aside: 'aside tweaks',
     prism: 'mem prism', calendar: 'calendar control'

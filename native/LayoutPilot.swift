@@ -1158,6 +1158,8 @@ private enum LayoutPilotPanelMetrics {
     static let markSize: CGFloat = 40
     static let headerButton: CGFloat = 28
     static let footerHeight: CGFloat = 16
+    /// rule 30: the shared hint card in the panel body; 16 pt insets, two text lines and a 28 pt button row
+    static let hintCardHeight: CGFloat = 100
 }
 
 private enum PanelHealth {
@@ -1817,7 +1819,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         host.wantsLayer = true
         host.translatesAutoresizingMaskIntoConstraints = false
         host.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.contentWidth).isActive = true
-        host.heightAnchor.constraint(equalToConstant: 64).isActive = true
+        host.heightAnchor.constraint(equalToConstant: setupExpanded ? LayoutPilotPanelMetrics.hintCardHeight : 64).isActive = true
 
         if !setupExpanded {
             let suffix = panelHealthLabel.contains("required") || carambaRunning ? "action · show" : "ready · show"
@@ -1828,48 +1830,89 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
             return host
         }
 
-        host.wantsLayer = true
-        host.layer?.backgroundColor = RelayStyle.fill.cgColor
-        host.layer?.borderColor = RelayStyle.hair.cgColor
-        host.layer?.cornerRadius = RelayStyle.radius
-        let stack = NSStackView()
-        stack.orientation = .horizontal
-        stack.alignment = .centerY
-        stack.spacing = 8
-        stack.translatesAutoresizingMaskIntoConstraints = false
-        host.addSubview(stack)
+        // rule 30: the blocker speaks through the shared hint card, the one component every AIM mini app
+        // uses for a state that asks for a decision. Mark 40 pt, one title, one fact line, up to three buttons.
+        let state = setupState
+        let card = AIMHintCard(
+            title: state.title,
+            fact: state.fact,
+            actions: state.actions.map { action in
+                switch action {
+                case .openAccessibility:
+                    return AIMHintCard.Action("open") { [weak self] in self?.openAccessibility() }
+                case .hide:
+                    return AIMHintCard.Action("hide") { [weak self] in self?.toggleSetupDisclosure() }
+                }
+            },
+            mark: AIMVoxelModels.relay,
+            autoHide: 0,
+            width: LayoutPilotPanelMetrics.contentWidth
+        )
+        card.identifier = NSUserInterfaceItemIdentifier("setup-hint")
+        card.translatesAutoresizingMaskIntoConstraints = false
+        host.addSubview(card)
         NSLayoutConstraint.activate([
-            stack.leadingAnchor.constraint(equalTo: host.leadingAnchor, constant: 10),
-            stack.trailingAnchor.constraint(equalTo: host.trailingAnchor, constant: -8),
-            stack.centerYAnchor.constraint(equalTo: host.centerYAnchor),
+            card.leadingAnchor.constraint(equalTo: host.leadingAnchor),
+            card.topAnchor.constraint(equalTo: host.topAnchor),
         ])
-
-        let message: String
-        if carambaRunning {
-            message = "blocked · caramba owns repair gestures"
-        } else if let health = panelBridgeHealth, !health.bridgeActive || health.accessibilityTrusted != true {
-            if health.timedOut { message = "Hammerspoon · connection timed out" }
-            else if !health.ipcAvailable { message = "Hammerspoon · connection unavailable" }
-            else if health.accessibilityTrusted != true { message = "Hammerspoon · Accessibility required" }
-            else { message = "Hammerspoon · reload bridge" }
-        } else if !usesHammerspoonBridge && !fixer.hasAccessibilityPermission {
-            message = "Language Relay · Accessibility required"
-        } else {
-            let bridge = usesHammerspoonBridge ? "hammerspoon bridge" : "native bridge"
-            message = "ready · \(bridge) · last \(bridgeStatus())"
+        // contract names on the card buttons (rule 34): the shared component is vendored byte for byte,
+        // so the product names its own buttons from the outside instead of editing the export.
+        for (index, button) in card.hintButtons.enumerated() where index < state.actions.count {
+            button.identifier = NSUserInterfaceItemIdentifier(state.actions[index].identifier)
         }
-        let detail = label(message, size: 10, weight: .regular, color: RelayStyle.ink, width: 222, height: 40)
-        detail.maximumNumberOfLines = 3
-        detail.lineBreakMode = .byWordWrapping
-        stack.addArrangedSubview(detail)
-        stack.addArrangedSubview(flexSpacer())
-        if (usesHammerspoonBridge ? panelBridgeHealth?.accessibilityTrusted == false : !fixer.hasAccessibilityPermission) && !carambaRunning {
-            stack.addArrangedSubview(squareButton("open", action: #selector(openAccessibility), identifier: "open-accessibility", width: 54, height: 28))
-        }
-        let hide = squareButton("hide", action: #selector(toggleSetupDisclosure), identifier: "setup", width: 54, height: 28)
-        hide.setAccessibilityHelp("Hide setup and blocker details")
-        stack.addArrangedSubview(hide)
         return host
+    }
+
+    /// One reading of the setup state: what blocks the repair, said once, used by the hint card, the
+    /// collapsed button and the QA route. `title` is the state, `fact` is the detail under it.
+    enum SetupAction {
+        case openAccessibility
+        case hide
+        var identifier: String { self == .openAccessibility ? "open-accessibility" : "setup" }
+    }
+
+    struct SetupState {
+        let title: String
+        let fact: String
+        let actions: [SetupAction]
+    }
+
+    var setupState: SetupState {
+        if carambaRunning {
+            return SetupState(
+                title: "caramba owns repair gestures",
+                fact: "quit tech.caramba.switcher to give the gestures back to language relay",
+                actions: [.hide])
+        }
+        if let health = panelBridgeHealth, !health.bridgeActive || health.accessibilityTrusted != true {
+            if health.timedOut {
+                return SetupState(title: "hammerspoon · connection timed out",
+                                  fact: "the bridge did not answer in time; reload it from hammerspoon",
+                                  actions: [.hide])
+            }
+            if !health.ipcAvailable {
+                return SetupState(title: "hammerspoon · connection unavailable",
+                                  fact: "install the hammerspoon ipc module, then reload the bridge",
+                                  actions: [.hide])
+            }
+            if health.accessibilityTrusted != true {
+                return SetupState(title: "hammerspoon · accessibility required",
+                                  fact: "system settings · privacy · accessibility, enable hammerspoon",
+                                  actions: [.openAccessibility, .hide])
+            }
+            return SetupState(title: "hammerspoon · reload bridge",
+                              fact: "the bridge loaded without its gesture tap; reload it once",
+                              actions: [.hide])
+        }
+        if !usesHammerspoonBridge && !fixer.hasAccessibilityPermission {
+            return SetupState(title: "language relay · accessibility required",
+                              fact: "system settings · privacy · accessibility, enable language relay",
+                              actions: [.openAccessibility, .hide])
+        }
+        let bridge = usesHammerspoonBridge ? "hammerspoon bridge" : "native bridge"
+        return SetupState(title: "ready · \(bridge)",
+                          fact: "last repair \(bridgeStatus())",
+                          actions: [.hide])
     }
 
     private func label(
@@ -1998,8 +2041,19 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 }
                 guard panel.frame.size == NSSize(width: LayoutPilotPanelMetrics.width, height: LayoutPilotPanelMetrics.height),
                       panel.window == nil, validate(panel) else { return false }
-                guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")),
-                      RelayFocus.target(in: panel, identifier: .init("setup")) is RelayButton else { return false }
+                guard let disclosure = RelayFocus.target(in: panel, identifier: .init("setup-details")) else { return false }
+                // rule 30: the open state speaks through the shared hint card, the closed state keeps its own button
+                if expanded {
+                    guard let card = RelayFocus.target(in: panel, identifier: .init("setup-hint")) as? AIMHintCard,
+                          card.title == setupState.title, card.fact == setupState.fact,
+                          card.markView.model.name == AIMVoxelModels.relay.name,
+                          card.hintButtons.count == setupState.actions.count,
+                          card.hintButtons.map({ $0.identifier?.rawValue }) == setupState.actions.map(\.identifier),
+                          card.hintButtons.allSatisfy({ $0.frame.height == 28 || $0.frame.height == 0 })
+                    else { fputs("FAIL: setup hint card (rule 30)\n", stderr); return false }
+                } else {
+                    guard RelayFocus.target(in: panel, identifier: .init("setup")) is RelayButton else { return false }
+                }
                 // rule 39: the header carries the product mark, the same drawing and source as the menu bar icon
                 let m = LayoutPilotPanelMetrics.markSize
                 guard let mark = RelayFocus.target(in: panel, identifier: .init("product-mark")) as? AIMAppMarkView,
@@ -2091,9 +2145,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         // rules 26, 39: the bar carries the product mark AIMAppMarkView draws, one component and one source
         // (aim-app-marks.svg) for the menu bar and the panel header
         let barMark = AIMAppMarkView.image(.relay, size: AIMAppMarkView.menuBarSize, mono: true)
-        guard AIMVoxelModels.relay.count <= 110, AIMVoxelModels.relay.signals.count == 1,
+        guard AIMVoxelModels.relay.count <= 200, AIMVoxelModels.relay.signals.count == 1,
               AIMVoxelModels.sourceSHA256.count == 64, barMark.isTemplate, barMark.size == NSSize(width: 18, height: 18),
-              AIMAppMark.relay.symbol == "relay-arch", AIMAppMark.sourceSHA256.count == 64,
+              AIMAppMark.relay.symbol == "relay", AIMAppMark.sourceSHA256.count == 64,
               AIMAppMark.canvas == 48, AIMAppMark.strokeWidth == 2 else {
             fputs("FAIL: menu bar mark, one source with the header mark\n", stderr); return false
         }
@@ -2435,6 +2489,44 @@ private struct LayoutPilotMain {
             ])
             exit(0)
         }
+        if let index = arguments.firstIndex(of: "--live-json") {
+            // Read only: watches the system input source while the user works and prints every switch it saw.
+            // Nothing is sent, no window is shown, no layout is changed; the route exists so a live layout
+            // change can be checked without taking the keyboard or the focus of the machine (wave 9 § D).
+            let seconds: Double = {
+                guard let i = arguments.firstIndex(of: "--seconds"), arguments.indices.contains(i + 1),
+                      let value = Double(arguments[i + 1]) else { return 20 }
+                return min(max(value, 1), 600)
+            }()
+            _ = index
+            let started = Date()
+            var samples = 0
+            var switches: [[String: Any]] = []
+            var last = InputSources.currentID() ?? "unknown"
+            let first = last
+            while Date().timeIntervalSince(started) < seconds {
+                Thread.sleep(forTimeInterval: 0.25)
+                samples += 1
+                let now = InputSources.currentID() ?? "unknown"
+                if now != last {
+                    switches.append([
+                        "at": String(format: "%.2f", Date().timeIntervalSince(started)),
+                        "from": last, "to": now,
+                        "known": now == AppIdentity.usID || now == AppIdentity.russianPCID,
+                    ])
+                    last = now
+                }
+            }
+            writeJSONObject([
+                "schemaVersion": 1, "app": AppIdentity.name, "version": AppIdentity.version,
+                "route": "live-json", "readOnly": true, "seconds": seconds, "samples": samples,
+                "startInputSourceID": first, "endInputSourceID": last,
+                "switches": switches, "switchCount": switches.count,
+                "accessibilityTrusted": AXIsProcessTrusted(),
+                "pair": [AppIdentity.usID, AppIdentity.russianPCID],
+            ])
+            exit(0)
+        }
         if arguments.contains("--design-json") {
             writeJSONObject([
                 "schemaVersion": 1, "app": AppIdentity.name, "version": AppIdentity.version,
@@ -2467,7 +2559,7 @@ private struct LayoutPilotMain {
                 "pair": [AppIdentity.usID, AppIdentity.russianPCID],
                 "scopes": ["word", "phrase"],
                 "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
-                "commands": ["convert", "convert-phrase", "switch", "status", "doctor", "design", "setup", "quit"],
+                "commands": ["convert", "convert-phrase", "switch", "status", "live", "doctor", "design", "setup", "quit"],
                 "localOnly": true,
                 "textLogging": false,
             ])
@@ -2504,7 +2596,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; rule 39 one mark source (header 40pt AIMAppMarkView, menu bar 18pt template, relay-arch); header order settings + pin + x 28pt, name untruncated, version line under the name, segment names follow selection, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; rule 39 one mark source (header 40pt AIMAppMarkView, menu bar 18pt template, two arrows); header order settings + pin + x 28pt, name untruncated, version line under the name, segment names follow selection, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); setup hint card from AIMHintCard (rule 30); command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {
@@ -2553,5 +2645,18 @@ private struct LayoutPilotMain {
         guard let data = try? JSONSerialization.data(withJSONObject: payload, options: [.sortedKeys]) else { exit(5) }
         FileHandle.standardOutput.write(data)
         FileHandle.standardOutput.write(Data("\n".utf8))
+    }
+}
+
+// Contract names for the buttons of the vendored hint card: the export stays byte for byte, the product
+// reads its button row through the view tree and gives every button the identifier a driver looks for.
+extension NSView {
+    var hintButtons: [AIMHintCard.Button] {
+        var found: [AIMHintCard.Button] = []
+        for view in subviews {
+            if let button = view as? AIMHintCard.Button { found.append(button) }
+            found.append(contentsOf: view.hintButtons)
+        }
+        return found
     }
 }

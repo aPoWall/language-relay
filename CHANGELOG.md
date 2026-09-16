@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.5.0 build 22 – 2026-09-17
+
+- rule 30, the blocker speaks through the shared hint card: the open `setup` block is now `AIMHintCard`, the
+  same component the other AIM mini apps use for a state that asks for a decision. Mark 40 pt, the state as
+  the title, the detail as one fact line, buttons 28 pt (`open` where accessibility is missing, `hide`
+  always). The card was vendored and compiled since 2.3.9 and drawn nowhere, so the panel kept its own row;
+- one reading of the setup state (`setupState`): the hint card, the collapsed `setup · action / ready` button
+  and the QA route take the same title and the same fact, so the panel cannot say two different things about
+  one blocker. Caramba, the four Hammerspoon states, the native accessibility state and the ready state each
+  own one title and one line;
+- the contract names stay on the card buttons (rule 34): the vendored export is untouched and the product
+  names `open-accessibility` and `setup` through its own view walk, so a driver selector still resolves;
+- `--live-json --seconds N`: a read only watch over the system input source that prints every switch it saw,
+  with the second it happened at and whether the source is one of the pair. Nothing is sent, no window is
+  shown, no layout is changed, so a live layout change can be checked while the machine is being worked on.
+  `make live-integration-test` stays the full keyboard run for a free Mac, since it takes the focus, the
+  clipboard and the layout;
+- `REQUIREMENTS.md`: every requirement that reached the product from waves 3 to 9 with its status, plus the
+  two declared exceptions (the version reading under the name, the ad-hoc signature) and what is blocked;
+- the UI self-test checks the card in all six health and disclosure layouts: the title and the fact follow
+  `setupState`, the mark is the relay character, the buttons carry the contract identifiers, nothing
+  overflows the 420 x 488 panel.
+
 ## 2.4.1 build 21 – 2026-09-16
 
 - shell from `AIMAppShell.swift` (rule 34, level L2): `AIMAppHeader`, `AIMFooterLine`, `AIMPinButton` and
