@@ -1,4 +1,4 @@
-// AIMAppShell · N1 · v1 · the L2 shell of every native AIM mini app (AIM apps rules 21, 22, 31, 32, 33, 34, 38).
+// AIMAppShell · N1 · v1 · the L2 shell of every native AIM mini app (AIM apps rules 21, 22, 31, 32, 33, 34, 35, 38).
 // Hand-written once, vendored byte for byte. Pairs with AIMMiniAppTokens.swift, AIMAppMarks.swift and
 // AIMAppMarkView.swift. AppKit only.
 //
@@ -10,6 +10,7 @@
 //   AIMPinButton   the one pin control, off by default, identifier `pin-panel` (rule 31)
 //   AIMTabStrip    views only, red underline on the active tab, keys 1...N (rules 32, 37)
 //   AIMFooterLine  keys · esc close · version and status, 11 pt muted (rule 22)
+//   AIMRowCell     mark or letter square 16 pt · title · subtitle · the reason the row is here (rule 35)
 //   AIMSurface     one show by the appear token, one read-only outside-click monitor, one close(reason:) (rules 28, 29, 33)
 //
 // `NSColor(aimHex:)` lives in AIMVoxelView.swift; the files ship together in every product.
@@ -30,6 +31,8 @@ public enum AIMAppShellStyle {
     public static let disabled = NSColor(aimHex: semantic("text-disabled", "#c9cbd1"))
     public static let divider = NSColor(aimHex: semantic("divider", "#e8e9ed"))
     public static let hover = NSColor(aimHex: semantic("hover", "#f5f6f8"))
+    public static let selected = NSColor(aimHex: semantic("selected", "#f5f6f8"))
+    public static let data = NSColor(aimHex: semantic("data", "#f2f3f5"))
     public static let signal = NSColor(aimHex: semantic("selection", "#db303d"))
 
     public static let controlRadius = CGFloat(AIMMiniAppTokens.number(semantic("radius-control", "8px")) ?? 8)
@@ -39,6 +42,9 @@ public enum AIMAppShellStyle {
     public static let gap: CGFloat = 8
     /// Header and footer control heights (rule 34, `control-height-compact` / `control-height-quiet`).
     public static let controlHeight: CGFloat = 28
+    /// List row: the 16 pt mark or letter square and the minimum row height (rule 35).
+    public static let rowMarkSize: CGFloat = 16
+    public static let rowHeight: CGFloat = 36
     public static let quietHeight: CGFloat = 22
     public static let markSize = AIMAppMarkView.headerSize
     public static let titleSize: CGFloat = 20
@@ -407,10 +413,14 @@ public final class AIMFooterLine: NSView {
     public let keysLabel: NSTextField
     public let escLabel: NSTextField
     public let statusLabel: NSTextField
-    /// Extra controls (`apps \u{2197}`, `detach \u{2197}`, `float`) sit between the centre and the status.
+    /// Extra controls (`detach \u{2197}`, `float`) sit between the centre and the status.
     public private(set) var extras: [NSView]
+    /// Rule 25: cross-app entry is a standard slot of the footer, not a per-product extra. A product passes
+    /// the action; `apps: nil` is the explicit opt-out, so a family without the entry point is a decision.
+    public private(set) var appsButton: AIMShellButton?
+    public static let appsTitle = "apps \u{2197}"
 
-    public init(keys: String, esc: String = "esc close", status: String, width: CGFloat, extras: [NSView] = []) {
+    public init(keys: String, esc: String = "esc close", status: String, width: CGFloat, extras: [NSView] = [], apps: (() -> Void)? = nil) {
         keysLabel = AIMAppShellStyle.label(keys, size: AIMAppShellStyle.footerSize, weight: .medium, color: AIMAppShellStyle.muted)
         escLabel = AIMAppShellStyle.label(esc, size: AIMAppShellStyle.footerSize, weight: .medium, color: AIMAppShellStyle.muted)
         statusLabel = AIMAppShellStyle.label(status, size: AIMAppShellStyle.footerSize, weight: .medium, color: AIMAppShellStyle.muted)
@@ -427,7 +437,12 @@ public final class AIMFooterLine: NSView {
         setAccessibilityRole(.group)
         setAccessibilityLabel("hints")
 
-        let stack = NSStackView(views: [keysLabel, escLabel, AIMAppShellStyle.spacer()] + extras + [statusLabel])
+        if let apps = apps {
+            let button = AIMShellButton(AIMFooterLine.appsTitle, width: 68, height: AIMAppShellStyle.quietHeight, action: apps)
+            button.identifier = NSUserInterfaceItemIdentifier("apps-open")
+            appsButton = button
+        }
+        let stack = NSStackView(views: [keysLabel, escLabel, AIMAppShellStyle.spacer()] + extras + (appsButton.map { [$0] } ?? []) + [statusLabel])
         stack.orientation = .horizontal
         stack.alignment = .centerY
         stack.distribution = .fill
@@ -451,6 +466,145 @@ public final class AIMFooterLine: NSView {
 
 /// The name the contract uses for the same component.
 public typealias AIMHintLine = AIMFooterLine
+
+// MARK: - Row
+
+/// Rule 35: one row shape for every list of the family. On the left a product mark or a 16 pt square with the
+/// first letter, then the title in one line and the muted subtitle, and on the right the reason the row is in
+/// front of the reader (match, freshness, source). No emoji, no photoreal avatar, no second accent colour.
+/// The web half is `.aim-shell-row` in `aim-app-shell.css`.
+public final class AIMRowCell: NSView {
+    /// The left slot: a product mark from `aim-app-marks.svg`, or a letter square for a site or a person.
+    public enum Leading {
+        case mark(AIMAppMark)
+        case letter(String)
+    }
+    public let title: String
+    public let subtitle: String
+    public let reason: String
+    /// Set by the list; the selected row carries the one red edge.
+    public var isSelected = false { didSet { needsDisplay = true } }
+    private let leading: Leading
+    private let handler: (() -> Void)?
+    private var hovering = false { didSet { needsDisplay = true } }
+
+    public init(leading: Leading,
+                title: String,
+                subtitle: String,
+                reason: String,
+                width: CGFloat,
+                action: (() -> Void)? = nil) {
+        self.leading = leading
+        self.title = title
+        self.subtitle = subtitle
+        self.reason = reason
+        handler = action
+        super.init(frame: NSRect(x: 0, y: 0, width: width, height: AIMAppShellStyle.rowHeight))
+        translatesAutoresizingMaskIntoConstraints = false
+
+        let markSize = AIMAppShellStyle.rowMarkSize
+        let leadingView: NSView
+        switch leading {
+        case .mark(let mark):
+            leadingView = AIMAppMarkView(mark: mark, size: markSize)
+        case .letter(let text):
+            let square = AIMRowLetterView(text)
+            square.widthAnchor.constraint(equalToConstant: markSize).isActive = true
+            square.heightAnchor.constraint(equalToConstant: markSize).isActive = true
+            leadingView = square
+        }
+
+        let titleLabel = AIMAppShellStyle.label(title, size: 12, weight: .medium, color: AIMAppShellStyle.ink)
+        let subtitleLabel = AIMAppShellStyle.label(subtitle, size: AIMAppShellStyle.footerSize, weight: .regular, color: AIMAppShellStyle.muted)
+        let reasonLabel = AIMAppShellStyle.label(reason, size: AIMAppShellStyle.footerSize, weight: .medium, color: AIMAppShellStyle.muted)
+        reasonLabel.alignment = .right
+        reasonLabel.setContentCompressionResistancePriority(.required, for: .horizontal)
+
+        let lines = NSStackView(views: [titleLabel, subtitleLabel])
+        lines.orientation = .vertical
+        lines.alignment = .leading
+        lines.spacing = 1
+        lines.translatesAutoresizingMaskIntoConstraints = false
+
+        let stack = NSStackView(views: [leadingView, lines, AIMAppShellStyle.spacer(), reasonLabel])
+        stack.orientation = .horizontal
+        stack.alignment = .centerY
+        stack.spacing = 10
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(stack)
+        NSLayoutConstraint.activate([
+            stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 8),
+            stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -8),
+            stack.topAnchor.constraint(equalTo: topAnchor, constant: 6),
+            stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -6),
+            widthAnchor.constraint(equalToConstant: width),
+            heightAnchor.constraint(greaterThanOrEqualToConstant: AIMAppShellStyle.rowHeight),
+        ])
+
+        setAccessibilityElement(true)
+        setAccessibilityRole(handler == nil ? .row : .button)
+        setAccessibilityLabel("\(title) \u{00B7} \(subtitle) \u{00B7} \(reason)")
+    }
+    public required init?(coder: NSCoder) { fatalError("AIMRowCell is built in code") }
+
+    public override func isAccessibilitySelected() -> Bool { isSelected }
+    public override func accessibilityPerformPress() -> Bool {
+        guard let handler else { return false }
+        handler()
+        return true
+    }
+    public override func resetCursorRects() { if handler != nil { addCursorRect(bounds, cursor: .pointingHand) } }
+    public override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        trackingAreas.forEach(removeTrackingArea)
+        addTrackingArea(NSTrackingArea(rect: bounds, options: [.activeAlways, .inVisibleRect, .mouseEnteredAndExited], owner: self))
+    }
+    public override func mouseEntered(with event: NSEvent) { hovering = handler != nil }
+    public override func mouseExited(with event: NSEvent) { hovering = false }
+    public override func mouseDown(with event: NSEvent) {
+        guard let handler else { super.mouseDown(with: event); return }
+        handler()
+    }
+
+    public override func draw(_ dirtyRect: NSRect) {
+        if isSelected || hovering {
+            (isSelected ? AIMAppShellStyle.selected : AIMAppShellStyle.hover).setFill()
+            bounds.fill()
+        }
+        if isSelected {
+            AIMAppShellStyle.signal.setFill()
+            NSRect(x: 0, y: 0, width: 2, height: bounds.height).fill()
+        }
+        AIMAppShellStyle.divider.setFill()
+        // The row is drawn flipped or not depending on its host, so the bottom edge is named, never assumed.
+        NSRect(x: 0, y: isFlipped ? bounds.height - 1 : 0, width: bounds.width, height: 1).fill()
+    }
+}
+
+/// The letter square of a row without a product mark: first letter, Plex 500, on the `data` surface (rule 35).
+public final class AIMRowLetterView: NSView {
+    private let letter: String
+    public init(_ text: String) {
+        letter = String(text.prefix(1)).lowercased()
+        super.init(frame: NSRect(x: 0, y: 0, width: AIMAppShellStyle.rowMarkSize, height: AIMAppShellStyle.rowMarkSize))
+        translatesAutoresizingMaskIntoConstraints = false
+        setAccessibilityElement(false)
+    }
+    public required init?(coder: NSCoder) { fatalError("AIMRowLetterView is built in code") }
+    public override func draw(_ dirtyRect: NSRect) {
+        AIMAppShellStyle.data.setFill()
+        NSBezierPath(roundedRect: bounds, xRadius: 4, yRadius: 4).fill()
+        let paragraph = NSMutableParagraphStyle()
+        paragraph.alignment = .center
+        let text = NSAttributedString(string: letter, attributes: [
+            .font: AIMAppShellStyle.font(10, .medium),
+            .paragraphStyle: paragraph,
+            .foregroundColor: AIMAppShellStyle.ink,
+        ])
+        text.draw(in: NSRect(x: 0, y: (bounds.height - text.size().height) / 2, width: bounds.width, height: text.size().height))
+    }
+}
+
 
 // MARK: - Surface
 

@@ -1,4 +1,4 @@
-/* aim-app-shell.css · N1 · v1 · the web half of the L2 shell (AIM apps rules 21, 22, 31, 32, 34, 39).
+/* aim-app-shell.css · N1 · v1 · the web half of the L2 shell (AIM apps rules 21, 22, 31, 32, 34, 35, 39).
    Pairs with aim-mini-apps.css (tokens, loaded first) and aim-app-mark.js (the mark).
    One header, one pin, one tab strip and one footer line for every browser surface of the family:
    the Aside Tweaks popup, panel and palette, and the product-style page on apps.aimindset.org.
@@ -15,7 +15,13 @@
          <button class="aim-shell-btn aim-shell-icon" data-close>×</button>
        </header>
        <nav class="aim-shell-tabs"><button class="aim-shell-tab" aria-selected="true">rows</button>…</nav>
-       <div class="aim-shell-body">…</div>
+       <div class="aim-shell-body">
+         <button class="aim-shell-row" aria-selected="false">
+           <span class="aim-shell-row-mark" data-aim-mark="prism"></span>
+           <span class="aim-shell-row-body"><b>memory pressure</b><small>normal · read 40 s ago</small></span>
+           <span class="aim-shell-row-reason">fresh</span>
+         </button>
+       </div>
        <footer class="aim-shell-foot"><span>1 rows · 2 sites</span><span>esc close</span><span>4.22.0</span></footer>
      </div> */
 
@@ -126,12 +132,65 @@
   right: 10px;
   bottom: 0;
   height: 2px;
-  border-radius: 1px;
+  /* a 2 px bar clamps any corner to half its height, so the shared button radius reads as the pill it is */
+  border-radius: var(--aim-c-button-radius);
   background: var(--aim-s-selection);
 }
 .aim-shell-tab:focus-visible { outline: 2px solid var(--aim-c-focus-ring); outline-offset: 2px; }
 
 .aim-shell-body { flex: 1 1 auto; min-height: 0; }
+
+/* list row · rule 35: mark or letter square 16 pt · title · subtitle muted · the reason it is here */
+.aim-shell-rows { display: flex; flex-direction: column; }
+.aim-shell-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 0;
+  border-bottom: 1px solid var(--aim-s-divider);
+  background: transparent;
+  color: var(--aim-s-text);
+  font: inherit;
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+}
+.aim-shell-row:hover { background: var(--aim-s-hover); }
+.aim-shell-row[aria-selected="true"] { background: var(--aim-s-selected); box-shadow: inset 2px 0 var(--aim-s-selection); }
+.aim-shell-row:focus-visible { outline: 2px solid var(--aim-c-focus-ring); outline-offset: -2px; }
+.aim-shell-row-mark {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  color: var(--aim-c-logo-ink);
+}
+.aim-shell-row-mark svg { width: 100%; height: 100%; display: block; }
+.aim-shell-row-letter {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--aim-s-data);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+}
+.aim-shell-row-body { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.aim-shell-row-body b {
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.aim-shell-row-body small { font-size: 11px; color: var(--aim-s-text-secondary); }
+.aim-shell-row-reason { flex: none; font-size: 11px; color: var(--aim-s-text-secondary); }
 
 /* footer · rule 22: keys · esc close · version and status, one row, three parts */
 .aim-shell-foot {
@@ -157,10 +216,12 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .aim-shell[data-appear] { animation: none; }
-  .aim-shell-btn, .aim-shell-tab { transition: none; }
+  .aim-shell-btn, .aim-shell-tab, .aim-shell-row { transition: none; }
 }
 
-/* the mark · mono drops the red signal the way the menu bar template image does */
+/* the mark · mono drops the red signal the way the menu bar template image does.
+   aim-app-mark.js clones the symbol children into the mark, so the signal is a light-DOM node here:
+   a mono mark is built without it and this rule covers a mark whose markup was written by hand. */
 .aim-mark { display: inline-block; color: var(--aim-c-logo-ink); }
 .aim-mark svg { width: 100%; height: 100%; display: block; }
 .aim-mark[data-mono] .aim-mark-signal { display: none; }

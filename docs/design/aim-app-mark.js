@@ -1,9 +1,13 @@
 /* aim-app-mark.js · N1 · v1 · the product mark on the web (AIM apps rule 39) · no dependencies.
    One source: `aim-app-marks.svg`, the same file `build-marks.mjs` turns into `AIMAppMarks.swift`.
-   The sprite is fetched once and injected into the page, so `<use href="#aim-mark-prism">` resolves
-   locally and works inside a browser extension, where a cross-document `<use href="file.svg#id">`
-   does not. The injection prefixes every symbol id and tags the red rectangle `aim-mark-signal`,
-   which `aim-app-shell.css` hides for a mono mark.
+   The sprite is fetched once and injected into the page, so the symbols are available locally and
+   work inside a browser extension, where a cross-document `<use href="file.svg#id">` does not. The
+   injection prefixes every symbol id and tags the filled rectangle `aim-mark-signal`. A mark is drawn
+   by cloning the symbol children into its own svg, so the signal sits in the light DOM of the page and
+   `.aim-mark[data-mono] .aim-mark-signal` in `aim-app-shell.css` reaches it; a `<use>` reference puts the
+   drawing in a shadow tree, where that rule selects nothing and the bar keeps the red. The reference is
+   kept only as the fallback for a mark built before `install()` resolves, where there is nothing to clone.
+   `data-mono` stays an attribute, so a surface can flip the mark both ways without rebuilding it.
 
      AIMAppMark.install('assets/aim-app-marks.svg')            // page
      AIMAppMark.install(chrome.runtime.getURL('aim-app-marks.svg'))  // extension
@@ -18,14 +22,16 @@
   'use strict';
   var PREFIX = 'aim-mark-';
   var HOST_ID = 'aim-mark-sprite';
-  var SIGNAL = '#db303d';
   /* case name -> symbol id in aim-app-marks.svg; the same map AIMAppMark.swift is generated with */
   var SYMBOLS = { family: 'family', relay: 'relay-arch', aside: 'aside', prism: 'prism', calendar: 'calendar' };
+  /* symbol ids kept in the drawing by rule 4 but shipped by nothing; a reference to one is a defect */
+  var RETIRED = ['relay'];
   var LABELS = {
     family: 'ai mindset', relay: 'language relay', aside: 'aside tweaks',
     prism: 'mem prism', calendar: 'calendar control'
   };
   var pending = null;
+  var NODES = {};
 
   function installed() { return !!doc.getElementById(HOST_ID); }
 
@@ -46,15 +52,19 @@
       host.style.width = '0';
       host.style.height = '0';
       host.style.overflow = 'hidden';
-      var symbols = parsed.querySelectorAll('symbol'), i, symbol, rects, j;
+      var symbols = parsed.querySelectorAll('symbol'), i, symbol, rects, j, id;
       for (i = 0; i < symbols.length; i++) {
         symbol = doc.importNode(symbols[i], true);
-        symbol.id = PREFIX + symbol.id;
+        id = symbol.id;
+        symbol.id = PREFIX + id;
         rects = symbol.querySelectorAll('rect');
         for (j = 0; j < rects.length; j++) {
-          if ((rects[j].getAttribute('fill') || '').toLowerCase() === SIGNAL) rects[j].setAttribute('class', 'aim-mark-signal');
+          /* the frame and the glyph are drawn with `fill="none"`; the one filled rectangle is the signal,
+             so the class is found by the drawing itself and no colour is repeated here */
+          if ((rects[j].getAttribute('fill') || 'none').toLowerCase() !== 'none') rects[j].setAttribute('class', 'aim-mark-signal');
         }
         host.appendChild(symbol);
+        NODES[id] = symbol;
       }
       (doc.body || doc.documentElement).appendChild(host);
       return true;
@@ -82,9 +92,20 @@
     svg.setAttribute('viewBox', '0 0 48 48');
     svg.setAttribute('role', 'img');
     svg.setAttribute('aria-label', options.title || LABELS[name] || name);
-    var use = doc.createElementNS('http://www.w3.org/2000/svg', 'use');
-    use.setAttribute('href', '#' + PREFIX + symbol);
-    svg.appendChild(use);
+    var source = NODES[symbol], kids, k, child, use;
+    if (source) {
+      kids = source.childNodes;
+      for (k = 0; k < kids.length; k++) {
+        child = kids[k];
+        if (child.nodeType !== 1) continue;
+        svg.appendChild(child.cloneNode(true));
+      }
+    } else {
+      /* before install() resolves there is nothing to clone; the reference fills in once the sprite lands */
+      use = doc.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', '#' + PREFIX + symbol);
+      svg.appendChild(use);
+    }
     span.appendChild(svg);
     return span;
   }
@@ -102,6 +123,9 @@
       }); } catch (e) { continue; }
       node.appendChild(mark.firstChild);
       node.classList.add('aim-mark');
+      /* the svg fills its box, so the size the caller asked for has to reach the box it is asked on */
+      node.style.width = mark.style.width;
+      node.style.height = mark.style.height;
       n += 1;
     }
     return n;
@@ -110,6 +134,7 @@
   root.AIMAppMark = {
     names: Object.keys(SYMBOLS),
     symbols: SYMBOLS,
+    retired: RETIRED,
     labels: LABELS,
     prefix: PREFIX,
     installed: installed,
