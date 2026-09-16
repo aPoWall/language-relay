@@ -93,7 +93,10 @@ Direct native surface:
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --doctor-json
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --capabilities-json
 "$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --quit
+"$HOME/Applications/Language Relay.app/Contents/MacOS/LanguageRelay" --testbed show   # or hide | toggle
 ```
+
+`--testbed show|hide|toggle` (build 14, AIM-APPS-RULES rule 27) tells the running instance to present the panel without activation, anchored to an invisible 2 pt window in the bottom-right corner of the main screen (24 pt inset); the user's app stays frontmost, the cursor does not move, key focus is not taken. Driver and rules: `lab-sites/internal-sites/aim-product-system/testbed/`.
 
 The bundle identifier and preferences domain remain `dev.alex.layout-pilot` so existing settings survive the rename. Version 2.3.3 migrates the old phrase default to Last Word once; choose Last Phrase in the panel when you want the longer tail.
 
