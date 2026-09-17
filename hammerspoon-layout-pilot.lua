@@ -1,5 +1,5 @@
 -- layout-pilot:start
--- Language Relay bridge v2.3.3
+-- Language Relay bridge v2.4.0
 --
 -- Double Shift or a clean Option tap fixes selected text / the last word typed
 -- in the wrong layout by default. The bridge never creates a selection. It uses
@@ -16,9 +16,14 @@ local layoutPilotHome = assert(os.getenv("HOME"), "Language Relay requires HOME"
 local layoutPilotBinary = layoutPilotHome .. "/Applications/Language Relay.app/Contents/MacOS/LanguageRelay"
 local layoutPilotSoundDirectory = layoutPilotHome .. "/Applications/Language Relay.app/Contents/Resources/Sounds"
 local layoutPilotMarker = 1280329266 -- "LPV2"
-local layoutPilotBridgeVersion = "2.3.3"
+local layoutPilotBridgeVersion = "2.4.0"
 local layoutPilotDefaultFixMode = "lastWord"
 local layoutPilotBusy = false
+-- Bridge watchdog (wave 11 § B). The busy flag now carries the moment it was raised. A run that dies between two
+-- callbacks used to hold the flag for good and every later gesture was dropped without a word; a flag older than
+-- layoutPilotBusyTimeout is released at the next gesture with the status `busy-timeout`.
+local layoutPilotBusySince = 0
+local layoutPilotBusyTimeout = 5
 local layoutPilotTask = nil
 local layoutPilotBuffer = ""
 local layoutPilotBufferApp = nil
@@ -52,6 +57,36 @@ local layoutPilotTerminalBundles = {
   ["org.alacritty"] = true,
   ["com.github.wez.wezterm"] = true,
 }
+
+local function layoutPilotNow()
+  local ok, value = pcall(function() return hs.timer.secondsSinceEpoch() end)
+  if ok and type(value) == "number" then return value end
+  return os.time()
+end
+
+-- One writer for the flag, so the moment it was raised can never drift from the flag itself.
+local function layoutPilotSetBusy(value)
+  layoutPilotBusy = value == true
+  layoutPilotBusySince = layoutPilotBusy and layoutPilotNow() or 0
+end
+
+local function layoutPilotBusyAge()
+  if not layoutPilotBusy then return 0 end
+  return math.max(0, layoutPilotNow() - layoutPilotBusySince)
+end
+
+-- True while the flag is up and older than its lifetime: the run behind it is gone and the gestures are blocked.
+local function layoutPilotBusyStale()
+  return layoutPilotBusy and layoutPilotBusyAge() > layoutPilotBusyTimeout
+end
+
+-- The single release point of a flag that outlived its run. Returns true when it released one.
+local function layoutPilotReleaseStaleBusy()
+  if not layoutPilotBusyStale() then return false end
+  layoutPilotSetBusy(false)
+  hs.settings.set("layout_pilot_last_status", "busy-timeout")
+  return true
+end
 
 local function layoutPilotReadDefault(key, fallback)
   local out = hs.execute("/usr/bin/defaults read dev.alex.layout-pilot " .. key .. " 2>/dev/null") or ""
@@ -318,7 +353,7 @@ local function layoutPilotFinish(success, detail, targetID, verified)
     layoutPilotClearBuffer()
     if verified then layoutPilotPlaySuccessSound() end
   end
-  layoutPilotBusy = false
+  layoutPilotSetBusy(false)
 end
 
 local function layoutPilotCanUseDirectAX(context)
@@ -553,7 +588,10 @@ local function layoutPilotConvert(context)
   local token = layoutPilotRunToken
   hs.settings.set("layout_pilot_last_status", "converting")
   layoutPilotTask = hs.task.new(layoutPilotBinary, function(code, stdout, stderr)
-    if token ~= layoutPilotRunToken then return end
+    if token ~= layoutPilotRunToken then
+      -- A stale run has already been cut by restart or shutdown, and both of those reset the flag.
+      return
+    end
     layoutPilotTask = nil
     if code ~= 0 then
       layoutPilotFinish(false, "task-exit-" .. tostring(code))
@@ -565,7 +603,10 @@ local function layoutPilotConvert(context)
       layoutPilotFinish(false, "json-failed")
       return
     end
-    layoutPilotApplyConversion(context, payload)
+    -- The write path reads the accessibility tree again and can raise there; without this the flag would stay up
+    -- until the watchdog released it.
+    local applied = pcall(layoutPilotApplyConversion, context, payload)
+    if not applied then layoutPilotFinish(false, "apply-error") end
   end, {flag, context.candidate, "--capitalization", layoutPilotSettings.capitalizationMode})
 
   if not layoutPilotTask or not layoutPilotTask:start() then
@@ -581,7 +622,7 @@ function layoutPilotShutdown(reason)
     pcall(function() layoutPilotTask:terminate() end)
     layoutPilotTask = nil
   end
-  layoutPilotBusy = false
+  layoutPilotSetBusy(false)
   layoutPilotSyntheticUntil = 0
   layoutPilotClearBuffer()
   layoutPilotResetModifierTaps()
@@ -597,15 +638,12 @@ local function layoutPilotToggleLayoutOnly()
   hs.settings.set("layout_pilot_last_status", changed and "layout-switched" or "layout-switch-failed")
 end
 
-function layoutPilotFix(trigger)
-  if layoutPilotBusy or hs.eventtap.isSecureInputEnabled() then return false end
-  layoutPilotReloadSettings()
-  layoutPilotBusy = true
-  hs.settings.set("layout_pilot_last_status", "started-" .. tostring(trigger or "manual"))
-
+-- The body of a repair. Every exit of it either reaches layoutPilotFinish or resets the flag itself; the
+-- accessibility reads inside it can raise, which is why the caller runs it under pcall (wave 11 § B).
+local function layoutPilotRunFix(trigger)
   local context = layoutPilotFocusedContext(layoutPilotSettings.phraseMode)
   if type(context.candidate) ~= "string" or not context.candidate:match("%S") then
-    layoutPilotBusy = false
+    layoutPilotSetBusy(false)
     if trigger == "option" then layoutPilotToggleLayoutOnly() end
     return false
   end
@@ -618,6 +656,24 @@ function layoutPilotFix(trigger)
 
   layoutPilotConvert(context)
   return true
+end
+
+function layoutPilotFix(trigger)
+  -- A flag left behind by a dead run is released here, so the gesture that follows it works instead of being
+  -- swallowed. This is the path the owner met on 2026-09-17, when the bridge went quiet until a reload.
+  layoutPilotReleaseStaleBusy()
+  if layoutPilotBusy or hs.eventtap.isSecureInputEnabled() then return false end
+  layoutPilotReloadSettings()
+  layoutPilotSetBusy(true)
+  hs.settings.set("layout_pilot_last_status", "started-" .. tostring(trigger or "manual"))
+
+  local ok, result = pcall(layoutPilotRunFix, trigger)
+  if not ok then
+    layoutPilotSetBusy(false)
+    hs.settings.set("layout_pilot_last_status", "fix-error")
+    return false
+  end
+  return result
 end
 
 local function layoutPilotCompleteTap(state, requiredTaps, now)
@@ -750,8 +806,53 @@ end
 function layoutPilotRestart()
   layoutPilotRunToken = layoutPilotRunToken + 1
   hs.settings.set("layout_pilot_disabled_by_user", false)
+  -- `restart bridge` in the panel lands here: the run token moves, the flag drops, the tap comes back.
+  layoutPilotSetBusy(false)
   layoutPilotReloadSettings()
   return layoutPilotStartTap()
+end
+
+-- Diagnosis in one reading (wave 11 § B). Read only: nothing is reset here, so the app can see a stuck flag and
+-- decide to restart the bridge instead of the reading quietly repairing itself.
+function layoutPilotStatus()
+  local secureInput = false
+  pcall(function() secureInput = hs.eventtap.isSecureInputEnabled() == true end)
+  local tap = false
+  pcall(function() tap = layoutPilotInputTap ~= nil and layoutPilotInputTap:isEnabled() == true end)
+  return {
+    version = layoutPilotBridgeVersion,
+    tap = tap,
+    busy = layoutPilotBusy,
+    busySeconds = layoutPilotBusyAge(),
+    busyStale = layoutPilotBusyStale(),
+    busyTimeout = layoutPilotBusyTimeout,
+    secureInput = secureInput,
+    lastStatus = hs.settings.get("layout_pilot_last_status") or "ready",
+    settings = {
+      phraseMode = layoutPilotSettings.phraseMode,
+      directAXReplacement = layoutPilotSettings.directAXReplacement,
+      soundEnabled = layoutPilotSettings.soundEnabled,
+      soundName = layoutPilotSettings.soundName,
+      soundLevel = layoutPilotSettings.soundLevel,
+      capitalizationMode = layoutPilotSettings.capitalizationMode,
+      shiftEnabled = layoutPilotSettings.shiftEnabled,
+      optionEnabled = layoutPilotSettings.optionEnabled,
+    },
+  }
+end
+
+-- One line for the app: the seven fields of the status in a fixed order, joined by `|`.
+function layoutPilotStatusLine()
+  local status = layoutPilotStatus()
+  return table.concat({
+    status.version,
+    tostring(status.tap),
+    tostring(status.busy),
+    tostring(status.busyStale),
+    string.format("%.1f", status.busySeconds),
+    tostring(status.secureInput),
+    status.lastStatus,
+  }, "|")
 end
 
 if hs.settings.get("layout_pilot_disabled_by_user") == true then
@@ -866,6 +967,22 @@ function layoutPilotQASettings()
     .. "|" .. tostring(layoutPilotSettings.soundEnabled)
     .. "|" .. tostring(layoutPilotSettings.phraseMode)
     .. "|" .. tostring(layoutPilotSettings.directAXReplacement)
+end
+
+-- QA hook for the watchdog: raise the flag with a chosen age, read it, release it. The tests drive the bridge
+-- through this instead of waiting five seconds of real time.
+function layoutPilotQABusy(action, age)
+  if action == "raise" then
+    layoutPilotSetBusy(true)
+    if type(age) == "number" then layoutPilotBusySince = layoutPilotNow() - age end
+  elseif action == "clear" then
+    layoutPilotSetBusy(false)
+  elseif action == "release" then
+    return tostring(layoutPilotReleaseStaleBusy())
+  end
+  return tostring(layoutPilotBusy)
+    .. "|" .. tostring(layoutPilotBusyStale())
+    .. "|" .. string.format("%.0f", layoutPilotBusyAge())
 end
 
 function layoutPilotQACompatibility()

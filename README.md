@@ -118,7 +118,7 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
-Native version 2.5.1 uses the generated N1 native-white profile: a fixed 420×554 panel,
+Native version 2.5.2 uses the generated N1 native-white profile: a fixed 420×672 panel,
 bundled IBM Plex Mono, inline setup details and the shared shell `AIMAppShell.swift`
 (`AIMAppHeader`: character 40 pt · name · version slot · settings · pin · ×; `AIMFooterLine`: keys · esc close · version and status;
 `AIMPinButton`; `AIMSurface` for show, the read-only outside-click monitor and one `close(reason:)`).
@@ -126,8 +126,17 @@ The header mark slot carries the voxel character (wave 10 B); the flat mark of `
 menu bar, in About and on the favicons. The bar item has four modes, `mark` by default, and `menuBarMode`
 stores the choice; the global combination is `globalHotkey`, ⌥⌘L by default, and both are changed in the
 `menu bar + hotkey` row of the panel or through `--testbed mode <name>` and `--testbed hotkey <id>`.
-On a 420 pt header the version slot is left empty by rule 32 and the version is printed in the bottom line. The bridge protocol remains
-2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.
+On a 420 pt header the version slot is left empty by rule 32 and the version is printed in the bottom line. The bridge protocol is
+2.4.0. In bridge mode the panel checks Hammerspoon's permission and active tap, and the `bridge` row prints the
+reading of `layoutPilotStatus()` (tap, busy flag with its age, secure input, last status) with one `restart bridge`
+press beside it. A busy flag older than five seconds is released at the next gesture and written down as
+`busy-timeout`, so a repair that dies mid-run no longer swallows every gesture that follows. At launch the app
+reads the bridge once and restarts it only when the tap is off or a flag is stuck, and the row says so.
+`LanguageRelay --bridge-json` prints the same reading without a window (rule 50), and `make bridge-test` runs the
+bridge against a stub Hammerspoon, so the check never loads or reloads the owner's configuration. A wave that
+changes `hammerspoon-layout-pilot.lua` reaches Hammerspoon only when the owner applies it: `./install-runtime.sh
+install` copies the bridge, the owner reloads his own configuration, and until then the row reads
+`2.3.3 · reload for 2.4.0`.
 
 The runtime version comes from the bundle's `Info.plist`. `language-relay design`
 reports the installed app version and exact N1 token source digest. The controls
