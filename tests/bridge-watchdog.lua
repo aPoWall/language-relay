@@ -105,7 +105,12 @@ check("stale flag is seen", layoutPilotQABusy("raise", 9), "true|true|9")
 check("status does not repair by itself", layoutPilotStatus().busyStale, true)
 layoutPilotFix("shift")
 check("the gesture released the flag", layoutPilotQABusy(), "false|false|0")
-check("the release is written down", settings.layout_pilot_last_status, "started-shift")
+-- The volatile slot is already the gesture that the release let through: `busy-timeout` lived one call. The
+-- release survives in its own counter, which is what the `bridge` row of the app reads.
+check("the gesture overwrote the volatile slot", settings.layout_pilot_last_status, "started-shift")
+check("the timeout is still counted after the gesture", layoutPilotStatus().timeouts, 1)
+check("the timeout carries its moment", layoutPilotStatus().timeoutAgo, 0)
+check("the timeout slot holds the release", settings.layout_pilot_busy_timeouts, 1)
 
 -- 4. the path without a reset: the accessibility read raises inside the repair
 raiseOnFocusedElement = true
@@ -114,11 +119,13 @@ check("a raising repair still resets the flag", layoutPilotQABusy(), "false|fals
 check("the error is written down", settings.layout_pilot_last_status, "fix-error")
 raiseOnFocusedElement = false
 
--- 5. a released flag is written down as busy-timeout when nothing else follows
+-- 5. a released flag is written down as busy-timeout when nothing else follows, and counted either way
 layoutPilotQABusy("raise", 30)
 check("release reports that it fired", layoutPilotQABusy("release"), "true")
 check("busy-timeout is the status", settings.layout_pilot_last_status, "busy-timeout")
+check("the second release is counted too", layoutPilotStatus().timeouts, 2)
 check("a second release finds nothing", layoutPilotQABusy("release"), "false")
+check("a release that found nothing does not count", layoutPilotStatus().timeouts, 2)
 
 -- 6. restart drops the flag with the tap
 layoutPilotQABusy("raise", 1)
@@ -126,12 +133,14 @@ layoutPilotRestart()
 check("restart clears the flag", layoutPilotQABusy(), "false|false|0")
 check("restart brings the tap back", layoutPilotStatus().tap, true)
 
--- 7. one line for the app, seven fields in a fixed order
+-- 7. one line for the app, nine fields in a fixed order; the last two are the released flags
 local line = {}
 for part in layoutPilotStatusLine():gmatch("[^|]+") do line[#line + 1] = part end
-check("the status line has seven fields", #line, 7)
+check("the status line has nine fields", #line, 9)
 check("the line starts with the bridge version", line[1], layoutPilotStatus().version)
 check("the line carries the tap", line[2], "true")
+check("the line carries the timeout count", line[8], "2")
+check("the line carries the timeout age", line[9], "0.0")
 
 -- 8. the flag has one writer: no raw assignment outside the setter
 local source = io.open(root .. "/hammerspoon-layout-pilot.lua"):read("a")

@@ -11,7 +11,7 @@ private enum AppIdentity {
     /// The header line under the product name (rule 21): the same `version · build N` reading Calendar Control
     /// and MEM PRISM print, so the three headers carry one text.
     static var versionLine: String { "\(version) \u{00B7} build \(build)" }
-    static let bridgeVersion = "2.4.0"
+    static let bridgeVersion = "2.4.1"
     static let bundleID = "dev.alex.layout-pilot"
     static let launchAgentLabel = "dev.alex.layout-pilot"
     static let usID = "com.apple.keylayout.US"
@@ -107,6 +107,11 @@ private struct HammerspoonHealth {
     var busySeconds: Double = 0
     var secureInput: Bool = false
     var watchdogAvailable: Bool = false
+    /// Wave 11 § B, rule 51: how many flags the bridge has released and how long ago the last one went. The
+    /// `busy-timeout` status itself lives one call: the gesture that the release lets through writes
+    /// `started-<trigger>` over it, so the row reads the released flags from their own slots instead.
+    var timeouts: Int = 0
+    var timeoutAgo: Double = -1
 
     var bridgeActive: Bool {
         ipcAvailable && inputTapEnabled && bridgeVersion == AppIdentity.bridgeVersion
@@ -120,11 +125,29 @@ private struct HammerspoonHealth {
             return "\(bridgeVersion) \u{00B7} reload for \(AppIdentity.bridgeVersion)"
         }
         if !inputTapEnabled { return "tap off" }
-        if busyStale { return String(format: "busy %.0fs \u{00B7} stuck", busySeconds) }
-        if busy { return String(format: "busy %.0fs", busySeconds) }
-        if secureInput { return "secure input" }
-        guard let lastStatus, lastStatus != "ready" else { return "ready" }
-        return "ready \u{00B7} \(lastStatus)"
+        if busyStale { return withTimeouts(String(format: "busy %.0fs \u{00B7} stuck", busySeconds)) }
+        if busy { return withTimeouts(String(format: "busy %.0fs", busySeconds)) }
+        if secureInput { return withTimeouts("secure input") }
+        guard let lastStatus, lastStatus != "ready" else { return withTimeouts("ready") }
+        return withTimeouts("ready \u{00B7} \(lastStatus)")
+    }
+
+    /// `1 timeout 12s ago`, `3 timeouts 4m ago`: the released flags after the state, or nothing when the bridge
+    /// has released none.
+    var timeoutLine: String? {
+        guard watchdogAvailable, timeouts > 0 else { return nil }
+        let count = timeouts == 1 ? "1 timeout" : "\(timeouts) timeouts"
+        guard timeoutAgo >= 0 else { return count }
+        let ago: String
+        if timeoutAgo < 90 { ago = String(format: "%.0fs", timeoutAgo) }
+        else if timeoutAgo < 5400 { ago = String(format: "%.0fm", timeoutAgo / 60) }
+        else { ago = String(format: "%.0fh", timeoutAgo / 3600) }
+        return "\(count) \(ago) ago"
+    }
+
+    private func withTimeouts(_ line: String) -> String {
+        guard let timeoutLine else { return line }
+        return "\(line) \u{00B7} \(timeoutLine)"
     }
 }
 
@@ -178,7 +201,8 @@ private enum HammerspoonIPC {
           local status = layoutPilotStatus()
           watchdog = table.concat({
             tostring(status.busy), tostring(status.busyStale),
-            string.format('%.1f', status.busySeconds), tostring(status.secureInput)
+            string.format('%.1f', status.busySeconds), tostring(status.secureInput),
+            string.format('%d', status.timeouts or 0), string.format('%.1f', status.timeoutAgo or -1)
           }, '|')
         end
         return table.concat({accessibility, inputTap, bridgeVersion, lastStatus, watchdog}, '|')
@@ -230,6 +254,8 @@ private enum HammerspoonIPC {
         let bridgeVersion = parts[2].isEmpty ? nil : parts[2]
         let lastStatus = parts[3].isEmpty ? nil : parts[3]
         let watchdog = parts.count >= 8
+        // A 2.4.0 bridge answers the first four watchdog fields and stops; the released flags arrive with 2.4.1.
+        let timeoutReading = parts.count >= 10
         return HammerspoonHealth(
             ipcAvailable: true,
             executableFound: true,
@@ -242,7 +268,9 @@ private enum HammerspoonIPC {
             busyStale: watchdog && parts[5] == "true",
             busySeconds: watchdog ? (Double(parts[6]) ?? 0) : 0,
             secureInput: watchdog && parts[7] == "true",
-            watchdogAvailable: watchdog
+            watchdogAvailable: watchdog,
+            timeouts: timeoutReading ? (Int(parts[8]) ?? 0) : 0,
+            timeoutAgo: timeoutReading ? (Double(parts[9]) ?? -1) : -1
         )
     }
 }
@@ -2428,12 +2456,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         // named as stuck instead of being hidden behind `ready`
         let stuck = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: "started-shift", timedOut: false, busy: true, busyStale: true, busySeconds: 9, secureInput: false, watchdogAvailable: true)
         let stale = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: "2.3.3", lastStatus: "ready", timedOut: false)
+        // rule 51: the release itself is overwritten in `lastStatus` by the gesture it lets through, so the row
+        // reads the released flags from their own counter and still names the timeout after the gesture ran.
+        let released = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: "started-shift", timedOut: false, busy: false, busyStale: false, busySeconds: 0, secureInput: false, watchdogAvailable: true, timeouts: 1, timeoutAgo: 12)
         guard healthy.bridgeLine == "ready",
               denied.bridgeLine == "tap off",
               unavailable.bridgeLine == "no answer",
               stuck.bridgeLine == "busy 9s · stuck",
               stale.bridgeLine == "2.3.3 · reload for \(AppIdentity.bridgeVersion)",
-              Set([healthy, denied, unavailable, stuck, stale].map(\.bridgeLine)).count == 5 else {
+              released.bridgeLine == "ready · started-shift · 1 timeout 12s ago",
+              healthy.timeoutLine == nil,
+              Set([healthy, denied, unavailable, stuck, stale, released].map(\.bridgeLine)).count == 6 else {
             fputs("FAIL: bridge reading (wave 11 B)\n", stderr); return false
         }
         for health in [healthy, denied, unavailable] {
@@ -3057,6 +3090,7 @@ private struct LayoutPilotMain {
                 "tap": health.inputTapEnabled, "busy": health.busy, "busyStale": health.busyStale,
                 "busySeconds": health.busySeconds, "secureInput": health.secureInput,
                 "watchdogAvailable": health.watchdogAvailable,
+                "timeouts": health.timeouts, "timeoutAgo": health.timeoutAgo,
                 "lastStatus": health.lastStatus ?? "",
                 "bridgeActive": health.bridgeActive, "line": health.bridgeLine,
             ])
