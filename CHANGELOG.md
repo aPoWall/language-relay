@@ -1,5 +1,28 @@
 # Changelog
 
+## 2.5.1 build 24 – 2026-09-17
+
+- wave 10 § A, the bar item is a choice of four: `mark` (the default, the product mark alone), `mark + value`
+  (the mark and the active layout, the shape 2.5.0 always drew), `value` (the layout alone) and `hidden`,
+  which asks for a confirmation in a submenu before the item leaves the bar. The mode is stored under
+  `menuBarMode`; an installed setup moves to `mark + value` once under `migratedMenuBarMode.2.5.1`, a fresh
+  install starts at `mark`. The item stays visible by default and `NSStatusItem.autosaveName` keeps its place;
+- the panel row `menu bar + hotkey` prints the item as the bar draws it (`menu-bar-preview`), names the mode
+  (`menu-bar-mode`) and the combination (`global-hotkey`), so the mode is chosen by looking at it;
+- wave 10 § B, the voxel character returns to the panel header at 40 pt, lifts under the cursor and mirrors
+  its arrows on click; the flat mark of `aim-app-marks.svg` keeps the menu bar, About and the favicons. The
+  shell header hands over its mark slot inside the same stack, so the order, the box and the centre line of
+  rule 32 are untouched and the identifier is `product-character`;
+- wave 10 § C, one global combination opens and closes the panel: ⌥⌘L by default, `⌃⌥L`, `⌥⌘R`, `⌥⌘K` or off,
+  registered through Carbon. A combination another app holds comes back refused, the section heading prints it
+  in red and the refusal is not stored. `.hotkey` joins the close reasons of rule 33 and the bottom line names
+  the combination;
+- `--testbed mode <mark|mark-value|value|hidden>` and `--testbed hotkey <id|off>` reach the same setters the
+  menu items call, so the control walk of rule 41 reads the consequence from `--design-json` instead of
+  driving an NSMenu a non-activating panel cannot hold open;
+- the panel grows to 420 × 554 for the new row, and the self-test now measures the three parts of the bottom
+  line in every health state instead of trusting them to fit.
+
 ## 2.5.0 build 23 – 2026-09-17
 
 - rule 30, the blocker speaks through the shared hint card: the open `setup` block is now `AIMHintCard`, the

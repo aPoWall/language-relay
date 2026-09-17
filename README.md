@@ -118,10 +118,14 @@ Version 2.3 supports only `U.S. ⇄ Russian – PC`. The Carbon mapping engine c
 
 ## Build and QA
 
-Native version 2.4.1 uses the generated N1 native-white profile: a fixed 420×488 panel,
+Native version 2.5.1 uses the generated N1 native-white profile: a fixed 420×554 panel,
 bundled IBM Plex Mono, inline setup details and the shared shell `AIMAppShell.swift`
-(`AIMAppHeader`: mark 40 pt · name · version slot · settings · pin · ×; `AIMFooterLine`: keys · esc close · version and status;
+(`AIMAppHeader`: character 40 pt · name · version slot · settings · pin · ×; `AIMFooterLine`: keys · esc close · version and status;
 `AIMPinButton`; `AIMSurface` for show, the read-only outside-click monitor and one `close(reason:)`).
+The header mark slot carries the voxel character (wave 10 B); the flat mark of `aim-app-marks.svg` stays in the
+menu bar, in About and on the favicons. The bar item has four modes, `mark` by default, and `menuBarMode`
+stores the choice; the global combination is `globalHotkey`, ⌥⌘L by default, and both are changed in the
+`menu bar + hotkey` row of the panel or through `--testbed mode <name>` and `--testbed hotkey <id>`.
 On a 420 pt header the version slot is left empty by rule 32 and the version is printed in the bottom line. The bridge protocol remains
 2.3.3. In bridge mode the panel checks Hammerspoon's permission and active tap.
 
