@@ -12,7 +12,9 @@ jobs:
       - name: Validate metadata
         run: plutil -lint Info.plist LaunchAgent.plist
       - name: Build and test core
-        run: make test
+        run: |
+          brew list lua >/dev/null 2>&1 || brew install lua
+          make test
       - name: Test offscreen UI
         run: '".build/Language Relay.app/Contents/MacOS/LanguageRelay" --ui-self-test'
       - name: Verify signature and audio bundle
