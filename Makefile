@@ -72,7 +72,8 @@ test: build bridge-test
 # Bridge watchdog offscreen (wave 11 B, rule 50): the lua runs against a stub Hammerspoon, so the owner's
 # configuration is never loaded, reloaded or touched.
 bridge-test:
-	$(LUA) tests/bridge-watchdog.lua
+	@if command -v $(LUA) >/dev/null 2>&1; then $(LUA) tests/bridge-watchdog.lua; \
+	else echo "bridge-test: $(LUA) missing, skipped (install lua to run the watchdog test)"; fi
 
 design-check:
 	node scripts/sync-design-tokens.mjs --check
