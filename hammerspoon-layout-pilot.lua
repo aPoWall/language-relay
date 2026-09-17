@@ -16,7 +16,7 @@ local layoutPilotHome = assert(os.getenv("HOME"), "Language Relay requires HOME"
 local layoutPilotBinary = layoutPilotHome .. "/Applications/Language Relay.app/Contents/MacOS/LanguageRelay"
 local layoutPilotSoundDirectory = layoutPilotHome .. "/Applications/Language Relay.app/Contents/Resources/Sounds"
 local layoutPilotMarker = 1280329266 -- "LPV2"
-local layoutPilotBridgeVersion = "2.4.0"
+local layoutPilotBridgeVersion = "2.4.1"
 local layoutPilotDefaultFixMode = "lastWord"
 local layoutPilotBusy = false
 -- Bridge watchdog (wave 11 § B). The busy flag now carries the moment it was raised. A run that dies between two
@@ -80,11 +80,36 @@ local function layoutPilotBusyStale()
   return layoutPilotBusy and layoutPilotBusyAge() > layoutPilotBusyTimeout
 end
 
+-- A released flag is counted and dated in its own slots. `layout_pilot_last_status` is volatile: the gesture that
+-- follows the release overwrites it with `started-<trigger>` in the same call, so a timeout read from that slot
+-- alone is gone before the owner can see it. The counter and the moment survive the gesture and feed the
+-- `bridge` row, which is the diagnosis rule 51 asks the product to surface.
+local function layoutPilotRecordTimeout()
+  local count = hs.settings.get("layout_pilot_busy_timeouts")
+  if type(count) ~= "number" then count = 0 end
+  hs.settings.set("layout_pilot_busy_timeouts", count + 1)
+  hs.settings.set("layout_pilot_busy_timeout_at", layoutPilotNow())
+end
+
+-- Seconds since the last released flag, or -1 when the bridge has never released one.
+local function layoutPilotTimeoutAge()
+  local at = hs.settings.get("layout_pilot_busy_timeout_at")
+  if type(at) ~= "number" or at <= 0 then return -1 end
+  return math.max(0, layoutPilotNow() - at)
+end
+
+local function layoutPilotTimeoutCount()
+  local count = hs.settings.get("layout_pilot_busy_timeouts")
+  if type(count) ~= "number" then return 0 end
+  return count
+end
+
 -- The single release point of a flag that outlived its run. Returns true when it released one.
 local function layoutPilotReleaseStaleBusy()
   if not layoutPilotBusyStale() then return false end
   layoutPilotSetBusy(false)
   hs.settings.set("layout_pilot_last_status", "busy-timeout")
+  layoutPilotRecordTimeout()
   return true
 end
 
@@ -828,6 +853,8 @@ function layoutPilotStatus()
     busyTimeout = layoutPilotBusyTimeout,
     secureInput = secureInput,
     lastStatus = hs.settings.get("layout_pilot_last_status") or "ready",
+    timeouts = layoutPilotTimeoutCount(),
+    timeoutAgo = layoutPilotTimeoutAge(),
     settings = {
       phraseMode = layoutPilotSettings.phraseMode,
       directAXReplacement = layoutPilotSettings.directAXReplacement,
@@ -841,7 +868,8 @@ function layoutPilotStatus()
   }
 end
 
--- One line for the app: the seven fields of the status in a fixed order, joined by `|`.
+-- One line for the app: the nine fields of the status in a fixed order, joined by `|`. The last two carry the
+-- released flags, which the volatile `lastStatus` cannot hold past the next gesture.
 function layoutPilotStatusLine()
   local status = layoutPilotStatus()
   return table.concat({
@@ -852,6 +880,8 @@ function layoutPilotStatusLine()
     string.format("%.1f", status.busySeconds),
     tostring(status.secureInput),
     status.lastStatus,
+    string.format("%d", status.timeouts),
+    string.format("%.1f", status.timeoutAgo),
   }, "|")
 end
 

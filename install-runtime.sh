@@ -18,6 +18,7 @@ launch_target="gui/$UID/$label"
 stage_root=""
 snapshot=""
 restore_on_error=false
+bridge_changed=false
 
 cleanup() {
   local exit_code=$?
@@ -69,7 +70,13 @@ case "$action" in
     if [[ "$action" == update-background ]]; then
       # An existing healthy runtime can be updated without interactive setup.
       [[ -d "$installed_app" && -f "$agent_dest" && -f "$bridge_dest" && -f "$bridge_marker" ]]
-      /usr/bin/cmp "$bridge_source" "$bridge_dest"
+      # A changed bridge used to stop this route, and the app stayed behind its own archive because the only
+      # way forward ran the interactive setup, which reloads the owner's Hammerspoon and opens a settings
+      # window. Rule 52 keeps both off the owner's machine, so the new lua is copied here and the reload stays
+      # the owner's press; until then the bridge row reads the loaded version and names the one to reload for.
+      if ! /usr/bin/cmp -s "$bridge_source" "$bridge_dest"; then
+        bridge_changed=true
+      fi
     fi
     snapshot="$rollback_root/$(/bin/date -u +%Y%m%dT%H%M%SZ)"
     /bin/mkdir -p "$snapshot" "$HOME/Applications" "$HOME/Library/LaunchAgents" \
@@ -110,6 +117,9 @@ case "$action" in
 	    /bin/launchctl kickstart -k "$launch_target"
 	    restore_on_error=false
 	    if [[ "$action" == install ]]; then "$installed_app/Contents/MacOS/LanguageRelay" --setup; fi
+	    if [[ "$bridge_changed" == true ]]; then
+	      print "bridge file replaced; hammerspoon keeps the loaded one until you reload it yourself"
+	    fi
 	    print "installed; rollback snapshot: $snapshot"
 	    ;;
   rollback)
