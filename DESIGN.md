@@ -18,7 +18,7 @@ Vendored and shared ShaperKit remain unchanged.
 | Active indicator | #db303d, 16×2 pt |
 | Type | Bundled IBM Plex Mono 400/500/600, OFL |
 | Controls / shell | 8 / 16 pt radius |
-| Footprint | 420×488 pt, including expanded setup |
+| Footprint | 420×554 pt, including expanded setup and the `menu bar + hotkey` row |
 
 The panel keeps layout, repair scope, case, gestures and feedback visible. Setup
 expands inside reserved space. Hover uses a neutral fill; selection also has a
@@ -29,7 +29,7 @@ panel. The menu glyph remains a system template image for light/dark menu bars.
 
 The relay voxel character v2 (36 voxels, two light arrows, one red tip) is the dynamic
 product mark. `AIMVoxelView` draws it in the panel header at 40 pt next to the name,
-inside the same 420×488 shell. The first drawn frame is the assembled character; the
+inside the same 420×554 shell. The first drawn frame is the assembled character; the
 appear run (0.7 s, 6–8 depth steps, cubic-out) starts after that frame, so the popover
 never shows an empty header. Hover lifts the figure 2 pt in 0.16 s with a ±2 pt depth
 parallax; click, Space or Return runs scatter 0.25 s → assemble 0.55 s and swaps the two
@@ -57,7 +57,7 @@ App `Info.plist` is the native version source; npm metadata is checked at releas
 
 Setup disclosure uses the N1 160 ms state fade. It ends once, never loops, and
 reduced motion shows the final state immediately. The OS owns popover show/hide
-timing; its animation is disabled for reduced motion. The 420×488 shell and
+timing; its animation is disabled for reduced motion. The 420×554 shell and
 30–36 pt native controls deliberately retain the accepted compact layout rather
 than the web profile's 44 px touch targets. Native text remains 10–17 pt; the
 generated web type scale does not enlarge this utility. Hover, red selection

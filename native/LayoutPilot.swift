@@ -1151,7 +1151,9 @@ private final class DoubleShiftMonitor {
 
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 420
-    static let height: CGFloat = 488
+    /// wave 10: 488 pt up to 2.5.0; the `menu bar + hotkey` row of wave 10 adds a 14 pt heading, a 36 pt row and
+    /// two 8 pt gaps, and the page and the README carry the new default with it (rule 25)
+    static let height: CGFloat = 554
     /// window contract (AIM-APPS-RULES 21–26): 16 pt grid, 40 pt live mark, 28 pt header buttons, 11 pt footer
     static let grid: CGFloat = 16
     static let contentWidth: CGFloat = width - 2 * grid
@@ -1160,6 +1162,128 @@ private enum LayoutPilotPanelMetrics {
     static let footerHeight: CGFloat = 16
     /// rule 30: the shared hint card in the panel body; 16 pt insets, two text lines and a 28 pt button row
     static let hintCardHeight: CGFloat = 100
+}
+
+/// Wave 10 § A, one bar contract for the four AIM apps: the status item is visible by default and its shape is a
+/// choice, not a guess. `smart`, which hid the item while the machine was quiet, is gone; a stored setup moves to
+/// `mark + value` once, under its own key, so an owner who already read the layout in the bar keeps reading it.
+enum RelayMenuBarMode: String, CaseIterable {
+    /// the product mark alone, 18 pt template (rules 26, 39)
+    case mark
+    /// the mark plus the short value of this product: the active layout
+    case markValue = "mark-value"
+    /// the value alone, for a bar that is short of room
+    case value
+    /// no item at all; the panel is then reached by the hotkey or the CLI route
+    case hidden
+
+    static let key = "menuBarMode"
+    /// one-time move of an installed setup to the shape it already had on screen
+    static let migrationKey = "migratedMenuBarMode.2.5.1"
+    static let fallback = RelayMenuBarMode.mark
+
+    var title: String {
+        switch self {
+        case .mark: return "mark"
+        case .markValue: return "mark + value"
+        case .value: return "value"
+        case .hidden: return "hidden"
+        }
+    }
+
+    /// what the row under `menu bar` says about the mode, one short line each
+    var note: String {
+        switch self {
+        case .mark: return "the relay mark alone"
+        case .markValue: return "the mark and the active layout"
+        case .value: return "the active layout alone"
+        case .hidden: return "no item in the bar, hotkey opens the panel"
+        }
+    }
+
+    var showsMark: Bool { self == .mark || self == .markValue }
+    var showsValue: Bool { self == .markValue || self == .value }
+
+    /// status item width; a wide item is the first one macOS drops when the bar runs out of room (rule 45)
+    var itemWidth: CGFloat {
+        switch self {
+        case .mark: return 26
+        case .markValue: return 54
+        case .value: return 26
+        case .hidden: return 0
+        }
+    }
+}
+
+/// Wave 10 § C: one global combination per product, ⌥⌘L for Relay by default, changed from the panel.
+/// The combination opens the panel and closes it again; a combination another app already holds is refused by
+/// Carbon with `eventHotKeyExistsErr`, and a refused combination is reported in red and never stored.
+struct RelayHotkeyCombo: Equatable {
+    let id: String
+    let keyCode: UInt32
+    let carbonModifiers: UInt32
+    let title: String
+
+    static let off = RelayHotkeyCombo(id: "off", keyCode: 0, carbonModifiers: 0, title: "off")
+    /// The sibling products hold ⌥⌘M (MEM PRISM), ⌥⌘C (Calendar Control) and ⌥⌘A (Aside Tweaks), so none of the
+    /// four letters appears twice in this list.
+    static let choices: [RelayHotkeyCombo] = [
+        RelayHotkeyCombo(id: "option-command-l", keyCode: 37, carbonModifiers: UInt32(optionKey | cmdKey), title: "⌥⌘L"),
+        RelayHotkeyCombo(id: "control-option-l", keyCode: 37, carbonModifiers: UInt32(controlKey | optionKey), title: "⌃⌥L"),
+        RelayHotkeyCombo(id: "option-command-r", keyCode: 15, carbonModifiers: UInt32(optionKey | cmdKey), title: "⌥⌘R"),
+        RelayHotkeyCombo(id: "option-command-k", keyCode: 40, carbonModifiers: UInt32(optionKey | cmdKey), title: "⌥⌘K"),
+        off,
+    ]
+    static let fallback = choices[0]
+    static let key = "globalHotkey"
+    static func named(_ id: String?) -> RelayHotkeyCombo { choices.first { $0.id == id } ?? fallback }
+}
+
+/// The Carbon hot key of the product. One registration at a time, installed once, released on a change.
+private final class RelayHotkeyCenter {
+    static let shared = RelayHotkeyCenter()
+    private var hotKey: EventHotKeyRef?
+    private var handler: EventHandlerRef?
+    private(set) var current: RelayHotkeyCombo = .off
+    var onFire: (() -> Void)?
+
+    private init() {}
+
+    private func installHandlerIfNeeded() {
+        guard handler == nil else { return }
+        var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
+        InstallEventHandler(GetApplicationEventTarget(), { _, event, context in
+            guard let context else { return noErr }
+            var identifier = EventHotKeyID()
+            GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID),
+                              nil, MemoryLayout<EventHotKeyID>.size, nil, &identifier)
+            let center = Unmanaged<RelayHotkeyCenter>.fromOpaque(context).takeUnretainedValue()
+            center.onFire?()
+            return noErr
+        }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &handler)
+    }
+
+    func unregister() {
+        if let hotKey { UnregisterEventHotKey(hotKey) }
+        hotKey = nil
+        current = .off
+    }
+
+    /// `true` when the combination is now held by this product; `false` when another app already holds it.
+    @discardableResult
+    func register(_ combo: RelayHotkeyCombo) -> Bool {
+        unregister()
+        guard combo != .off else { return true }
+        installHandlerIfNeeded()
+        var ref: EventHotKeyRef?
+        let identifier = EventHotKeyID(signature: OSType(0x524C4159), id: 1)
+        let status = RegisterEventHotKey(combo.keyCode, combo.carbonModifiers, identifier,
+                                         GetApplicationEventTarget(), 0, &ref)
+        guard status == noErr, let ref else { return false }
+        hotKey = ref
+        current = combo
+        return true
+    }
 }
 
 private enum PanelHealth {
@@ -1213,38 +1337,52 @@ private final class LayoutPilotRootView: NSView {
 }
 
 private enum LayoutPilotStatusGlyph {
-    static func make(russianActive: Bool) -> NSImage {
-        let size = NSSize(width: 54, height: 18)
+    /// Wave 10 § A: the bar item is drawn in the mode the owner chose. `hidden` has no drawing at all, the other
+    /// three share one canvas height, 18 pt, so the item keeps its place in the bar between modes.
+    static func make(russianActive: Bool, mode: RelayMenuBarMode = .mark) -> NSImage? {
+        guard mode != .hidden else { return nil }
+        let size = NSSize(width: mode.itemWidth, height: 18)
         // rules 26, 39: the bar icon is the product mark drawn by AIMAppMarkView from aim-app-marks.svg,
-        // the same component and the same source the panel header uses; the voxel character stays inside the surface
+        // the same component and the same source the About window uses; the voxel character stays inside the panel
         let mark = AIMAppMarkView.image(.relay, size: AIMAppMarkView.menuBarSize, mono: true)
-        let image = NSImage(size: size, flipped: false) { rect in
+        let image = NSImage(size: size, flipped: false) { _ in
             NSColor.black.setStroke()
             NSColor.black.setFill()
 
-            // live mark on the left (template voxel character), active alphabet cell on the right
-            mark.draw(in: NSRect(x: 0, y: 0, width: 18, height: 18), from: .zero, operation: .sourceOver, fraction: 1)
-            drawCell(NSRect(x: 35, y: 1, width: 18, height: 16), text: russianActive ? "ру" : "a", active: true)
-
-            let relay = NSBezierPath()
-            relay.move(to: NSPoint(x: 21, y: 9))
-            relay.line(to: NSPoint(x: 33, y: 9))
-            relay.move(to: NSPoint(x: 21, y: 9))
-            relay.line(to: NSPoint(x: 24.5, y: 12.5))
-            relay.move(to: NSPoint(x: 21, y: 9))
-            relay.line(to: NSPoint(x: 24.5, y: 5.5))
-            relay.move(to: NSPoint(x: 33, y: 9))
-            relay.line(to: NSPoint(x: 29.5, y: 12.5))
-            relay.move(to: NSPoint(x: 33, y: 9))
-            relay.line(to: NSPoint(x: 29.5, y: 5.5))
-            relay.lineWidth = 1
-            relay.stroke()
+            if mode.showsMark {
+                let x: CGFloat = mode == .mark ? 4 : 0
+                mark.draw(in: NSRect(x: x, y: 0, width: 18, height: 18), from: .zero, operation: .sourceOver, fraction: 1)
+            }
+            if mode.showsValue {
+                let x: CGFloat = mode == .value ? 4 : 35
+                drawCell(NSRect(x: x, y: 1, width: 18, height: 16), text: russianActive ? "ру" : "a", active: true)
+            }
+            if mode == .markValue {
+                // the two arrows read as a direction only where the mark and the value stand together
+                let relay = NSBezierPath()
+                relay.move(to: NSPoint(x: 21, y: 9))
+                relay.line(to: NSPoint(x: 33, y: 9))
+                relay.move(to: NSPoint(x: 21, y: 9))
+                relay.line(to: NSPoint(x: 24.5, y: 12.5))
+                relay.move(to: NSPoint(x: 21, y: 9))
+                relay.line(to: NSPoint(x: 24.5, y: 5.5))
+                relay.move(to: NSPoint(x: 33, y: 9))
+                relay.line(to: NSPoint(x: 29.5, y: 12.5))
+                relay.move(to: NSPoint(x: 33, y: 9))
+                relay.line(to: NSPoint(x: 29.5, y: 5.5))
+                relay.lineWidth = 1
+                relay.stroke()
+            }
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = "Language Relay · \(russianActive ? "Russian – PC" : "U.S.") active"
+        let layout = russianActive ? "Russian – PC" : "U.S."
+        image.accessibilityDescription = mode.showsValue
+            ? "Language Relay · \(layout) active"
+            : "Language Relay"
         return image
     }
+
 
     private static func drawCell(_ rect: NSRect, text: String, active: Bool) {
         let path = NSBezierPath(rect: rect)
@@ -1305,13 +1443,22 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         defaults.set(true, forKey: pinMigrationKey)
     }
     private var pinned: Bool = AppDelegate.pinDefault
+    /// Wave 10 § A: an installed setup keeps the shape it already had in the bar, a fresh install starts at `mark`.
+    static func migrateMenuBarMode(defaults: UserDefaults = .standard) {
+        guard !defaults.bool(forKey: RelayMenuBarMode.migrationKey) else { return }
+        let installedKeys = [Preferences.fixModeKey, "soundName", "soundLevel", "capitalizationMode", "shiftEnabled", "optionEnabled"]
+        if installedKeys.contains(where: { defaults.object(forKey: $0) != nil }) {
+            defaults.set(RelayMenuBarMode.markValue.rawValue, forKey: RelayMenuBarMode.key)
+        }
+        defaults.set(true, forKey: RelayMenuBarMode.migrationKey)
+    }
     private var pinButton: AIMPinButton?
     private var settingsButton: AIMShellButton?
     /// Rule 33: one surface owns show, the read-only outside-click monitor and `close(reason:)`.
     private var surface: AIMSurface?
     private(set) var lastCloseReason: AIMSurface.CloseReason?
     /// Rule 33: every entrance Relay offers, all of them ending in the one `AIMSurface.close(reason:)`.
-    static let closeReasons: [AIMSurface.CloseReason] = [.escape, .commandW, .closeButton, .menuBarItem, .route, .outsideClick, .host]
+    static let closeReasons: [AIMSurface.CloseReason] = [.escape, .commandW, .closeButton, .menuBarItem, .hotkey, .route, .outsideClick, .host]
     private var previewSound: NSSound?
     private var lastObservedInputID: String?
     private var setupExpanded = false
@@ -1364,6 +1511,25 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         set { defaults.set(newValue, forKey: "optionEnabled") }
     }
 
+    /// Wave 10 § A: the shape of the status item, one list of four
+    private var menuBarMode: RelayMenuBarMode {
+        get {
+            RelayMenuBarMode(rawValue: defaults.string(forKey: RelayMenuBarMode.key) ?? RelayMenuBarMode.fallback.rawValue)
+                ?? RelayMenuBarMode.fallback
+        }
+        set { defaults.set(newValue.rawValue, forKey: RelayMenuBarMode.key) }
+    }
+
+    /// Wave 10 § C: the global combination that opens and closes the panel
+    private var hotkey: RelayHotkeyCombo {
+        get { RelayHotkeyCombo.named(defaults.string(forKey: RelayHotkeyCombo.key)) }
+        set { defaults.set(newValue.id, forKey: RelayHotkeyCombo.key) }
+    }
+    /// set when Carbon refused the last chosen combination, printed in red under the row and not stored
+    private var hotkeyConflict: String?
+    /// the `hidden` mode asks for a second press before the item leaves the bar
+    private var hiddenModeArmed = false
+
     init(core: LayoutConversionCore) {
         self.core = core
         self.fixer = TextFixer(core: core)
@@ -1372,6 +1538,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Preferences.migrateDefaultScope(defaults: defaults)
+        Self.migrateMenuBarMode(defaults: defaults)
         Self.migratePin(defaults: defaults)
         if defaults.object(forKey: Self.pinKey) != nil { pinned = defaults.bool(forKey: Self.pinKey) }
         enforceSingleInstance()
@@ -1381,6 +1548,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         NSApp.setActivationPolicy(.accessory)
         _ = RelayStyle.mono(11)
         setupStatusItem()
+        installHotkey()
 
         monitor = DoubleShiftMonitor { [weak self] in self?.performFix() }
         if usesHammerspoonBridge {
@@ -1415,6 +1583,17 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         // (an outside click by the user closes a transient panel, rule 29) and check the pinned state without a click
         case "pin": if !pinned { setPinned(true) }
         case "unpin": if pinned { setPinned(false) }
+        // wave 10 A and C: the two settings that live behind a menu are reachable by the same route as `pin`, so the
+        // control walk of rule 41 reads the consequence out of `--design-json` instead of driving an NSMenu, which a
+        // non-activating panel cannot hold open. The setter is the one the menu item calls.
+        case "mode":
+            if let name = notification.userInfo?["value"] as? String, let mode = RelayMenuBarMode(rawValue: name) {
+                setMenuBarMode(mode)
+            }
+        case "hotkey":
+            if let name = notification.userInfo?["value"] as? String {
+                setHotkey(name == "off" ? .off : RelayHotkeyCombo.named(name))
+            }
         default: break
         }
     }
@@ -1461,6 +1640,59 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         // no activation, no key focus: the panel is on screen for an agent, the user keeps their app.
         // The show, the appear token and the outside-click monitor are the shared surface (rules 28, 29, 33).
         surface?.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .maxY)
+    }
+
+    // MARK: Menu bar mode and global hotkey (wave 10 A, C)
+
+    /// Wave 10 § C: one global combination, registered at launch and after every change. A combination another
+    /// app already holds comes back refused, and the refusal is what the settings row prints.
+    private func installHotkey() {
+        RelayHotkeyCenter.shared.onFire = { [weak self] in
+            Task { @MainActor in self?.toggleFromHotkey() }
+        }
+        let stored = hotkey
+        if RelayHotkeyCenter.shared.register(stored) {
+            hotkeyConflict = nil
+        } else {
+            hotkeyConflict = "\(stored.title) is held by another app"
+            RelayHotkeyCenter.shared.register(.off)
+        }
+    }
+
+    /// The combination is the sixth entrance of rule 33: it opens the panel and closes the same one.
+    private func toggleFromHotkey() {
+        if surface?.isShown == true {
+            surface?.close(reason: .hotkey)
+            return
+        }
+        guard Date().timeIntervalSince(lastPopoverCloseAt) > 0.2 else { return }
+        // with the item hidden there is no button to anchor to, so the panel opens in the corner the testbed uses
+        if menuBarMode == .hidden || statusItem.button?.window == nil {
+            showTestbed()
+        } else {
+            showPopover()
+        }
+    }
+
+    /// Wave 10 § A: a new mode is stored, the bar item is redrawn at once and the panel row follows.
+    private func setMenuBarMode(_ mode: RelayMenuBarMode) {
+        menuBarMode = mode
+        hiddenModeArmed = false
+        updateStatusButton()
+        rebuildPopoverContent()
+    }
+
+    /// Wave 10 § C: a refused combination is not stored, the previous one keeps working.
+    private func setHotkey(_ combo: RelayHotkeyCombo) {
+        if RelayHotkeyCenter.shared.register(combo) {
+            hotkey = combo
+            hotkeyConflict = nil
+        } else {
+            hotkeyConflict = "\(combo.title) is held by another app"
+            RelayHotkeyCenter.shared.register(hotkey)
+        }
+        updateStatusButton()
+        rebuildPopoverContent()
     }
 
     // MARK: Closing contract (rules 29, 31, 33)
@@ -1515,10 +1747,13 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
 
     private func setupStatusItem() {
-        statusItem = NSStatusBar.system.statusItem(withLength: 54)
+        // rule 45 and wave 10 A: the item is visible by default and its width follows the chosen mode. The
+        // autosave name keeps the position the owner dragged it to across builds.
+        let mode = menuBarMode
+        statusItem = NSStatusBar.system.statusItem(withLength: mode == .hidden ? 0 : mode.itemWidth)
         statusItem.autosaveName = "dev.alex.layout-pilot.status-item.v3"
         statusItem.menu = nil
-        statusItem.isVisible = true
+        statusItem.isVisible = mode != .hidden
         guard let button = statusItem.button else { return }
         button.target = self
         button.action = #selector(statusItemAction(_:))
@@ -1532,8 +1767,12 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     private func updateStatusButton() {
         let currentID = InputSources.currentID()
         let russian = currentID == AppIdentity.russianPCID
-        statusItem.button?.image = LayoutPilotStatusGlyph.make(russianActive: russian)
-        statusItem.button?.toolTip = "Language Relay · ⇧⇧ or clean ⌥ repairs the last wrong-layout text"
+        let mode = menuBarMode
+        statusItem.length = mode == .hidden ? 0 : mode.itemWidth
+        statusItem.isVisible = mode != .hidden
+        statusItem.button?.image = LayoutPilotStatusGlyph.make(russianActive: russian, mode: mode)
+        let open = hotkey == .off ? "" : " · \(hotkey.title) opens the panel"
+        statusItem.button?.toolTip = "Language Relay · ⇧⇧ or clean ⌥ repairs the last wrong-layout text\(open)"
         if let previous = lastObservedInputID,
            previous != currentID,
            popover?.isShown == true {
@@ -1698,9 +1937,24 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                                   onSettings: { [weak self] in self?.showSettingsMenu() },
                                   pin: pin,
                                   onClose: { [weak self] in self?.surface?.close(reason: .closeButton) })
-        header.markView.identifier = NSUserInterfaceItemIdentifier("product-mark")
         header.statusLabel?.identifier = NSUserInterfaceItemIdentifier("product-version")
-        header.markView.toolTip = "language relay"
+        // Wave 10 B: the voxel character stands in the header, 40 pt, and answers the cursor and a click with its
+        // own gesture (rules 5 to 9). The flat mark of aim-app-marks.svg keeps the menu bar, About and the favicons,
+        // so the two drawings never swap places. The shell header hands over its mark slot inside the same stack,
+        // which keeps the 40 pt box, the order and the centre line of rule 32 untouched.
+        let character = AIMVoxelView(model: AIMVoxelModels.relay,
+                                     frame: NSRect(x: 0, y: 0, width: LayoutPilotPanelMetrics.markSize, height: LayoutPilotPanelMetrics.markSize))
+        character.identifier = NSUserInterfaceItemIdentifier("product-character")
+        character.translatesAutoresizingMaskIntoConstraints = false
+        character.toolTip = "language relay \u{00B7} click to mirror the arrows"
+        if let markRow = header.markView.superview as? NSStackView {
+            markRow.insertView(character, at: 0, in: .leading)
+            markRow.removeView(header.markView)
+            NSLayoutConstraint.activate([
+                character.widthAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.markSize),
+                character.heightAnchor.constraint(equalToConstant: LayoutPilotPanelMetrics.markSize),
+            ])
+        }
         header.settingsButton?.toolTip = "setup details \u{00B7} switch layout \u{00B7} quit"
         header.settingsButton?.setAccessibilityHelp("Setup details, layout switch and quit")
         settingsButton = header.settingsButton
@@ -1800,6 +2054,43 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         })
         root.addArrangedSubview(feedbackRow)
 
+        // Wave 10 A and C: the bar mode with a live preview of the item, and the global combination beside it.
+        // The section heading carries the refusal when Carbon says the combination belongs to another app, so the
+        // row keeps one height in every state.
+        let barHeading = relaySectionHeader(hotkeyConflict.map { "hotkey busy \u{00B7} \($0)" } ?? "menu bar + hotkey",
+                                            width: LayoutPilotPanelMetrics.contentWidth)
+        if hotkeyConflict != nil { barHeading.textColor = RelayStyle.accent }
+        barHeading.identifier = NSUserInterfaceItemIdentifier("menu-bar-heading")
+        root.addArrangedSubview(barHeading)
+        let barRow = NSStackView()
+        barRow.orientation = .horizontal
+        barRow.alignment = .centerY
+        barRow.spacing = 6
+        let mode = menuBarMode
+        let preview = NSImageView()
+        preview.identifier = NSUserInterfaceItemIdentifier("menu-bar-preview")
+        preview.image = LayoutPilotStatusGlyph.make(russianActive: InputSources.currentID() == AppIdentity.russianPCID, mode: mode)
+        preview.imageScaling = .scaleNone
+        preview.contentTintColor = RelayStyle.ink
+        preview.translatesAutoresizingMaskIntoConstraints = false
+        preview.toolTip = "the item as the bar draws it right now"
+        preview.setAccessibilityElement(true)
+        preview.setAccessibilityRole(.image)
+        preview.setAccessibilityLabel("menu bar preview \u{00B7} \(mode.title)")
+        preview.widthAnchor.constraint(equalToConstant: 60).isActive = true
+        preview.heightAnchor.constraint(equalToConstant: 36).isActive = true
+        barRow.addArrangedSubview(preview)
+        let modeButton = squareButton("bar \u{00B7} \(mode.title) \u{00B7} \u{25BE}", action: #selector(showMenuBarModeMenu(_:)), identifier: "menu-bar-mode", width: 176, height: 36)
+        modeButton.toolTip = mode.note
+        modeButton.setAccessibilityHelp("Choose how the menu bar item is drawn")
+        barRow.addArrangedSubview(modeButton)
+        let keyTitle = hotkey == .off ? "hotkey \u{00B7} off" : "key \u{00B7} \(hotkey.title)"
+        let hotkeyButton = squareButton("\(keyTitle) \u{00B7} \u{25BE}", action: #selector(showHotkeyMenu(_:)), identifier: "global-hotkey", width: 140, height: 36)
+        hotkeyButton.toolTip = hotkey == .off ? "no global combination" : "\(hotkey.title) opens and closes the panel"
+        hotkeyButton.setAccessibilityHelp("Choose the global combination that opens the panel")
+        barRow.addArrangedSubview(hotkeyButton)
+        root.addArrangedSubview(barRow)
+
         root.addArrangedSubview(setupDisclosure())
         return content
     }
@@ -1808,9 +2099,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         PanelHealth.label(bridge: panelBridgeHealth, nativeTrusted: fixer.hasAccessibilityPermission, competingOwner: carambaRunning)
     }
 
-    /// footer keys: only the gestures that are switched on; none on → says so instead of promising a key
+    /// footer keys: the global combination of this product first (wave 10 C), then the gestures that are switched
+    /// on; a gesture set that is fully off says so instead of promising a key
     private var footerKeysLabel: String {
-        PanelHealth.keys(shift: shiftEnabled, option: optionEnabled)
+        let gestures = PanelHealth.keys(shift: shiftEnabled, option: optionEnabled)
+        guard hotkey != .off else { return gestures }
+        // The three parts of rule 22 share 388 pt and the right part had no slack at 2.5.0, so the gesture reading
+        // is compressed where the combination joins it: the middle dot goes and the two gesture glyphs stand
+        // together. The status keeps room for `version \u{00B7} health` in its longest state, `setup \u{00B7} required`.
+        let compact = gestures
+            .replacingOccurrences(of: " \u{00B7} ", with: " ")
+            .replacingOccurrences(of: "\u{21E7}\u{21E7} \u{2325}", with: "\u{21E7}\u{21E7}\u{2325}")
+        return "\(hotkey.title) \(compact)"
     }
 
     private func setupDisclosure() -> NSView {
@@ -2054,16 +2354,32 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 } else {
                     guard RelayFocus.target(in: panel, identifier: .init("setup")) is RelayButton else { return false }
                 }
-                // rule 39: the header carries the product mark, the same drawing and source as the menu bar icon
+                // wave 10 B: the header carries the voxel character 40 pt; the flat mark stays in the menu bar
                 let m = LayoutPilotPanelMetrics.markSize
-                guard let mark = RelayFocus.target(in: panel, identifier: .init("product-mark")) as? AIMAppMarkView,
-                      mark.frame.size == NSSize(width: m, height: m), mark.mark == .relay,
-                      mark.accessibilityLabel() == AIMAppMark.relay.label, m == AIMAppMarkView.headerSize else {
-                    fputs("FAIL: product mark missing in panel header\n", stderr); return false
+                guard let mark = RelayFocus.target(in: panel, identifier: .init("product-character")) as? AIMVoxelView,
+                      mark.frame.size == NSSize(width: m, height: m),
+                      mark.model.name == AIMVoxelModels.relay.name,
+                      mark.currentVoxels.count == AIMVoxelModels.relay.count,
+                      RelayFocus.target(in: panel, identifier: .init("product-mark")) == nil else {
+                    fputs("FAIL: voxel character missing in panel header (wave 10 B)\n", stderr); return false
+                }
+                // wave 10 A and C: the bar row prints the item as the bar draws it, names the mode and the combination
+                guard let preview = RelayFocus.target(in: panel, identifier: .init("menu-bar-preview")) as? NSImageView,
+                      // `hidden` draws nothing, which is the honest preview of an item that is not in the bar
+                      menuBarMode == .hidden
+                        ? preview.image == nil
+                        : (preview.image?.size == NSSize(width: menuBarMode.itemWidth, height: 18) && preview.image?.isTemplate == true),
+                      preview.accessibilityLabel()?.contains(menuBarMode.title) == true,
+                      let modeButton = RelayFocus.target(in: panel, identifier: .init("menu-bar-mode")) as? RelayButton,
+                      modeButton.caption.contains(menuBarMode.title),
+                      let keyButton = RelayFocus.target(in: panel, identifier: .init("global-hotkey")) as? RelayButton,
+                      keyButton.caption.lowercased().contains((hotkey == .off ? "off" : hotkey.title).lowercased()),
+                      RelayFocus.target(in: panel, identifier: .init("menu-bar-heading")) is NSTextField else {
+                    fputs("FAIL: menu bar row (wave 10 A, C)\n", stderr); return false
                 }
                 // window contract: settings + × in the header on the same line as the name, footer keys · esc close · version/status
                 let b = LayoutPilotPanelMetrics.headerButton
-                guard let shellHeader = RelayFocus.target(in: panel, identifier: .init("product-mark"))?.superview?.superview as? AIMAppHeader,
+                guard let shellHeader = RelayFocus.target(in: panel, identifier: .init("product-character"))?.superview?.superview as? AIMAppHeader,
                       let settings = RelayFocus.target(in: panel, identifier: .init("settings")) as? AIMShellButton,
                       let pin = RelayFocus.target(in: panel, identifier: .init("pin-panel")) as? AIMPinButton,
                       let close = RelayFocus.target(in: panel, identifier: .init("close-panel")) as? AIMShellButton,
@@ -2088,6 +2404,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       let status = RelayFocus.target(in: panel, identifier: .init("hint-status")) as? NSTextField,
                       keys.font?.pointSize == AIMAppShellStyle.footerSize, esc.stringValue == "esc close",
                       status.stringValue.contains("v\(AppIdentity.version)"),
+                      // wave 10 C: the combination moved into the left part, so the right part is measured here
+                      // in every health state instead of being trusted to fit
+                      status.frame.width + 0.5 >= status.intrinsicContentSize.width,
+                      keys.frame.width + 0.5 >= keys.intrinsicContentSize.width,
+                      keys.stringValue.hasPrefix(hotkey == .off ? "" : hotkey.title),
                       abs(footer.convert(footer.bounds, to: panel).minY - LayoutPilotPanelMetrics.grid) < 0.5 else {
                     fputs("FAIL: panel footer\n", stderr); return false
                 }
@@ -2141,7 +2462,41 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 fputs("FAIL: pin migration to transient\n", stderr); return false
             }
         }
-        let glyph = LayoutPilotStatusGlyph.make(russianActive: false)
+        // wave 10 A: four modes, three drawings and one empty state; the migration moves an installed setup once
+        if let probe = UserDefaults(suiteName: suite) {
+            probe.removePersistentDomain(forName: suite)
+            probe.set("phrase", forKey: Preferences.fixModeKey)
+            AppDelegate.migrateMenuBarMode(defaults: probe)
+            let installed = probe.string(forKey: RelayMenuBarMode.key) == RelayMenuBarMode.markValue.rawValue
+            probe.removePersistentDomain(forName: suite)
+            AppDelegate.migrateMenuBarMode(defaults: probe)
+            let fresh = probe.string(forKey: RelayMenuBarMode.key) == nil
+                && probe.bool(forKey: RelayMenuBarMode.migrationKey)
+            probe.removePersistentDomain(forName: suite)
+            guard installed, fresh else {
+                fputs("FAIL: menu bar mode migration (wave 10 A)\n", stderr); return false
+            }
+        }
+        guard LayoutPilotStatusGlyph.make(russianActive: false, mode: .hidden) == nil,
+              LayoutPilotStatusGlyph.make(russianActive: false, mode: .mark)?.size == NSSize(width: 26, height: 18),
+              LayoutPilotStatusGlyph.make(russianActive: true, mode: .value)?.size == NSSize(width: 26, height: 18),
+              LayoutPilotStatusGlyph.make(russianActive: true, mode: .markValue)?.size == NSSize(width: 54, height: 18),
+              RelayMenuBarMode.fallback == .mark, RelayMenuBarMode.allCases.count == 4,
+              RelayMenuBarMode.mark.showsMark, !RelayMenuBarMode.value.showsMark,
+              RelayMenuBarMode.markValue.showsValue, !RelayMenuBarMode.mark.showsValue else {
+            fputs("FAIL: menu bar modes (wave 10 A)\n", stderr); return false
+        }
+        // wave 10 C: five offers, the default ⌥⌘L, and no letter that belongs to a sibling product
+        let taken: Set<UInt32> = [46, 8, 0] // m, c, a
+        guard RelayHotkeyCombo.fallback.title == "⌥⌘L", RelayHotkeyCombo.choices.count == 5,
+              RelayHotkeyCombo.named(nil) == RelayHotkeyCombo.fallback,
+              RelayHotkeyCombo.named("off") == .off,
+              RelayHotkeyCombo.choices.allSatisfy({ $0 == .off || !taken.contains($0.keyCode) }),
+              Set(RelayHotkeyCombo.choices.map(\.id)).count == 5,
+              AppDelegate.closeReasons.contains(.hotkey) else {
+            fputs("FAIL: global hotkey list (wave 10 C)\n", stderr); return false
+        }
+        let glyph = LayoutPilotStatusGlyph.make(russianActive: false, mode: .markValue)
         // rules 26, 39: the bar carries the product mark AIMAppMarkView draws, one component and one source
         // (aim-app-marks.svg) for the menu bar and the panel header
         let barMark = AIMAppMarkView.image(.relay, size: AIMAppMarkView.menuBarSize, mono: true)
@@ -2151,8 +2506,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
               AIMAppMark.canvas == 48, AIMAppMark.strokeWidth == 2 else {
             fputs("FAIL: menu bar mark, one source with the header mark\n", stderr); return false
         }
-        return glyph.size == NSSize(width: 54, height: 18)
-            && glyph.isTemplate
+        return glyph?.size == NSSize(width: 54, height: 18)
+            && glyph?.isTemplate == true
     }
 
     /// debug: the Tab order of the panel in an offscreen window (`--key-loop`)
@@ -2325,6 +2680,71 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         openMenu = menu
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
     }
+    /// Wave 10 A: one list of four, each row carrying the drawing it will put in the bar. `hidden` is one step
+    /// deeper: the row opens a submenu whose single item is the confirmation, so an item never leaves the bar on
+    /// a mis-click.
+    @objc private func showMenuBarModeMenu(_ sender: RelayButton) {
+        let russian = InputSources.currentID() == AppIdentity.russianPCID
+        let current = menuBarMode
+        let menu = NSMenu(title: "menu bar")
+        for mode in RelayMenuBarMode.allCases {
+            let item = NSMenuItem(title: "\(mode.title) \u{00B7} \(mode.note)", action: nil, keyEquivalent: "")
+            item.image = LayoutPilotStatusGlyph.make(russianActive: russian, mode: mode)
+            item.state = mode == current ? .on : .off
+            if mode == .hidden {
+                let confirm = NSMenu(title: "hidden")
+                let yes = NSMenuItem(title: "hide the item \u{00B7} confirm", action: #selector(setModeHidden), keyEquivalent: "")
+                yes.target = self
+                confirm.addItem(yes)
+                let no = NSMenuItem(title: "keep the item in the bar", action: #selector(setModeMark), keyEquivalent: "")
+                no.target = self
+                confirm.addItem(no)
+                item.submenu = confirm
+            } else {
+                item.target = self
+                item.action = switch mode {
+                case .mark: #selector(setModeMark)
+                case .markValue: #selector(setModeMarkValue)
+                default: #selector(setModeValue)
+                }
+            }
+            menu.addItem(item)
+        }
+        openMenu = menu
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
+    }
+
+    @objc private func setModeMark() { setMenuBarMode(.mark) }
+    @objc private func setModeMarkValue() { setMenuBarMode(.markValue) }
+    @objc private func setModeValue() { setMenuBarMode(.value) }
+    @objc private func setModeHidden() { setMenuBarMode(.hidden) }
+
+    /// Wave 10 C: the combinations this product offers. The four letters of the family are spread across the
+    /// products, so the list never proposes ⌥⌘M, ⌥⌘C or ⌥⌘A.
+    @objc private func showHotkeyMenu(_ sender: RelayButton) {
+        let menu = NSMenu(title: "global hotkey")
+        let current = hotkey
+        for (index, combo) in RelayHotkeyCombo.choices.enumerated() {
+            let item = NSMenuItem(title: combo == .off ? "off \u{00B7} no global combination" : combo.title,
+                                  action: Self.hotkeySelectors[index], keyEquivalent: "")
+            item.target = self
+            item.state = combo == current ? .on : .off
+            menu.addItem(item)
+        }
+        openMenu = menu
+        menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
+    }
+
+    private static let hotkeySelectors: [Selector] = [
+        #selector(setHotkeyOptionCommandL), #selector(setHotkeyControlOptionL),
+        #selector(setHotkeyOptionCommandR), #selector(setHotkeyOptionCommandK), #selector(setHotkeyOff),
+    ]
+    @objc private func setHotkeyOptionCommandL() { setHotkey(RelayHotkeyCombo.choices[0]) }
+    @objc private func setHotkeyControlOptionL() { setHotkey(RelayHotkeyCombo.choices[1]) }
+    @objc private func setHotkeyOptionCommandR() { setHotkey(RelayHotkeyCombo.choices[2]) }
+    @objc private func setHotkeyOptionCommandK() { setHotkey(RelayHotkeyCombo.choices[3]) }
+    @objc private func setHotkeyOff() { setHotkey(.off) }
+
     @objc private func setSoundPulse() { selectSound(.pulse) }
     @objc private func setSoundRelay() { selectSound(.relay) }
     @objc private func setSoundScan() { selectSound(.scan) }
@@ -2461,11 +2881,14 @@ private struct LayoutPilotMain {
             exit(RuntimeShutdown.run())
         }
         if let index = arguments.firstIndex(of: "--testbed") {
-            // `LanguageRelay --testbed show|hide|toggle|pin|unpin`: tell the running instance and exit; nothing is activated
+            // `LanguageRelay --testbed show|hide|toggle|pin|unpin`, plus `mode <mark|mark-value|value|hidden>` and
+            // `hotkey <id|off>`: tell the running instance and exit; nothing is activated
             let action = arguments.indices.contains(index + 1) ? arguments[index + 1] : "show"
+            let value = arguments.indices.contains(index + 2) ? arguments[index + 2] : ""
             DistributedNotificationCenter.default().postNotificationName(
-                AppDelegate.testbedNotification, object: nil, userInfo: ["action": action], deliverImmediately: true)
-            print("language relay: testbed \(action) sent")
+                AppDelegate.testbedNotification, object: nil,
+                userInfo: ["action": action, "value": value], deliverImmediately: true)
+            print("language relay: testbed \(action) \(value) sent")
             exit(0)
         }
         if arguments.contains("--status") {
@@ -2550,6 +2973,14 @@ private struct LayoutPilotMain {
                 "pinned": UserDefaults.standard.object(forKey: AppDelegate.pinKey) == nil ? AppDelegate.pinDefault : UserDefaults.standard.bool(forKey: AppDelegate.pinKey),
                 "closeContract": "AIM-APPS-RULES 29, 33",
                 "closeReasons": AppDelegate.closeReasons.map(\.rawValue),
+                "headerCharacter": AIMVoxelModels.relay.name,
+                "headerCharacterSize": Int(LayoutPilotPanelMetrics.markSize),
+                "menuBarModes": RelayMenuBarMode.allCases.map(\.rawValue),
+                "menuBarModeDefault": RelayMenuBarMode.fallback.rawValue,
+                "menuBarMode": UserDefaults.standard.string(forKey: RelayMenuBarMode.key) ?? RelayMenuBarMode.fallback.rawValue,
+                "hotkeyDefault": RelayHotkeyCombo.fallback.title,
+                "hotkey": RelayHotkeyCombo.named(UserDefaults.standard.string(forKey: RelayHotkeyCombo.key)).title,
+                "hotkeyChoices": RelayHotkeyCombo.choices.map(\.title),
             ])
             exit(0)
         }
@@ -2598,7 +3029,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; rule 39 one mark source (header 40pt AIMAppMarkView, menu bar 18pt template, two arrows); header order settings + pin + x 28pt, name untruncated, version line under the name, segment names follow selection, footer 11pt, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); setup hint card from AIMHintCard (rule 30); command-w close, tab reach, footer keys; panel=420x488; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; wave 10 B header 40pt voxel character, flat mark only in the bar; wave 10 A four bar modes (mark default, mark+value migrated once, value, hidden) with a live preview row; wave 10 C global ⌥⌘L in five offers, close reason hotkey; header order settings + pin + x 28pt, name untruncated, version line under the name, segment names follow selection, footer 11pt names the combination, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); setup hint card from AIMHintCard (rule 30); command-w close, tab reach, footer keys; panel=420x554; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {
