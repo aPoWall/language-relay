@@ -11,7 +11,7 @@ private enum AppIdentity {
     /// The header line under the product name (rule 21): the same `version · build N` reading Calendar Control
     /// and MEM PRISM print, so the three headers carry one text.
     static var versionLine: String { "\(version) \u{00B7} build \(build)" }
-    static let bridgeVersion = "2.3.3"
+    static let bridgeVersion = "2.4.0"
     static let bundleID = "dev.alex.layout-pilot"
     static let launchAgentLabel = "dev.alex.layout-pilot"
     static let usID = "com.apple.keylayout.US"
@@ -99,9 +99,32 @@ private struct HammerspoonHealth {
     let bridgeVersion: String?
     let lastStatus: String?
     let timedOut: Bool
+    /// Wave 11 § B: the three readings of `layoutPilotStatus()` the panel shows. A bridge older than 2.4.0 has no
+    /// status function, so `watchdogAvailable` is false and the row says which version is loaded instead of
+    /// printing a flag it cannot read.
+    var busy: Bool = false
+    var busyStale: Bool = false
+    var busySeconds: Double = 0
+    var secureInput: Bool = false
+    var watchdogAvailable: Bool = false
 
     var bridgeActive: Bool {
         ipcAvailable && inputTapEnabled && bridgeVersion == AppIdentity.bridgeVersion
+    }
+
+    /// One line for the `bridge` row of the settings and for `--bridge-json`.
+    var bridgeLine: String {
+        guard ipcAvailable else { return timedOut ? "no answer" : "hammerspoon off" }
+        guard let bridgeVersion, !bridgeVersion.isEmpty else { return "not loaded" }
+        if bridgeVersion != AppIdentity.bridgeVersion {
+            return "\(bridgeVersion) \u{00B7} reload for \(AppIdentity.bridgeVersion)"
+        }
+        if !inputTapEnabled { return "tap off" }
+        if busyStale { return String(format: "busy %.0fs \u{00B7} stuck", busySeconds) }
+        if busy { return String(format: "busy %.0fs", busySeconds) }
+        if secureInput { return "secure input" }
+        guard let lastStatus, lastStatus != "ready" else { return "ready" }
+        return "ready \u{00B7} \(lastStatus)"
     }
 }
 
@@ -142,12 +165,23 @@ private enum HammerspoonIPC {
                 timedOut: false
             )
         }
+        // Wave 11 § B: the watchdog reading travels with the health reading, so one call answers both `is the
+        // bridge alive` and `is a dead run holding the gestures`. A bridge older than 2.4.0 has no
+        // `layoutPilotStatusLine`, and the tail comes back empty instead of failing the call.
         let command = """
         local accessibility = tostring(hs.accessibilityState())
         local inputTap = tostring(layoutPilotInputTap and layoutPilotInputTap:isEnabled() or false)
         local bridgeVersion = tostring(hs.settings.get('layout_pilot_bridge_ver') or '')
         local lastStatus = tostring(hs.settings.get('layout_pilot_last_status') or 'ready')
-        return table.concat({accessibility, inputTap, bridgeVersion, lastStatus}, '|')
+        local watchdog = ''
+        if layoutPilotStatus then
+          local status = layoutPilotStatus()
+          watchdog = table.concat({
+            tostring(status.busy), tostring(status.busyStale),
+            string.format('%.1f', status.busySeconds), tostring(status.secureInput)
+          }, '|')
+        end
+        return table.concat({accessibility, inputTap, bridgeVersion, lastStatus, watchdog}, '|')
         """
         guard let result = run(command, timeout: timeout) else {
             return HammerspoonHealth(
@@ -195,6 +229,7 @@ private enum HammerspoonIPC {
         }()
         let bridgeVersion = parts[2].isEmpty ? nil : parts[2]
         let lastStatus = parts[3].isEmpty ? nil : parts[3]
+        let watchdog = parts.count >= 8
         return HammerspoonHealth(
             ipcAvailable: true,
             executableFound: true,
@@ -202,7 +237,12 @@ private enum HammerspoonIPC {
             inputTapEnabled: parts[1] == "true",
             bridgeVersion: bridgeVersion,
             lastStatus: lastStatus,
-            timedOut: false
+            timedOut: false,
+            busy: watchdog && parts[4] == "true",
+            busyStale: watchdog && parts[5] == "true",
+            busySeconds: watchdog ? (Double(parts[6]) ?? 0) : 0,
+            secureInput: watchdog && parts[7] == "true",
+            watchdogAvailable: watchdog
         )
     }
 }
@@ -1152,8 +1192,11 @@ private final class DoubleShiftMonitor {
 private enum LayoutPilotPanelMetrics {
     static let width: CGFloat = 420
     /// wave 10: 488 pt up to 2.5.0; the `menu bar + hotkey` row of wave 10 adds a 14 pt heading, a 36 pt row and
-    /// two 8 pt gaps, and the page and the README carry the new default with it (rule 25)
-    static let height: CGFloat = 554
+    /// two 8 pt gaps. Wave 11 adds the `bridge` row the same way (heading, 36 pt row, two gaps) and 52 pt more:
+    /// with the setup card open the panel had been squeezing its rows below their declared height since the card
+    /// arrived, and the self-test now measures the row instead of trusting the bounds walk. The page and the
+    /// README carry the new default with it (rule 25)
+    static let height: CGFloat = 672
     /// window contract (AIM-APPS-RULES 21–26): 16 pt grid, 40 pt live mark, 28 pt header buttons, 11 pt footer
     static let grid: CGFloat = 16
     static let contentWidth: CGFloat = width - 2 * grid
@@ -1457,6 +1500,8 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
     private var pinButton: AIMPinButton?
     private var settingsButton: AIMShellButton?
+    /// Wave 11 § B: what this app did to the bridge, printed in the `bridge` row until the panel is rebuilt.
+    private var bridgeNote: String?
     /// Rule 33: one surface owns show, the read-only outside-click monitor and `close(reason:)`.
     private var surface: AIMSurface?
     private(set) var lastCloseReason: AIMSurface.CloseReason?
@@ -1553,9 +1598,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
 
         monitor = DoubleShiftMonitor { [weak self] in self?.performFix() }
         if usesHammerspoonBridge {
-            _ = HammerspoonIPC.run(
-                "if layoutPilotRestart then return tostring(layoutPilotRestart()) else hs.settings.set('layout_pilot_disabled_by_user', false); return tostring(layoutPilotReloadSettings()) end"
-            )
+            repairBridgeAtLaunch()
         } else {
             monitor.start()
         }
@@ -2095,12 +2138,72 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         barRow.addArrangedSubview(hotkeyButton)
         root.addArrangedSubview(barRow)
 
+        // Wave 11 § B: one row for the bridge. The reading is `layoutPilotStatus()` carried by the health call,
+        // and `restart bridge` is the single press that brings back a tap that is off and drops a busy flag left
+        // behind by a dead run. The bridge keeps the gestures, so a silent bridge reads as a silent product.
+        root.addArrangedSubview(relaySectionHeader("bridge", width: LayoutPilotPanelMetrics.contentWidth))
+        let bridgeRow = NSStackView()
+        bridgeRow.orientation = .horizontal
+        bridgeRow.alignment = .centerY
+        bridgeRow.spacing = 6
+        let bridgeState = stateReadout("bridge \u{00B7} \(bridgeStatusLabel)", width: 244, height: 36, textSize: 9.5)
+        bridgeState.identifier = NSUserInterfaceItemIdentifier("bridge-status")
+        bridgeState.toolTip = "tap, busy flag, secure input and the last status of the hammerspoon bridge"
+        bridgeState.setAccessibilityElement(true)
+        bridgeState.setAccessibilityRole(.staticText)
+        bridgeState.setAccessibilityLabel("bridge \u{00B7} \(bridgeStatusLabel)")
+        bridgeRow.addArrangedSubview(bridgeState)
+        let bridgeRestart = squareButton("restart bridge", action: #selector(restartBridge), identifier: "bridge-restart", width: 138, height: 36)
+        bridgeRestart.toolTip = "restart the gesture tap and release a stuck busy flag"
+        bridgeRestart.setAccessibilityHelp("Restart the Hammerspoon bridge of Language Relay")
+        bridgeRow.addArrangedSubview(bridgeRestart)
+        root.addArrangedSubview(bridgeRow)
+
         root.addArrangedSubview(setupDisclosure())
         return content
     }
 
     private var panelHealthLabel: String {
         PanelHealth.label(bridge: panelBridgeHealth, nativeTrusted: fixer.hasAccessibilityPermission, competingOwner: carambaRunning)
+    }
+
+    /// The `bridge` row of the settings (wave 11 § B): the reading of the bridge plus the note of a repair this
+    /// app did, either once at launch or by the press of `restart bridge`.
+    private var bridgeStatusLabel: String {
+        guard let health = panelBridgeHealth else {
+            return usesHammerspoonBridge ? "no reading" : "native \u{00B7} no bridge"
+        }
+        guard let note = bridgeNote else { return health.bridgeLine }
+        return "\(health.bridgeLine) \u{00B7} \(note)"
+    }
+
+    /// Wave 11 § B: at launch the app reads the bridge once. A tap that is off or a busy flag that outlived its
+    /// run means every gesture is dropped without a word, so the bridge is restarted one time and the panel says
+    /// so. A healthy bridge is only asked to re-read its settings, it is not restarted.
+    private func repairBridgeAtLaunch() {
+        let health = HammerspoonIPC.health(timeout: 0.6)
+        guard health.ipcAvailable else { return }
+        let reason: String? = !health.inputTapEnabled ? "tap was off" : (health.busyStale ? "busy flag was stuck" : nil)
+        guard let reason else {
+            _ = HammerspoonIPC.run("return tostring(layoutPilotReloadSettings())")
+            return
+        }
+        _ = HammerspoonIPC.run(
+            "if layoutPilotRestart then return tostring(layoutPilotRestart()) else hs.settings.set('layout_pilot_disabled_by_user', false); return tostring(layoutPilotReloadSettings()) end",
+            timeout: 1.0
+        )
+        bridgeNote = "restarted at launch, \(reason)"
+    }
+
+    @objc private func restartBridge() {
+        guard usesHammerspoonBridge else { return }
+        let answer = HammerspoonIPC.evaluate(
+            "if layoutPilotRestart then return tostring(layoutPilotRestart()) else return 'no-bridge' end",
+            timeout: 1.0
+        )
+        bridgeNote = answer == "true" ? "restarted by hand" : "restart refused"
+        rebuildPopoverContent()
+        updateStatusButton()
     }
 
     /// footer keys: the global combination of this product first (wave 10 C), then the gestures that are switched
@@ -2321,6 +2424,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         for weight: NSFont.Weight in [.regular, .medium, .semibold] {
             guard RelayStyle.mono(11, weight: weight).fontName.hasPrefix("IBMPlexMono") else { return false }
         }
+        // wave 11 B: the bridge line is a reading, not a label; three states, three texts, and a stuck flag is
+        // named as stuck instead of being hidden behind `ready`
+        let stuck = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: AppIdentity.bridgeVersion, lastStatus: "started-shift", timedOut: false, busy: true, busyStale: true, busySeconds: 9, secureInput: false, watchdogAvailable: true)
+        let stale = HammerspoonHealth(ipcAvailable: true, executableFound: true, accessibilityTrusted: true, inputTapEnabled: true, bridgeVersion: "2.3.3", lastStatus: "ready", timedOut: false)
+        guard healthy.bridgeLine == "ready",
+              denied.bridgeLine == "tap off",
+              unavailable.bridgeLine == "no answer",
+              stuck.bridgeLine == "busy 9s · stuck",
+              stale.bridgeLine == "2.3.3 · reload for \(AppIdentity.bridgeVersion)",
+              Set([healthy, denied, unavailable, stuck, stale].map(\.bridgeLine)).count == 5 else {
+            fputs("FAIL: bridge reading (wave 11 B)\n", stderr); return false
+        }
         for health in [healthy, denied, unavailable] {
             for expanded in [false, true] {
                 setupExpanded = expanded
@@ -2380,6 +2495,18 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                       keyButton.caption.lowercased().contains((hotkey == .off ? "off" : hotkey.title).lowercased()),
                       RelayFocus.target(in: panel, identifier: .init("menu-bar-heading")) is NSTextField else {
                     fputs("FAIL: menu bar row (wave 10 A, C)\n", stderr); return false
+                }
+                // wave 11 B: the bridge row states the reading and offers the one press that repairs it. The three
+                // health states print three different readings, so the row has a consequence by rules 38 and 41.
+                guard let bridgeState = RelayFocus.target(in: panel, identifier: .init("bridge-status")),
+                      bridgeState.accessibilityLabel()?.hasPrefix("bridge \u{00B7}") == true,
+                      bridgeState.accessibilityLabel()?.contains(health.bridgeLine) == true,
+                      // a panel too short for the row squeezes it instead of overflowing, which the bounds walk
+                      // above cannot see; the row keeps its 36 pt or the wave stops here
+                      bridgeState.frame.height == 36,
+                      let bridgeRestart = RelayFocus.target(in: panel, identifier: .init("bridge-restart")) as? RelayButton,
+                      bridgeRestart.frame.height == 36 else {
+                    fputs("FAIL: bridge row (wave 11 B)\n", stderr); return false
                 }
                 // window contract: settings + × in the header on the same line as the name, footer keys · esc close · version/status
                 let b = LayoutPilotPanelMetrics.headerButton
@@ -2917,6 +3044,24 @@ private struct LayoutPilotMain {
             ])
             exit(0)
         }
+        if arguments.contains("--bridge-json") {
+            // Wave 11 § B, rule 50: the watchdog reading offscreen. No window, no focus, no cursor: the route
+            // reads `layoutPilotStatus()` through the same health call the panel row prints.
+            let health = HammerspoonIPC.health(timeout: 1.0)
+            writeJSONObject([
+                "schemaVersion": 1, "app": AppIdentity.name, "version": AppIdentity.version,
+                "route": "bridge-json", "readOnly": true,
+                "expectedBridgeVersion": AppIdentity.bridgeVersion,
+                "bridgeVersion": health.bridgeVersion ?? "",
+                "ipcAvailable": health.ipcAvailable, "timedOut": health.timedOut,
+                "tap": health.inputTapEnabled, "busy": health.busy, "busyStale": health.busyStale,
+                "busySeconds": health.busySeconds, "secureInput": health.secureInput,
+                "watchdogAvailable": health.watchdogAvailable,
+                "lastStatus": health.lastStatus ?? "",
+                "bridgeActive": health.bridgeActive, "line": health.bridgeLine,
+            ])
+            exit(0)
+        }
         if let index = arguments.firstIndex(of: "--live-json") {
             // Read only: watches the system input source while the user works and prints every switch it saw.
             // Nothing is sent, no window is shown, no layout is changed; the route exists so a live layout
@@ -2986,6 +3131,9 @@ private struct LayoutPilotMain {
                 "hotkeyDefault": RelayHotkeyCombo.fallback.title,
                 "hotkey": RelayHotkeyCombo.named(UserDefaults.standard.string(forKey: RelayHotkeyCombo.key)).title,
                 "hotkeyChoices": RelayHotkeyCombo.choices.map(\.title),
+                "bridgeVersion": AppIdentity.bridgeVersion,
+                "bridgeRow": ["bridge-status", "bridge-restart"],
+                "bridgeWatchdog": "AIM-APPS-RULES wave 11 B",
             ])
             exit(0)
         }
@@ -2997,7 +3145,7 @@ private struct LayoutPilotMain {
                 "pair": [AppIdentity.usID, AppIdentity.russianPCID],
                 "scopes": ["word", "phrase"],
                 "capitalization": ["preserve", "sentence", "uppercase", "lowercase"],
-                "commands": ["convert", "convert-phrase", "switch", "status", "live", "doctor", "design", "setup", "quit"],
+                "commands": ["convert", "convert-phrase", "switch", "status", "live", "bridge", "doctor", "design", "setup", "quit"],
                 "localOnly": true,
                 "textLogging": false,
             ])
@@ -3034,7 +3182,7 @@ private struct LayoutPilotMain {
                 fputs("FAIL: background UI self-test\n", stderr)
                 exit(6)
             }
-            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; wave 10 B header 40pt voxel character, flat mark only in the bar; wave 10 A four bar modes (mark default, mark+value migrated once, value, hidden) with a live preview row; wave 10 C global ⌥⌘L in five offers, close reason hotkey; header order settings + pin + x 28pt, name untruncated, version line under the name, segment names follow selection, footer 11pt names the combination, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); setup hint card from AIMHintCard (rule 30); command-w close, tab reach, footer keys; panel=420x554; glyph=54x18; window=none")
+            print("PASS: background UI self-test; N1 tokens, reduced motion, local arrows, stable focus IDs, 6 health/disclosure layouts, bounds, AX labels, exclusive selections, Plex 400/500/600; shell L2 AIMAppHeader/AIMFooterLine/AIMPinButton/AIMSurface; wave 10 B header 40pt voxel character, flat mark only in the bar; wave 10 A four bar modes (mark default, mark+value migrated once, value, hidden) with a live preview row; wave 10 C global ⌥⌘L in five offers, close reason hotkey; header order settings + pin + x 28pt, name untruncated, version line under the name, segment names follow selection, footer 11pt names the combination, 16pt grid; appear tokens panel 200ms / window 180ms + 6pt; pin default off (transient, migrated once); setup hint card from AIMHintCard (rule 30); wave 11 B bridge row reads tap, busy flag and secure input with one restart press; command-w close, tab reach, footer keys; panel=420x672; glyph=54x18; window=none")
             exit(0)
         }
         if arguments.contains("--key-loop") {

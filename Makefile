@@ -1,4 +1,5 @@
 SHELL := /bin/zsh
+LUA ?= $(shell command -v lua || command -v lua5.5 || echo lua)
 
 APP_NAME := Language Relay
 BIN_NAME := LanguageRelay
@@ -28,7 +29,7 @@ CODESIGN_ID := $(if $(strip $(VALID_SIGN_ID)),$(SIGN_ID),-)
 sign-status:
 	@echo "SIGN_ID '$(SIGN_ID)': $(if $(strip $(VALID_SIGN_ID)),valid in login keychain,not valid (ad-hoc fallback))"
 
-.PHONY: all build icon test design-check background-test shutdown-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
+.PHONY: all build icon test bridge-test design-check background-test shutdown-test integration-test live-harness shift-emitter live-integration-test setup install rollback clean
 
 all: build
 
@@ -64,9 +65,14 @@ $(BUILD_STAMP): native/LayoutPilot.swift $(SHAPERKIT) native/NativeWhite.swift n
 	codesign --force --deep --sign "$(CODESIGN_ID)" --identifier dev.alex.layout-pilot "$(APP_DIR)"
 	touch "$(BUILD_STAMP)"
 
-test: build
+test: build bridge-test
 	"$(APP_DIR)/Contents/MacOS/$(BIN_NAME)" --self-test
 	"$(APP_DIR)/Contents/MacOS/$(BIN_NAME)" --ui-self-test
+
+# Bridge watchdog offscreen (wave 11 B, rule 50): the lua runs against a stub Hammerspoon, so the owner's
+# configuration is never loaded, reloaded or touched.
+bridge-test:
+	$(LUA) tests/bridge-watchdog.lua
 
 design-check:
 	node scripts/sync-design-tokens.mjs --check

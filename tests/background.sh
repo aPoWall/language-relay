@@ -92,7 +92,12 @@ fi
 /bin/test -f "$HOME/.config/language-relay/hammerspoon-bridge"
 [[ "$(find "$HOME/Applications/Language Relay.app/Contents/Resources/Sounds" -type f -name '*.aiff' | wc -l | tr -d ' ')" == "8" ]]
 
-[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "2.3.3" ]]
+# The live bridge must be the one that is installed, not the one the repository holds: a wave that changes the
+# lua reaches Hammerspoon only after the owner applies it (install-runtime.sh install, then his own reload).
+layout_installed_bridge="$HOME/.config/language-relay/hammerspoon.lua"
+layout_bridge_version="$(/usr/bin/sed -n 's/^local layoutPilotBridgeVersion = "\(.*\)"$/\1/p' "$layout_installed_bridge")"
+[[ -n "$layout_bridge_version" ]]
+[[ "$($layout_hs -c 'return hs.settings.get("layout_pilot_bridge_ver")')" == "$layout_bridge_version" ]]
 [[ "$($layout_hs -c 'return tostring(layoutPilotInputTap and layoutPilotInputTap:isEnabled())')" == "true" ]]
 [[ "$($layout_hs -c 'return layoutPilotQADefaultFixMode()')" == "lastWord" ]]
 [[ "$($layout_hs -c 'local value="🙂 first"..string.char(10).."Привет ghbdtn"; local r=layoutPilotQARange(value, 22, true); return r.location.."|"..r.length')" == "9|13" ]]
@@ -119,6 +124,15 @@ layout_compatibility="$($layout_hs -c 'return layoutPilotQACompatibility()')"
 [[ -n "$layout_compatibility" ]]
 [[ "$($layout_hs -c 'return tostring(layoutPilotQAOptionSequence("clean")).."|"..tostring(layoutPilotQAOptionSequence("with-key")).."|"..tostring(layoutPilotQAOptionSequence("with-command"))')" == "true|false|false" ]]
 [[ "$($layout_hs -c 'return layoutPilotQACanUseDirectAX(false,false,false).."|"..layoutPilotQACanUseDirectAX(true,false,true).."|"..layoutPilotQACanUseDirectAX(false,true,true).."|"..layoutPilotQACanUseDirectAX(false,false,true)')" == "false|false|false|true" ]]
+# wave 11 B: the bridge watchdog offscreen, against a stub Hammerspoon; the owner's configuration is untouched
+${LUA:-lua} "$layout_root/tests/bridge-watchdog.lua"
+# wave 11 B: the watchdog reading has a route of its own and it is read only
+layout_bridge_json="$("$layout_built" --bridge-json)"
+[[ "$layout_bridge_json" == *'"route":"bridge-json"'* ]]
+[[ "$layout_bridge_json" == *'"readOnly":true'* ]]
+rg -q 'layoutPilotBusyTimeout = 5' "$layout_root/hammerspoon-layout-pilot.lua"
+rg -q 'function layoutPilotStatus' "$layout_root/hammerspoon-layout-pilot.lua"
+rg -q 'busy-timeout' "$layout_root/hammerspoon-layout-pilot.lua"
 rg -q 'clean Option tap' "$layout_root/hammerspoon-layout-pilot.lua"
 rg -q 'layoutPilotInputTap:stop' "$layout_root/hammerspoon-layout-pilot.lua"
 ! rg -q 'selecting-line|selected-by-pilot|AXSelectedTextRange", directRange' "$layout_root/hammerspoon-layout-pilot.lua"

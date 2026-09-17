@@ -1,5 +1,31 @@
 # Changelog
 
+## 2.5.2 build 26 – 2026-09-17
+
+- wave 11 § B, the bridge watchdog. `layoutPilotBusy` carries the moment it was raised and has a lifetime of
+  five seconds: a flag older than that is released at the next gesture, the status is written down as
+  `busy-timeout` and the gesture runs. This is the failure the owner met on 2026-09-17, when a repair died
+  between two callbacks and every ⇧⇧ and ⌥ after it was dropped in silence until Hammerspoon was reloaded;
+- every exit of the repair path now passes through a reset. The body of `layoutPilotFix` runs under `pcall`,
+  so an accessibility read that raises ends in `fix-error` with the flag down instead of holding it for good;
+  the same guard wraps the write path inside the conversion callback (`apply-error`), and `layoutPilotRestart`
+  drops the flag with the run token. The flag has one writer, `layoutPilotSetBusy`;
+- `layoutPilotStatus()` reads the bridge in one call: `tap`, `busy`, `busySeconds`, `busyStale`,
+  `secureInput`, `lastStatus`, `version` and `settings`. It is read only and repairs nothing by itself, so the
+  app can see a stuck flag and decide. `layoutPilotStatusLine()` is the same reading in one line for the app;
+- the panel gets a `bridge` row: the reading on the left (`bridge-status`) and one `restart bridge` press on
+  the right (`bridge-restart`). At launch the app reads the bridge once and restarts it only when the tap is
+  off or a flag is stuck, and the row names the repair it did;
+- `LanguageRelay --bridge-json` prints the same reading with no window, no focus and no cursor (rule 50), and
+  `make bridge-test` drives the bridge against a stub Hammerspoon in pure lua: the five second release, the
+  path that used to leave the flag raised, the restart and the one-writer rule. Nothing loads or reloads the
+  owner's configuration;
+- the panel frame is 420 × 672. The `bridge` row adds a heading, a 36 pt row and two gaps; the remaining 52 pt
+  repair a squeeze that arrived with the setup card, where the rows below it were laid out shorter than they
+  declare. The self-test now measures the row height instead of trusting the bounds walk;
+- bridge protocol 2.4.0. It reaches Hammerspoon when the owner applies it; until then the row reads
+  `2.3.3 · reload for 2.4.0` and the gestures keep working on the bridge that is loaded.
+
 ## 2.5.1 build 25 – 2026-09-17
 
 - the header character answers to `header-character`, the slot name MEM PRISM and Calendar Control already

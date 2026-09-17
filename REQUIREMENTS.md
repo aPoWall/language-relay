@@ -10,6 +10,10 @@ global combination; those rows are the `B1` to `B3`, `M6` and `K1` to `K3` entri
 A review of wave 10 on 2026-09-17 added the `M7` and `K4` rows and closed the dead bar-mode state; build 25
 carries them.
 
+Wave 11 (`SPRINT-2026-09-17-QUIET.md` § B, E) added the bridge watchdog and the offscreen boundary of rule 50;
+those rows are `W1` to `W6` and the reworked `P5`, `G4` and `C2` entries below. Build 26 carries them, and the
+receipts are `docs/QA-2026-09-17-quiet.md`.
+
 Legend: `done` shipped and asserted by a test or a stand run · `open` still to do · `exception` declared
 deviation with a reason · `blocked` waits for a decision or an access outside the product.
 
@@ -21,7 +25,7 @@ deviation with a reason · `blocked` waits for a decision or an access outside t
 | P2 | bottom line in three parts: keys · `esc close` · version and health, 11 pt muted | wave 3 § B, rule 22 | done · `--ui-self-test` footer checks | 2026-09-14 |
 | P3 | 16 pt grid for content, gaps and buttons | wave 3 § B, rule 23 | done · `--ui-self-test` grid check | 2026-09-14 |
 | P4 | content laid out before the panel shows, only the mark moves on appear | wave 3 § B, rules 24, 28 | done · appear tokens asserted, panel 200 ms | 2026-09-16 |
-| P5 | shell frame 420 x 488, the mark does not widen it | wave 3 § B, rule 25 | superseded · wave 10 adds the `menu bar + hotkey` row and the default frame is 420 x 554; `panelWidth`/`panelHeight` in `--design-json`, the page, the README and DESIGN carry the new pair. Rule 25 in the shared rule book still prints 420 x 488 and is the coordinator's line to change | 2026-09-17 |
+| P5 | shell frame 420 x 488, the mark does not widen it | wave 3 § B, rule 25 | superseded · the default frame is 420 x 672 in build 26: wave 10 added the `menu bar + hotkey` row, wave 11 the `bridge` row, and 52 pt more close a squeeze that arrived with the setup card, where the rows below it were laid out at 14 to 30 pt against the 36 pt they declare. `--ui-self-test` now measures the row height, so the next wave that runs out of room fails instead of shrinking. `panelWidth`/`panelHeight` in `--design-json`, the page, the README and DESIGN carry the new pair. Rule 25 in the shared rule book still prints 420 x 488 and is the coordinator's line to change | 2026-09-17 |
 | P6 | shell built from the shared L2 components, no private copies | wave 7 § B, rule 40 | done · `AIMAppHeader`, `AIMFooterLine`, `AIMPinButton`, `AIMSurface` | 2026-09-16 |
 | P7 | one close: escape, ⌘W, `×`, bar item, hotkey, testbed route reach one `close(reason:)` | wave 5, rules 29, 33 | done · `closeReasons` in `--design-json` | 2026-09-16 |
 | P8 | transient panel, pin off by default, one `AIMPinButton` with identifier `pin-panel` | wave 5, wave 6 § C, rule 31 | done · migration key `migratedPinToTransient.2.4.0` | 2026-09-16 |
@@ -47,7 +51,7 @@ deviation with a reason · `blocked` waits for a decision or an access outside t
 | G1 | repair gestures ⇧⇧ and ⌥ switchable, the footer names only the ones that are on | wave 3, wave 4 | done · `gesture-shift`, `gesture-option`, footer keys check | 2026-09-14 |
 | G2 | panel at or below 2 % CPU during a layout switch, a cue and a gesture | wave 3 § B | done · panel open and idle on 2.5.0: 0.2 to 0.6 per cent over six samples (`docs/QA-2026-09-17.md`); the repair, cue and gesture paths keep the 2.3.7 measurement, since firing a repair moves the input source of the working machine | 2026-09-17 |
 | G3 | the panel reading of the active layout follows a live input source change | wave 9 § D | done · `--live-json --seconds N`, read only; on an idle Mac two switches through the product's own route were read back at 2.36 s and 4.43 s with the layout restored (`docs/QA-2026-09-17.md`); the first build of the watch missed them and was fixed in build 23 | 2026-09-17 |
-| G4 | full live keyboard run (`make live-integration-test`) | repo harness | blocked by the sprint boundary · the harness activates a window and emits keys, which takes the focus and the layout of the working machine; it runs when the Mac is free, not during a wave | 2026-09-17 |
+| G4 | full live keyboard run (`make live-integration-test`) | repo harness | blocked by rule 50 · the harness activates a window and emits keys, which takes the focus and the layout of the owner's machine. Wave 11 names its home: the VM stand of `internal-sites/aim-product-system/testbed/vm/`. It is not a boundary waiting to be lifted on this Mac | 2026-09-17 |
 
 ## Menu bar and keys
 
@@ -61,13 +65,24 @@ deviation with a reason · `blocked` waits for a decision or an access outside t
 | K2 | a combination that conflicts is shown in a red line and is not stored | wave 10 § C | done · the section heading turns to the accent colour and prints the refusal; Carbon reports an app-held and a system-held combination the same way, which the QA notes as open | 2026-09-17 |
 | K3 | the bottom line names the combination | wave 10 § C | done · `hint-keys` reads `⌥⌘L ⇧⇧⌥ repair`, and the self-test measures all three parts so the right one stops truncating | 2026-09-17 |
 
+## Bridge watchdog
+
+| id | requirement | source | status | date |
+|----|-------------|--------|--------|------|
+| W1 | `layoutPilotBusy` gets a lifetime: a flag older than five seconds is released, the status is written `busy-timeout` and the next gesture works | wave 11 § B | done · `layoutPilotBusyTimeout = 5`, released in `layoutPilotFix`; the fresh, the stale and the twice-released flag are checked in `tests/bridge-watchdog.lua` | 2026-09-17 |
+| W2 | every exit of `layoutPilotFix` and `layoutPilotConvert` passes through a reset, the path without one is covered by a test | wave 11 § B | done · the body of the repair runs under `pcall` (`fix-error`), the write inside the conversion callback under its own (`apply-error`), `layoutPilotRestart` drops the flag with the run token, and the flag has one writer, `layoutPilotSetBusy`. The test raises inside the accessibility read, the exact path that held the flag on 2026-09-17 | 2026-09-17 |
+| W3 | `layoutPilotStatus()` returns tap, busy, secureInput, lastStatus, settings | wave 11 § B | done · plus `busySeconds`, `busyStale`, `busyTimeout` and `version`; read only, it repairs nothing by itself, and `layoutPilotStatusLine()` is the same reading in one line for the app. `--bridge-json` prints it with no window | 2026-09-17 |
+| W4 | the panel shows `bridge · <state>` and a `restart bridge` button | wave 11 § B | done · `bridge-status` and `bridge-restart` in the panel, five readings for five states asserted in `--ui-self-test`, the row measured at 36 pt; the press is verified at the bridge level by the lua test and was not fired on the owner's machine (rule 50) | 2026-09-17 |
+| W5 | at launch the app checks the bridge and restarts it once when the tap is off or the flag is stuck, and writes it into the hint | wave 11 § B | done · `repairBridgeAtLaunch()`; a healthy bridge is only asked to re-read its settings, a repaired one adds `restarted at launch, <reason>` to the `bridge` row. Before build 26 the launch restarted the bridge every time, whatever its state | 2026-09-17 |
+| W6 | the bridge protocol version follows the change | wave 11 § B, rule 13 | partial · the repository carries 2.4.0 and the app expects it; Hammerspoon has 2.3.3 until the owner applies the lua (`./install-runtime.sh install`, then his own reload). Until then the row reads `2.3.3 · reload for 2.4.0` and the gestures keep working on the loaded bridge. `tests/background.sh` compares the live bridge against the installed file instead of a number frozen in the test | 2026-09-17 |
+
 ## Controls, tests and release
 
 | id | requirement | source | status | date |
 |----|-------------|--------|--------|------|
 | C1 | every control walked on the stand, table control -> press -> what changed | wave 4 § 4, wave 7 § C, rules 38, 41 | done · the full walk of every control is `docs/QA-2026-09-16-c.md`; the setup block of 2.5.0 is walked in `docs/QA-2026-09-17.md` and the wave 10 block in `docs/QA-2026-09-17-menubar.md`, where the two menu buttons are driven through their testbed routes because a non-activating panel cannot hold an NSMenu | 2026-09-17 |
-| C2 | windows only through `--testbed`, no synthetic click, no activation, cursor untouched | wave 5 § A | done · every run in this repo goes through `--testbed` and `axdrive` | 2026-09-17 |
-| C3 | release through `release-app.mjs relay --install`, zip, SHA, release notes, page version | wave 3 § C, rule 13 | done for 2.5.1 build 25 · zip `f6f43950…73e4dd57` in `sites/apps/language-relay/`, `SHA256SUMS.txt` and the page version updated, nothing committed in `lab-sites` | 2026-09-17 |
-| C4 | install through the product installer with a backup, no process killed | wave 2, wave 9 boundaries | done · `./install-runtime.sh update-background` keeps the previous bundle | 2026-09-17 |
+| C2 | no window on the owner's machine: offscreen render, accessibility without a show, snapshot of an open window by id | wave 5 § A, wave 11 § C, rule 50 | done · wave 11 used `--self-test`, `--ui-self-test`, `--bridge-json`, `--render-ui` and `make bridge-test` only; `--testbed` was not used and no window was shown. The route stays for debugging on an explicit ask | 2026-09-17 |
+| C3 | release through `release-app.mjs relay`, zip, SHA, release notes, page version | wave 3 § C, rule 13 | done for 2.5.2 build 26 · zip `02369d70…0c1dd68b` in `sites/apps/language-relay/`, `SHA256SUMS.txt`, release notes and the page version updated, nothing committed in `lab-sites`. `--install` was not passed: the wave changes the bridge, and `update-background` refuses a changed bridge on purpose | 2026-09-17 |
+| C4 | install through the product installer with a backup, no process killed | wave 2, wave 9 boundaries | open for the owner · the wave changes `hammerspoon-layout-pilot.lua`, so the apply is `./install-runtime.sh install` (staged copy, verified rollback snapshot) followed by the owner's own Hammerspoon reload. No install ran in this wave | 2026-09-17 |
 | C5 | signing identity that survives a rebuild, so permissions stay granted | wave 3 § C, rule 26 | blocked · the `AIM Mini Apps` identity waits for Alex to trust it; builds stay ad-hoc, commands are in `RELEASE-PIPELINE.md` | 2026-09-14 |
-| C6 | product page: version, what's new, zip, SHA, panel screenshot, EN and RU | wave 3 § D, rules 11, 12 | done for 2.5.1 · new stand shot `assets/window.png`, the frame line reads 420 × 554, the feature tiles name the bar modes and the combination in both languages | 2026-09-17 |
+| C6 | product page: version, what's new, zip, SHA, panel screenshot, EN and RU | wave 3 § D, rules 11, 12 | done for 2.5.2 · offscreen shot `assets/window.png` 840 × 1344, the frame line reads 420 × 672, the gesture tile names the five second release and the control paragraph names the `bridge` row, both languages | 2026-09-17 |
