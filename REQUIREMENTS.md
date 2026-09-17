@@ -7,6 +7,9 @@ Wave 9 (`SPRINT-2026-09-17-JANITOR.md` § D) asked for this ledger and for the l
 Wave 10 (`SPRINT-2026-09-17-MENUBAR.md` § A, B, C) added the bar contract, the character in the header and the
 global combination; those rows are the `B1` to `B3`, `M6` and `K1` to `K3` entries below.
 
+A review of wave 10 on 2026-09-17 added the `M7` and `K4` rows and closed the dead bar-mode state; build 25
+carries them.
+
 Legend: `done` shipped and asserted by a test or a stand run · `open` still to do · `exception` declared
 deviation with a reason · `blocked` waits for a decision or an access outside the product.
 
@@ -34,7 +37,8 @@ deviation with a reason · `blocked` waits for a decision or an access outside t
 | M3 | menu bar icon and header mark are one drawing from `aim-app-marks.svg` | wave 7 § A, rule 39 | amended by wave 10 § B · the bar, About and the favicons keep the flat drawing through `AIMAppMarkView`; the header carries the voxel character. One source for the flat mark still holds, `AIMAppMarks.sourceSHA256` is checked | 2026-09-17 |
 | M4 | the mark rework of wave 6 (`relay-arch`) | wave 6 § C | superseded · wave 9 header returns the product to the two arrows; `relay-arch` stays in the svg as a resolved id | 2026-09-16 |
 | M5 | vendored exports byte for byte, verified by sha-256 | wave 3 § A, rule 10 | done · `make design-check`, 18 artifacts; wave 10 re-synced `aim-app-marks.svg` (`401c8793…`) after the prism glyph was simplified upstream | 2026-09-17 |
-| M6 | the voxel character stands in the panel header at 40 pt and answers the cursor and a click; the flat mark lives in the bar, About and the favicons | wave 10 § B | done · `product-character` in `--ui-self-test`, the stand shot `relay-testbed.png`; `AXPress` on the character is refused by design, the gesture needs a key window (`docs/QA-2026-09-17-menubar.md`) | 2026-09-17 |
+| M6 | the voxel character stands in the panel header at 40 pt and answers the cursor and a click; the flat mark lives in the bar, About and the favicons | wave 10 § B | done · `header-character` in `--ui-self-test` and in the stand tree, the shot `relay-251-b25-panel.png`; `AXPress` on the character is refused by design, the gesture needs a key window (`docs/QA-2026-09-17-menubar.md`) | 2026-09-17 |
+| M7 | one slot name across the family: the header character answers to `header-character`, as it does in MEM PRISM and Calendar Control, so the rule 41 walk and the rule 48 check read three headers with one selector | review of wave 10, rules 41, 48 | done in build 25 · the id sits on the view and on its accessibility element; the version line under the name keeps `product-version` and the other two name that node not at all, so a family-wide id for the version slot belongs in `AIMAppShell.swift` and is the coordinator's line. Relay's header also carries no tagline node, which the other two have | 2026-09-17 |
 
 ## Gestures and live layout
 
@@ -53,6 +57,7 @@ deviation with a reason · `blocked` waits for a decision or an access outside t
 | B2 | a click on the item opens the panel, a second click closes it; the position survives a rebuild | wave 10 § A | done · `statusItemAction` since 2.4.1, `autosaveName dev.alex.layout-pilot.status-item.v3` | 2026-09-17 |
 | B3 | the settings row `menu bar` shows a live preview of the item in the chosen mode | wave 10 § A | done · `menu-bar-preview` beside `menu-bar-mode`, redrawn on a mode change and on a layout switch, four states in `relay-251-bar-modes.png` | 2026-09-17 |
 | K1 | one global combination opens and closes the panel, ⌥⌘L by default, changed in the product settings | wave 10 § C | done · `RelayHotkeyCombo`, Carbon registration, `.hotkey` in `closeReasons` | 2026-09-17 |
+| K4 | how deep the combination is editable | review of wave 10, rule 49 | exception · Relay offers a curated list of four combinations plus off (`RelayHotkeyCombo.choices`), while MEM PRISM ships a free recorder, so rule 49 reads at two depths across the family and the design-system demo of block 19 matches the recorder alone. The list stays until the coordinator sets one shape for the four products in rule 49; Relay follows whichever shape lands | 2026-09-17 |
 | K2 | a combination that conflicts is shown in a red line and is not stored | wave 10 § C | done · the section heading turns to the accent colour and prints the refusal; Carbon reports an app-held and a system-held combination the same way, which the QA notes as open | 2026-09-17 |
 | K3 | the bottom line names the combination | wave 10 § C | done · `hint-keys` reads `⌥⌘L ⇧⇧⌥ repair`, and the self-test measures all three parts so the right one stops truncating | 2026-09-17 |
 
@@ -62,7 +67,7 @@ deviation with a reason · `blocked` waits for a decision or an access outside t
 |----|-------------|--------|--------|------|
 | C1 | every control walked on the stand, table control -> press -> what changed | wave 4 § 4, wave 7 § C, rules 38, 41 | done · the full walk of every control is `docs/QA-2026-09-16-c.md`; the setup block of 2.5.0 is walked in `docs/QA-2026-09-17.md` and the wave 10 block in `docs/QA-2026-09-17-menubar.md`, where the two menu buttons are driven through their testbed routes because a non-activating panel cannot hold an NSMenu | 2026-09-17 |
 | C2 | windows only through `--testbed`, no synthetic click, no activation, cursor untouched | wave 5 § A | done · every run in this repo goes through `--testbed` and `axdrive` | 2026-09-17 |
-| C3 | release through `release-app.mjs relay --install`, zip, SHA, release notes, page version | wave 3 § C, rule 13 | done for 2.5.1 · zip `a33079d6…358e1464` in `sites/apps/language-relay/`, `SHA256SUMS.txt` and the page version updated, nothing committed in `lab-sites` | 2026-09-17 |
+| C3 | release through `release-app.mjs relay --install`, zip, SHA, release notes, page version | wave 3 § C, rule 13 | done for 2.5.1 build 25 · zip `f6f43950…73e4dd57` in `sites/apps/language-relay/`, `SHA256SUMS.txt` and the page version updated, nothing committed in `lab-sites` | 2026-09-17 |
 | C4 | install through the product installer with a backup, no process killed | wave 2, wave 9 boundaries | done · `./install-runtime.sh update-background` keeps the previous bundle | 2026-09-17 |
 | C5 | signing identity that survives a rebuild, so permissions stay granted | wave 3 § C, rule 26 | blocked · the `AIM Mini Apps` identity waits for Alex to trust it; builds stay ad-hoc, commands are in `RELEASE-PIPELINE.md` | 2026-09-14 |
 | C6 | product page: version, what's new, zip, SHA, panel screenshot, EN and RU | wave 3 § D, rules 11, 12 | done for 2.5.1 · new stand shot `assets/window.png`, the frame line reads 420 × 554, the feature tiles name the bar modes and the combination in both languages | 2026-09-17 |

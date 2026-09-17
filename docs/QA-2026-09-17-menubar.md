@@ -32,7 +32,7 @@ windows through `--testbed` only, no synthetic click, no activation, the cursor 
 | `--testbed hotkey control-option-l` | route | `--design-json` `hotkey=⌃⌥L`, the button caption and the bottom line follow |
 | `--testbed hotkey off` | route | `hotkey=off`, the bottom line drops the combination and prints the gestures alone |
 | `--testbed hotkey option-command-l` | route | `hotkey=⌥⌘L`, registered again, the default restored |
-| `product-character` | `AXPress` is refused with `-25206` | the character answers the cursor and a real click, and Enter or Space where the window is key; a testbed popover is never key, so the gesture is checked in the VM stand or by hand. The vendored `AIMVoxelView` owns this behaviour and is not patched per product |
+| `header-character` | `AXPress` is refused with `-25206` | the character answers the cursor and a real click, and Enter or Space where the window is key; a testbed popover is never key, so the gesture is checked in the VM stand or by hand. The vendored `AIMVoxelView` owns this behaviour and is not patched per product |
 
 Screenshots: `/tmp/codex-screenshots/menubar/relay-251-bar-modes.png` (four modes in the row),
 `relay-testbed.png` (the live panel on the stand), `relay-251-denied-footer.png` (the bottom line in its
@@ -40,7 +40,7 @@ longest state), `relay-251-mode-*.png` (the panel per mode).
 
 ## What the self-test now asserts
 
-- the header carries `product-character` as an `AIMVoxelView` 40 pt with the relay model, and `product-mark` is
+- the header carries `header-character` as an `AIMVoxelView` 40 pt with the relay model, and `product-mark` is
   absent from the panel;
 - the bar row prints a template image whose size is the width of the current mode, `hidden` draws nothing;
 - four modes, `mark` by default, the migration moves an installed setup to `mark + value` once and leaves a
@@ -55,3 +55,20 @@ longest state), `relay-251-mode-*.png` (the panel per mode).
   `held by another app` in both cases. Distinguishing the two needs a system shortcut inventory, which no
   public API gives cheaply.
 - The keyboard gesture of the character (Enter, Space) is not reachable from the stand, see the walk table.
+
+## Review fixes, build 25 · 2026-09-17
+
+Stand run on the installed 2.5.1 build 25, panel id 14319 through `--testbed show`, frontmost Telegram before
+and after, no app took the focus.
+
+| finding | check | result |
+|---|---|---|
+| dead `hiddenModeArmed` | `grep -n hiddenModeArmed native/LayoutPilot.swift` | no hit; `make test` and `--ui-self-test` pass |
+| the gate still stands | press `\|menu-bar-mode` → `tree` on the menu window | `AXMenuItem "hidden · no item in the bar, hotkey opens the panel"` carries no action of its own, only a submenu with `hide the item · confirm` (`setModeHidden`) and `keep the item in the bar` (`setModeMark`) |
+| the setter still works without the flag | press the menu item `value`, then `mark + value` | the row reads `bar · value · ▾` and the preview `menu bar preview · value`, then back to `mark + value`; `defaults read dev.alex.layout-pilot menuBarMode` follows each press (`value`, `mark-value`) |
+| one slot name for the family | `tree --window 14319` | `AXImage desc="language relay character" id="header-character"` in the header group, the same id MEM PRISM and Calendar Control expose; `product-mark` absent |
+| the version slot | `tree --window 14319` | `AXStaticText id="product-version" value="2.5.1 · build 25"`; MEM PRISM and Calendar Control name that node not at all, so one selector for the version line waits for the shell |
+
+Screenshots: `/tmp/codex-screenshots/menubar/relay-251-b25-panel.png` (the panel),
+`relay-251-b25-barmodes-menu.png` (the four modes with the `hidden` submenu open),
+`relay-251-b25-header.png` (the header), tree dump `relay-251-b25-tree.txt`.

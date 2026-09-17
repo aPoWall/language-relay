@@ -1227,6 +1227,9 @@ struct RelayHotkeyCombo: Equatable {
     static let off = RelayHotkeyCombo(id: "off", keyCode: 0, carbonModifiers: 0, title: "off")
     /// The sibling products hold ⌥⌘M (MEM PRISM), ⌥⌘C (Calendar Control) and ⌥⌘A (Aside Tweaks), so none of the
     /// four letters appears twice in this list.
+    /// Depth of rule 49, recorded as an exception (`REQUIREMENTS.md` K4): Relay offers this curated list and off,
+    /// MEM PRISM ships a free recorder with a red conflict line, so the same rule reads at two depths across the
+    /// family. The list holds until the coordinator sets one shape for the four products in rule 49.
     static let choices: [RelayHotkeyCombo] = [
         RelayHotkeyCombo(id: "option-command-l", keyCode: 37, carbonModifiers: UInt32(optionKey | cmdKey), title: "⌥⌘L"),
         RelayHotkeyCombo(id: "control-option-l", keyCode: 37, carbonModifiers: UInt32(controlKey | optionKey), title: "⌃⌥L"),
@@ -1527,8 +1530,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     }
     /// set when Carbon refused the last chosen combination, printed in red under the row and not stored
     private var hotkeyConflict: String?
-    /// the `hidden` mode asks for a second press before the item leaves the bar
-    private var hiddenModeArmed = false
 
     init(core: LayoutConversionCore) {
         self.core = core
@@ -1677,7 +1678,6 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
     /// Wave 10 § A: a new mode is stored, the bar item is redrawn at once and the panel row follows.
     private func setMenuBarMode(_ mode: RelayMenuBarMode) {
         menuBarMode = mode
-        hiddenModeArmed = false
         updateStatusButton()
         rebuildPopoverContent()
     }
@@ -1944,7 +1944,11 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         // which keeps the 40 pt box, the order and the centre line of rule 32 untouched.
         let character = AIMVoxelView(model: AIMVoxelModels.relay,
                                      frame: NSRect(x: 0, y: 0, width: LayoutPilotPanelMetrics.markSize, height: LayoutPilotPanelMetrics.markSize))
-        character.identifier = NSUserInterfaceItemIdentifier("product-character")
+        character.identifier = NSUserInterfaceItemIdentifier("header-character")
+        // one slot name for the family: MEM PRISM and Calendar Control name the same node `header-character`,
+        // so the rule 41 walk and the rule 48 check read the three headers with one selector
+        character.setAccessibilityIdentifier("header-character")
+        character.setAccessibilityLabel("language relay character")
         character.translatesAutoresizingMaskIntoConstraints = false
         character.toolTip = "language relay \u{00B7} click to mirror the arrows"
         if let markRow = header.markView.superview as? NSStackView {
@@ -2356,7 +2360,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 }
                 // wave 10 B: the header carries the voxel character 40 pt; the flat mark stays in the menu bar
                 let m = LayoutPilotPanelMetrics.markSize
-                guard let mark = RelayFocus.target(in: panel, identifier: .init("product-character")) as? AIMVoxelView,
+                guard let mark = RelayFocus.target(in: panel, identifier: .init("header-character")) as? AIMVoxelView,
                       mark.frame.size == NSSize(width: m, height: m),
                       mark.model.name == AIMVoxelModels.relay.name,
                       mark.currentVoxels.count == AIMVoxelModels.relay.count,
@@ -2379,7 +2383,7 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
                 }
                 // window contract: settings + × in the header on the same line as the name, footer keys · esc close · version/status
                 let b = LayoutPilotPanelMetrics.headerButton
-                guard let shellHeader = RelayFocus.target(in: panel, identifier: .init("product-character"))?.superview?.superview as? AIMAppHeader,
+                guard let shellHeader = RelayFocus.target(in: panel, identifier: .init("header-character"))?.superview?.superview as? AIMAppHeader,
                       let settings = RelayFocus.target(in: panel, identifier: .init("settings")) as? AIMShellButton,
                       let pin = RelayFocus.target(in: panel, identifier: .init("pin-panel")) as? AIMPinButton,
                       let close = RelayFocus.target(in: panel, identifier: .init("close-panel")) as? AIMShellButton,
@@ -2681,8 +2685,9 @@ private final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDeleg
         menu.popUp(positioning: nil, at: NSPoint(x: 0, y: sender.bounds.maxY + 2), in: sender)
     }
     /// Wave 10 A: one list of four, each row carrying the drawing it will put in the bar. `hidden` is one step
-    /// deeper: the row opens a submenu whose single item is the confirmation, so an item never leaves the bar on
-    /// a mis-click.
+    /// deeper: it asks for a second press before the item leaves the bar. The row opens a submenu that carries the
+    /// confirmation and the way back, so an item never leaves the bar on a mis-click; the gate lives here and
+    /// nowhere else, the mode setter stores whatever the confirmed row hands it.
     @objc private func showMenuBarModeMenu(_ sender: RelayButton) {
         let russian = InputSources.currentID() == AppIdentity.russianPCID
         let current = menuBarMode

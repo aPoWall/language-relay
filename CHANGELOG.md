@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.5.1 build 25 – 2026-09-17
+
+- the header character answers to `header-character`, the slot name MEM PRISM and Calendar Control already
+  carry, so the rule 41 walk and the rule 48 check read the three headers with one selector; the name is set
+  on the view and on its accessibility element, and the label reads `language relay character`. The version
+  line under the name keeps `product-version`: the other two products expose no identifier there at all, so a
+  family-wide name for that slot belongs in `AIMAppShell.swift` and is the coordinator's line to draw;
+- the dead `hiddenModeArmed` flag is gone. It was never read or set, while the second press that keeps an item
+  from leaving the bar on a mis-click lives in the `hidden` submenu of the bar mode menu; the comment that
+  described the gate moved there, to the code that implements it.
+
 ## 2.5.1 build 24 – 2026-09-17
 
 - wave 10 § A, the bar item is a choice of four: `mark` (the default, the product mark alone), `mark + value`
@@ -12,7 +23,7 @@
 - wave 10 § B, the voxel character returns to the panel header at 40 pt, lifts under the cursor and mirrors
   its arrows on click; the flat mark of `aim-app-marks.svg` keeps the menu bar, About and the favicons. The
   shell header hands over its mark slot inside the same stack, so the order, the box and the centre line of
-  rule 32 are untouched and the identifier is `product-character`;
+  rule 32 are untouched and the node is named `header-character`, the slot name of the family;
 - wave 10 § C, one global combination opens and closes the panel: ⌥⌘L by default, `⌃⌥L`, `⌥⌘R`, `⌥⌘K` or off,
   registered through Carbon. A combination another app holds comes back refused, the section heading prints it
   in red and the refusal is not stored. `.hotkey` joins the close reasons of rule 33 and the bottom line names
